@@ -14,35 +14,38 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 
 /**
- * Selection hull: pulsing translucent shell (depth-occluded faces only — no faces through blocks).
- * Thick edge beams retain a ghost pass through opaque geometry.
+ * Axios-style selection hull: thin white edge beams (dim ghost pass through blocks), hull faces in
+ * pulsating {@code #c8d1ff}: a depth-off pass shows faces through blocks, then a depth-tested pass
+ * reinforces the shell. Faces are not culled; additive blending lets overlaps accumulate.
  */
 public final class SelectionOutlineClientRenderer {
 
-    /** Glue green {@code #73dc94}. */
-    private static final float GLUE_R = 115f / 255f;
-    private static final float GLUE_G = 220f / 255f;
-    private static final float GLUE_B = 148f / 255f;
+    private static final float FACE_R = 156f / 255f;
+    private static final float FACE_G = 168f / 255f;
+    private static final float FACE_B = 232f / 255f;
 
     /**
-     * Mean face opacity (~20%); {@link #FACE_ALPHA_PULSE} modulates softly with world time — no UV
-     * scroll or texture (avoids tiling).
+     * Mean face opacity with {@code glBlendFunc(GL_SRC_ALPHA, GL_ONE)}; lower than typical
+     * straight-alpha so stacked overlaps do not clip to white. {@link #FACE_ALPHA_PULSE} follows
+     * world time.
      */
-    private static final float FACE_ALPHA_CENTER = 0.20f;
+    private static final float FACE_ALPHA_CENTER = 0.18f;
 
-    /** Peak deviation from centre for the soft opacity pulse (smooth sine). */
-    private static final float FACE_ALPHA_PULSE = 0.11f;
+    /** Peak deviation from centre for the opacity pulse (smooth sine). */
+    private static final float FACE_ALPHA_PULSE = 0.10f;
 
-    /**
-     * Full brightness/opacity sine cycle length in world ticks (20 ticks ≈ 1s). Previously
-     * {@code sin(wtime/55)} implied ~346 ticks per cycle (~17s), which read as static.
-     */
+    /** Ghost face pass (depth off): same pulse phase, lower alpha so depth-on pass can stack. */
+    private static final float FACE_THROUGH_ALPHA_CENTER = 0.06f;
+
+    private static final float FACE_THROUGH_ALPHA_PULSE = 0.0f;
+
+    /** Sine cycle length in world ticks for face pulse. */
     private static final float FACE_PULSE_PERIOD_TICKS = 90f;
 
-    /** RGB multiplier centre; {@link #FACE_COLOR_PULSE} scales with the same sine as alpha. */
-    private static final float FACE_COLOR_CENTER = 0.92f;
+    /** RGB brightness multiplier centre; {@link #FACE_COLOR_PULSE} tracks the same sine as alpha. */
+    private static final float FACE_COLOR_CENTER = 1.0f;
 
-    private static final float FACE_COLOR_PULSE = 0.14f;
+    private static final float FACE_COLOR_PULSE = 0.0f;
 
     /**
      * Inflate faces away from block surfaces — slightly larger than a pixel of depth precision at
@@ -51,23 +54,32 @@ public final class SelectionOutlineClientRenderer {
     private static final double OUT = 0.02;
 
     /** Half-width (world units) for edge beams. */
-    private static final double EDGE_HALF = 0.042;
+    private static final double EDGE_HALF = 0.018;
 
-    private static final float EDGE_ALPHA_THROUGH = 0.12f;
-    private static final float EDGE_ALPHA_NEAR = 0.96f;
+    /** Edges occluded by geometry: drawn first, reads as deep / behind blocks. */
+    private static final float EDGE_ALPHA_THROUGH = 0.10f;
+
+    /** Slightly dim white so through-block edges feel recessed vs bright foreground edges. */
+    private static final float EDGE_DEEP_R = 0.72f;
+    private static final float EDGE_DEEP_G = 0.74f;
+    private static final float EDGE_DEEP_B = 0.78f;
+
+    private static final float EDGE_ALPHA_NEAR = 0.98f;
+
+    private static final float EDGE_WHITE_R = 1f;
+    private static final float EDGE_WHITE_G = 1f;
+    private static final float EDGE_WHITE_B = 1f;
 
     private static final float POLY_OFFSET_NEAR_FACE_FACTOR = -0.75f;
     private static final float POLY_OFFSET_NEAR_FACE_UNITS = -2f;
     private static final float POLY_OFFSET_NEAR_BEAM_FACTOR = -1.35f;
     private static final float POLY_OFFSET_NEAR_BEAM_UNITS = -6f;
 
-    private static final double INSET_EPS = 0.02;
-
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
         Minecraft mc = Minecraft.getMinecraft();
         EntityLivingBase viewer = mc.renderViewEntity instanceof EntityLivingBase
-            ? (EntityLivingBase) mc.renderViewEntity
+            ? mc.renderViewEntity
             : mc.thePlayer;
         if (viewer == null || mc.theWorld == null) return;
 
@@ -130,46 +142,58 @@ public final class SelectionOutlineClientRenderer {
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        // ── Ghost edges+caps through blocks ─────────────────────────────────────────────────────
+        // ── Ghost edges through blocks: dim white, low opacity (depth off) ─────────────────────
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL);
 
         GL11.glDisable(GL11.GL_TEXTURE_2D);
         tess.startDrawing(GL11.GL_QUADS);
-        tess.setColorRGBA_F(GLUE_R, GLUE_G, GLUE_B, EDGE_ALPHA_THROUGH);
+        tess.setColorRGBA_F(EDGE_DEEP_R, EDGE_DEEP_G, EDGE_DEEP_B, EDGE_ALPHA_THROUGH);
         addHullEdgeBeams(tess, x0, y0, z0, x1, y1, z1, EDGE_HALF);
         addHullCornerCaps(tess, x0, y0, z0, x1, y1, z1, EDGE_HALF);
         tess.draw();
 
-        // ── Hull faces: solid glue, soft opacity pulse — depth-tested only (hidden behind solids) ─
+        float breathe = (float) Math.sin((wtime * (Math.PI * 2.0)) / FACE_PULSE_PERIOD_TICKS);
+        float alpha = clamp01(FACE_ALPHA_CENTER + FACE_ALPHA_PULSE * breathe);
+        float alphaThrough = clamp01(
+            FACE_THROUGH_ALPHA_CENTER + FACE_THROUGH_ALPHA_PULSE * breathe);
+        float colorScale = clamp01(FACE_COLOR_CENTER + FACE_COLOR_PULSE * breathe);
+
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        GL11.glDisable(GL11.GL_CULL_FACE);
+        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE);
+
+        // ── Ghost faces through blocks (depth still off; additive) ─────────────────────────────
+        tess.startDrawing(GL11.GL_QUADS);
+        tess.setColorRGBA_F(
+            FACE_R * colorScale,
+            FACE_G * colorScale,
+            FACE_B * colorScale,
+            alphaThrough);
+        addHullFacesSolid(tess, x0, y0, z0, x1, y1, z1);
+        tess.draw();
+
+        // ── Hull faces: depth-tested shell; additive overlap ───────────────────────────────────
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glDepthFunc(GL11.GL_LEQUAL);
         GL11.glEnable(GL11.GL_POLYGON_OFFSET_FILL);
         GL11.glPolygonOffset(POLY_OFFSET_NEAR_FACE_FACTOR, POLY_OFFSET_NEAR_FACE_UNITS);
 
-        boolean eyeInside = isEyeInsideSel(vx, vy + viewer.getEyeHeight(), vz, minBX, minBY, minBZ,
-            maxX, maxY, maxZ);
-
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glEnable(GL11.GL_CULL_FACE);
-        GL11.glFrontFace(GL11.GL_CCW);
-        GL11.glCullFace(eyeInside ? GL11.GL_FRONT : GL11.GL_BACK);
-
-        float breathe = (float) Math.sin((wtime * (Math.PI * 2.0)) / FACE_PULSE_PERIOD_TICKS);
-        float alpha = clamp01(FACE_ALPHA_CENTER + FACE_ALPHA_PULSE * breathe);
-        float colorScale = clamp01(FACE_COLOR_CENTER + FACE_COLOR_PULSE * breathe);
-
         tess.startDrawing(GL11.GL_QUADS);
-        tess.setColorRGBA_F(GLUE_R * colorScale, GLUE_G * colorScale, GLUE_B * colorScale, alpha);
+        tess.setColorRGBA_F(
+            FACE_R * colorScale,
+            FACE_G * colorScale,
+            FACE_B * colorScale,
+            alpha);
         addHullFacesSolid(tess, x0, y0, z0, x1, y1, z1);
         tess.draw();
 
-        GL11.glDisable(GL11.GL_CULL_FACE);
+        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        // ── Edge beams depth-tested ─────────────────────────────────────────────────────────────
+        // ── White edge beams (depth-tested foreground) ──────────────────────────────────────────
         GL11.glPolygonOffset(POLY_OFFSET_NEAR_BEAM_FACTOR, POLY_OFFSET_NEAR_BEAM_UNITS);
         tess.startDrawing(GL11.GL_QUADS);
-        tess.setColorRGBA_F(GLUE_R, GLUE_G, GLUE_B, EDGE_ALPHA_NEAR);
+        tess.setColorRGBA_F(EDGE_WHITE_R, EDGE_WHITE_G, EDGE_WHITE_B, EDGE_ALPHA_NEAR);
         addHullEdgeBeams(tess, x0, y0, z0, x1, y1, z1, EDGE_HALF);
         addHullCornerCaps(tess, x0, y0, z0, x1, y1, z1, EDGE_HALF);
         tess.draw();
@@ -179,12 +203,6 @@ public final class SelectionOutlineClientRenderer {
 
         GL11.glPopAttrib();
         GL11.glPopMatrix();
-    }
-
-    private static boolean isEyeInsideSel(double ex, double ey, double ez, double minBX, double minBY,
-        double minBZ, double maxX, double maxY, double maxZ) {
-        return ex >= minBX + INSET_EPS && ex <= maxX - INSET_EPS && ey >= minBY + INSET_EPS
-            && ey <= maxY - INSET_EPS && ez >= minBZ + INSET_EPS && ez <= maxZ - INSET_EPS;
     }
 
     /** OpenGL Tessellator color alpha should stay ≥0 and sane; sine can barely exceed ±1 anyway. */

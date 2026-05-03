@@ -13,8 +13,8 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
  * block while holding the wand (creative or survival).
  *
  * <p>
- * Register on the Forge {@code EVENT_BUS}. The cyan selection outline itself is drawn on the
- * client by {@link SelectionOutlineClientRenderer}, registered from
+ * Register on the Forge {@code EVENT_BUS}. The selection box is drawn on the client by
+ * {@link SelectionOutlineClientRenderer}, registered from
  * {@link com.gtnewhorizons.gametest.ClientProxy}.
  */
 public class SelectionBoxRenderer {
