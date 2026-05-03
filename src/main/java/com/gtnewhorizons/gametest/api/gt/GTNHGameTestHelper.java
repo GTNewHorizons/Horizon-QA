@@ -220,57 +220,39 @@ public class GTNHGameTestHelper {
      * @param amount    mB to fill
      */
     public void fillHatch(TestPos relPos, String fluidName, int amount) {
-        TestPos abs = base.absolute(relPos.x(), relPos.y(), relPos.z());
-        TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
         FluidStack fluid = FluidRegistry.getFluidStack(fluidName, amount);
         if (fluid == null) {
             throw new IllegalArgumentException("Unknown fluid registry name: " + fluidName);
         }
-        // Call fill() on the IMetaTileEntity directly: IMetaTileEntity extends IFluidHandler, and
-        // going through the MTE bypasses BaseMetaTileEntity's mTickTimer > 5 guard.
-        if (te instanceof IGregTechTileEntity igte) {
-            IMetaTileEntity mte = igte.getMetaTileEntity();
-            int filled = mte.fill(ForgeDirection.UNKNOWN, fluid, true);
-            if (filled < amount) {
-                throw error("Could not fill " + amount + " mB of '" + fluidName + "' into hatch at "
-                    + relPos + "; only " + filled + " mB accepted", relPos);
-            }
-            return;
-        }
-        if (!(te instanceof IFluidHandler handler)) {
-            throw error("No IFluidHandler at " + relPos + " (found: "
-                + (te != null ? te.getClass().getSimpleName() : "null") + ")", relPos);
-        }
-        int filled = handler.fill(ForgeDirection.UNKNOWN, fluid, true);
-        if (filled < amount) {
-            throw error("Could not fill " + amount + " mB of '" + fluidName + "' into hatch at "
-                + relPos + "; only " + filled + " mB accepted", relPos);
-        }
+        fillHatch(relPos, fluid);
     }
 
+    /**
+     * Fill the fluid hatch at {@code relPos} with the given {@link FluidStack}.
+     *
+     * <p>For GT tile entities the fill is applied directly on the {@link IMetaTileEntity} to
+     * bypass the {@code mTickTimer > 5} guard in {@code BaseMetaTileEntity}.
+     */
     public void fillHatch(TestPos relPos, FluidStack fluidStack) {
         TestPos abs = base.absolute(relPos.x(), relPos.y(), relPos.z());
         TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
 
         // Call fill() on the IMetaTileEntity directly: IMetaTileEntity extends IFluidHandler, and
         // going through the MTE bypasses BaseMetaTileEntity's mTickTimer > 5 guard.
+        IFluidHandler handler;
         if (te instanceof IGregTechTileEntity igte) {
-            IMetaTileEntity mte = igte.getMetaTileEntity();
-            int filled = mte.fill(ForgeDirection.UNKNOWN, fluidStack, true);
-            if (filled < fluidStack.amount) {
-                throw error("Could not fill " + fluidStack.amount + " mB of '" + fluidStack.getLocalizedName() + "' into hatch at "
-                    + relPos + "; only " + filled + " mB accepted", relPos);
-            }
-            return;
-        }
-        if (!(te instanceof IFluidHandler handler)) {
+            handler = igte.getMetaTileEntity();
+        } else if (te instanceof IFluidHandler fh) {
+            handler = fh;
+        } else {
             throw error("No IFluidHandler at " + relPos + " (found: "
                 + (te != null ? te.getClass().getSimpleName() : "null") + ")", relPos);
         }
+
         int filled = handler.fill(ForgeDirection.UNKNOWN, fluidStack, true);
         if (filled < fluidStack.amount) {
-            throw error("Could not fill " + fluidStack.amount + " mB of '" + fluidStack.getLocalizedName() + "' into hatch at "
-                + relPos + "; only " + filled + " mB accepted", relPos);
+            throw error("Could not fill " + fluidStack.amount + " mB of '" + fluidStack.getLocalizedName()
+                + "' into hatch at " + relPos + "; only " + filled + " mB accepted", relPos);
         }
     }
 

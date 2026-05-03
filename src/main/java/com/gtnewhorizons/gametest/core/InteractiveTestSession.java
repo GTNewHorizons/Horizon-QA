@@ -104,17 +104,7 @@ public class InteractiveTestSession {
      * {@link #relaunchAtCell(GameTestDefinition)} to re-run in-place.
      */
     public void launchTest(GameTestDefinition def) {
-        WorldServer world = getOverworld();
-        if (world == null) return;
-        ensureRunnerRegistered();
-        HybridStructureTemplate template = loadTemplate(def);
-        int sizeX = template != null ? template.getSizeX() : 0;
-        int sizeZ = template != null ? template.getSizeZ() : 0;
-        int[] origin = grid.allocateOrigin(sizeX, sizeZ);
-        GameTestInstance inst = spawnTestAt(def, world, origin[0], origin[1], origin[2], template);
-        runner.addInstance(inst);
-        LOG.info("[GameTest] Launched '{}' at ({}, {}, {}).",
-                def.getTestId(), origin[0], origin[1], origin[2]);
+        launchTests(Collections.singletonList(def));
     }
 
     /**
@@ -132,8 +122,10 @@ public class InteractiveTestSession {
             int[] origin = grid.allocateOrigin(sizeX, sizeZ);
             GameTestInstance inst = spawnTestAt(def, world, origin[0], origin[1], origin[2], template);
             runner.addInstance(inst);
+            LOG.info("[GameTest] Launched '{}' at ({}, {}, {}).",
+                    def.getTestId(), origin[0], origin[1], origin[2]);
         }
-        LOG.info("[GameTest] Launched {} test(s).", defs.size());
+        LOG.info("[GameTest] Launched {} test(s) total.", defs.size());
     }
 
     /**

@@ -1,5 +1,7 @@
 package com.gtnewhorizons.gametest.visual;
 
+import java.util.Collection;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
 
@@ -67,7 +69,8 @@ public final class GameTestOverlayRenderer {
         long   wt   = mc.theWorld.getTotalWorldTime();
 
         InteractiveTestSession session = InteractiveTestSession.get();
-        if (session.getKnownCells().isEmpty() && VisualManager.getGhosts().isEmpty()) return;
+        Collection<CellRecord> cells = session.getKnownCells();
+        if (cells.isEmpty() && VisualManager.getGhosts().isEmpty()) return;
 
         // ── Set up outer state ──────────────────────────────────────────────────────
         GL11.glPushMatrix();
@@ -85,19 +88,18 @@ public final class GameTestOverlayRenderer {
         GL11.glTranslated(-camX, -camY, -camZ);
 
         // ── Per-cell visuals, pass 1: boxes and beacons (write depth) ─────────────────
-        for (CellRecord cell : session.getKnownCells()) {
+        for (CellRecord cell : cells) {
             GameTestInstance inst   = session.getLastInstance(cell.testId);
             GameTestStatus   status = inst != null ? inst.getStatus() : GameTestStatus.NOT_STARTED;
             if (status == GameTestStatus.NOT_STARTED) continue;
 
             float[] col      = statusColor(status);
-            float   boxAlpha = status == GameTestStatus.RUNNING ? 0.22f : 0.38f;
 
-            // Bounding box (depth-off, shows through terrain)
+            // Bounding box wireframe (depth-tested; occluded by closer geometry)
             HighlightBox.render(
                 cell.minX,       cell.minY,       cell.minZ,
                 cell.maxX + 1.0, cell.maxY + 1.0, cell.maxZ + 1.0,
-                1.0f, 1.0f, 1.0f, boxAlpha);
+                1.0f, 1.0f, 1.0f, 0.5f);
 
             // Beacon pillar above the cell center
             // North-west corner: minX / minZ, beam starts just above the cell floor.
@@ -114,7 +116,7 @@ public final class GameTestOverlayRenderer {
 
         // ── Per-cell visuals, pass 2: floating text and ghost blocks (depth-off, always on top) ──
         // Rendered after all beacons so beacon geometry never overwrites text pixels.
-        for (CellRecord cell : session.getKnownCells()) {
+        for (CellRecord cell : cells) {
             GameTestInstance inst   = session.getLastInstance(cell.testId);
             GameTestStatus   status = inst != null ? inst.getStatus() : GameTestStatus.NOT_STARTED;
             if (status == GameTestStatus.NOT_STARTED) continue;

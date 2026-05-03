@@ -9,8 +9,8 @@ import org.lwjgl.opengl.GL11;
 /**
  * Renders an axis-aligned wireframe box using {@link GL11#GL_LINES}.
  *
- * <p>Depth testing is disabled so cell boundaries remain visible through terrain,
- * making it easy to locate a cell without needing line-of-sight.
+ * <p>Depth testing is enabled with {@link GL11#GL_LEQUAL} against the scene depth buffer
+ * (lines do not write depth), so outlines are occluded by solid blocks ahead of them.
  *
  * <p>All vertex coordinates are world-space. The caller is responsible for setting
  * up an outer GL matrix that offsets by the negative camera position before calling
@@ -42,38 +42,41 @@ public final class HighlightBox {
         double dx = vx - nearX, dy = vy - nearY, dz = vz - nearZ;
         if (dx * dx + dy * dy + dz * dz > 32.0 * 32.0) return;
 
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glDisable(GL11.GL_CULL_FACE);
-        GL11.glDepthMask(false);
-        GL11.glEnable(GL11.GL_LINE_SMOOTH);
-        GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
-        GL11.glLineWidth(LINE_WIDTH);
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL11.glPushAttrib(GL11.GL_DEPTH_BUFFER_BIT);
+        try {
+            GL11.glEnable(GL11.GL_DEPTH_TEST);
+            GL11.glDepthFunc(GL11.GL_LEQUAL);
+            GL11.glDepthMask(false);
+            GL11.glDisable(GL11.GL_TEXTURE_2D);
+            GL11.glDisable(GL11.GL_CULL_FACE);
+            GL11.glEnable(GL11.GL_LINE_SMOOTH);
+            GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+            GL11.glLineWidth(LINE_WIDTH);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        Tessellator tess = Tessellator.instance;
-        tess.startDrawing(GL11.GL_LINES);
+            Tessellator tess = Tessellator.instance;
+            tess.startDrawing(GL11.GL_LINES);
 
-        // Bottom face
-        line(tess, minX, minY, minZ, maxX, minY, minZ, r, g, b, alpha);
-        line(tess, maxX, minY, minZ, maxX, minY, maxZ, r, g, b, alpha);
-        line(tess, maxX, minY, maxZ, minX, minY, maxZ, r, g, b, alpha);
-        line(tess, minX, minY, maxZ, minX, minY, minZ, r, g, b, alpha);
-        // Top face
-        line(tess, minX, maxY, minZ, maxX, maxY, minZ, r, g, b, alpha);
-        line(tess, maxX, maxY, minZ, maxX, maxY, maxZ, r, g, b, alpha);
-        line(tess, maxX, maxY, maxZ, minX, maxY, maxZ, r, g, b, alpha);
-        line(tess, minX, maxY, maxZ, minX, maxY, minZ, r, g, b, alpha);
-        // Verticals
-        line(tess, minX, minY, minZ, minX, maxY, minZ, r, g, b, alpha);
-        line(tess, maxX, minY, minZ, maxX, maxY, minZ, r, g, b, alpha);
-        line(tess, maxX, minY, maxZ, maxX, maxY, maxZ, r, g, b, alpha);
-        line(tess, minX, minY, maxZ, minX, maxY, maxZ, r, g, b, alpha);
+            // Bottom face
+            line(tess, minX, minY, minZ, maxX, minY, minZ, r, g, b, alpha);
+            line(tess, maxX, minY, minZ, maxX, minY, maxZ, r, g, b, alpha);
+            line(tess, maxX, minY, maxZ, minX, minY, maxZ, r, g, b, alpha);
+            line(tess, minX, minY, maxZ, minX, minY, minZ, r, g, b, alpha);
+            // Top face
+            line(tess, minX, maxY, minZ, maxX, maxY, minZ, r, g, b, alpha);
+            line(tess, maxX, maxY, minZ, maxX, maxY, maxZ, r, g, b, alpha);
+            line(tess, maxX, maxY, maxZ, minX, maxY, maxZ, r, g, b, alpha);
+            line(tess, minX, maxY, maxZ, minX, maxY, minZ, r, g, b, alpha);
+            // Verticals
+            line(tess, minX, minY, minZ, minX, maxY, minZ, r, g, b, alpha);
+            line(tess, maxX, minY, minZ, maxX, maxY, minZ, r, g, b, alpha);
+            line(tess, maxX, minY, maxZ, maxX, maxY, maxZ, r, g, b, alpha);
+            line(tess, minX, minY, maxZ, minX, maxY, maxZ, r, g, b, alpha);
 
-        tess.draw();
-
-        GL11.glDepthMask(true);
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
+            tess.draw();
+        } finally {
+            GL11.glPopAttrib();
+        }
     }
 
     private static void line(Tessellator tess,

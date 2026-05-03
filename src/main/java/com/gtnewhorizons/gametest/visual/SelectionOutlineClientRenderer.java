@@ -99,49 +99,13 @@ public final class SelectionOutlineClientRenderer {
             return;
         }
 
-        int bx1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_X);
-        int by1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_Y);
-        int bz1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_Z);
-        int bx2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_X);
-        int by2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_Y);
-        int bz2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_Z);
-
-        double minBX = Math.min(bx1, bx2);
-        double minBY = Math.min(by1, by2);
-        double minBZ = Math.min(bz1, bz2);
-        double maxBX = Math.max(bx1, bx2);
-        double maxBY = Math.max(by1, by2);
-        double maxBZ = Math.max(bz1, bz2);
-
-        double minX = minBX;
-        double minY = minBY;
-        double minZ = minBZ;
-        double maxX = maxBX + 1.0;
-        double maxY = maxBY + 1.0;
-        double maxZ = maxBZ + 1.0;
-
-        double x0 = minX - OUT;
-        double x1 = maxX + OUT;
-        double y0 = minY - OUT;
-        double y1 = maxY + OUT;
-        double z0 = minZ - OUT;
-        double z1 = maxZ + OUT;
-
-        double fx0 = minX - OUT - FACE_OUT_EXTRA;
-        double fx1 = maxX + OUT + FACE_OUT_EXTRA;
-        double fy0 = minY - OUT - FACE_OUT_EXTRA;
-        double fy1 = maxY + OUT + FACE_OUT_EXTRA;
-        double fz0 = minZ - OUT - FACE_OUT_EXTRA;
-        double fz1 = maxZ + OUT + FACE_OUT_EXTRA;
+        SelectionBounds bounds = SelectionBounds.fromNBT(nbt);
 
         float pt = event.partialTicks;
         double vx = viewer.lastTickPosX + (viewer.posX - viewer.lastTickPosX) * pt;
         double vy = viewer.lastTickPosY + (viewer.posY - viewer.lastTickPosY) * pt;
         double vz = viewer.lastTickPosZ + (viewer.posZ - viewer.lastTickPosZ) * pt;
-
         float wtime = mc.theWorld.getTotalWorldTime() + pt;
-
-        Tessellator tess = Tessellator.instance;
 
         GL11.glPushMatrix();
         GL11.glTranslated(-vx, -vy, -vz);
@@ -155,73 +119,115 @@ public final class SelectionOutlineClientRenderer {
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        // ── Ghost wireframe through blocks: dim white, low opacity (depth off) ────────────────
+        float breathe = facePulseModulation(wtime, FACE_PULSE_PERIOD_TICKS);
+        float colorScale = clamp01(FACE_COLOR_CENTER + FACE_COLOR_PULSE * breathe);
+
+        renderGhostWireframe(bounds);
+        renderGhostFaces(bounds, breathe, colorScale);
+        renderDepthTestedFaces(bounds, breathe, colorScale);
+        renderDepthTestedWireframe(bounds);
+
+        GL11.glPopAttrib();
+        GL11.glPopMatrix();
+    }
+
+    /** Ghost wireframe through blocks: dim white, low opacity (depth off). */
+    private static void renderGhostWireframe(SelectionBounds b) {
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL);
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_LINE);
-
         GL11.glEnable(GL11.GL_LINE_SMOOTH);
         GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
         GL11.glLineWidth(WIREFRAME_LINE_WIDTH);
-
         GL11.glDisable(GL11.GL_TEXTURE_2D);
+
+        Tessellator tess = Tessellator.instance;
         tess.startDrawing(GL11.GL_LINES);
         tess.setColorRGBA_F(EDGE_DEEP_R, EDGE_DEEP_G, EDGE_DEEP_B, EDGE_ALPHA_THROUGH);
-        addTrueWireframeEdges(tess, x0, y0, z0, x1, y1, z1);
+        addTrueWireframeEdges(tess, b.x0, b.y0, b.z0, b.x1, b.y1, b.z1);
         tess.draw();
+    }
 
-        float breathe = facePulseModulation(wtime, FACE_PULSE_PERIOD_TICKS);
-        float alpha = clamp01(FACE_ALPHA_CENTER + FACE_ALPHA_PULSE * breathe);
-        float alphaThrough = clamp01(
-            FACE_THROUGH_ALPHA_CENTER + FACE_THROUGH_ALPHA_PULSE * breathe);
-        float colorScale = clamp01(FACE_COLOR_CENTER + FACE_COLOR_PULSE * breathe);
-
+    /** Ghost faces through blocks (depth still off). */
+    private static void renderGhostFaces(SelectionBounds b, float breathe, float colorScale) {
+        float alphaThrough = clamp01(FACE_THROUGH_ALPHA_CENTER + FACE_THROUGH_ALPHA_PULSE * breathe);
         GL11.glDisable(GL11.GL_TEXTURE_2D);
         GL11.glDisable(GL11.GL_CULL_FACE);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        // ── Ghost faces through blocks (depth still off) ───────────────────────────────────────
+        Tessellator tess = Tessellator.instance;
         tess.startDrawing(GL11.GL_QUADS);
-        tess.setColorRGBA_F(
-            FACE_R * colorScale,
-            FACE_G * colorScale,
-            FACE_B * colorScale,
-            alphaThrough);
-        addHullFacesSolid(tess, fx0, fy0, fz0, fx1, fy1, fz1);
+        tess.setColorRGBA_F(FACE_R * colorScale, FACE_G * colorScale, FACE_B * colorScale, alphaThrough);
+        addHullFacesSolid(tess, b.fx0, b.fy0, b.fz0, b.fx1, b.fy1, b.fz1);
         tess.draw();
+    }
 
-        // ── Hull faces: depth-tested shell (expanded hull + polygon offset vs z-fighting) ───────
+    /** Hull faces: depth-tested shell (expanded hull + polygon offset vs z-fighting). */
+    private static void renderDepthTestedFaces(SelectionBounds b, float breathe, float colorScale) {
+        float alpha = clamp01(FACE_ALPHA_CENTER + FACE_ALPHA_PULSE * breathe);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glDepthFunc(GL11.GL_LEQUAL);
         GL11.glEnable(GL11.GL_POLYGON_OFFSET_FILL);
         GL11.glPolygonOffset(POLY_OFFSET_NEAR_FACE_FACTOR, POLY_OFFSET_NEAR_FACE_UNITS);
 
+        Tessellator tess = Tessellator.instance;
         tess.startDrawing(GL11.GL_QUADS);
-        tess.setColorRGBA_F(
-            FACE_R * colorScale,
-            FACE_G * colorScale,
-            FACE_B * colorScale,
-            alpha);
-        addHullFacesSolid(tess, fx0, fy0, fz0, fx1, fy1, fz1);
+        tess.setColorRGBA_F(FACE_R * colorScale, FACE_G * colorScale, FACE_B * colorScale, alpha);
+        addHullFacesSolid(tess, b.fx0, b.fy0, b.fz0, b.fx1, b.fy1, b.fz1);
         tess.draw();
-
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+    }
 
-        // ── White wireframe (depth-tested; line offset vs coplanar terrain) ──────────────────────
+    /** White wireframe (depth-tested; line offset vs coplanar terrain). */
+    private static void renderDepthTestedWireframe(SelectionBounds b) {
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL);
         GL11.glEnable(GL11.GL_POLYGON_OFFSET_LINE);
         GL11.glPolygonOffset(POLY_OFFSET_WIREFRAME_LINE_FACTOR, POLY_OFFSET_WIREFRAME_LINE_UNITS);
 
+        Tessellator tess = Tessellator.instance;
         tess.startDrawing(GL11.GL_LINES);
         tess.setColorRGBA_F(EDGE_WHITE_R, EDGE_WHITE_G, EDGE_WHITE_B, EDGE_ALPHA_NEAR);
-        addTrueWireframeEdges(tess, x0, y0, z0, x1, y1, z1);
+        addTrueWireframeEdges(tess, b.x0, b.y0, b.z0, b.x1, b.y1, b.z1);
         tess.draw();
 
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_LINE);
         GL11.glPolygonOffset(0f, 0f);
+    }
 
-        GL11.glPopAttrib();
-        GL11.glPopMatrix();
+    /** Pre-computed wireframe and face bounds for the current selection. */
+    private static final class SelectionBounds {
+        final double x0, y0, z0, x1, y1, z1;
+        final double fx0, fy0, fz0, fx1, fy1, fz1;
+
+        SelectionBounds(double x0, double y0, double z0, double x1, double y1, double z1,
+                         double fx0, double fy0, double fz0, double fx1, double fy1, double fz1) {
+            this.x0 = x0; this.y0 = y0; this.z0 = z0;
+            this.x1 = x1; this.y1 = y1; this.z1 = z1;
+            this.fx0 = fx0; this.fy0 = fy0; this.fz0 = fz0;
+            this.fx1 = fx1; this.fy1 = fy1; this.fz1 = fz1;
+        }
+
+        static SelectionBounds fromNBT(NBTTagCompound nbt) {
+            int bx1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_X);
+            int by1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_Y);
+            int bz1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_Z);
+            int bx2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_X);
+            int by2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_Y);
+            int bz2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_Z);
+
+            double minX = Math.min(bx1, bx2);
+            double minY = Math.min(by1, by2);
+            double minZ = Math.min(bz1, bz2);
+            double maxX = Math.max(bx1, bx2) + 1.0;
+            double maxY = Math.max(by1, by2) + 1.0;
+            double maxZ = Math.max(bz1, bz2) + 1.0;
+
+            return new SelectionBounds(
+                minX - OUT, minY - OUT, minZ - OUT,
+                maxX + OUT, maxY + OUT, maxZ + OUT,
+                minX - OUT - FACE_OUT_EXTRA, minY - OUT - FACE_OUT_EXTRA, minZ - OUT - FACE_OUT_EXTRA,
+                maxX + OUT + FACE_OUT_EXTRA, maxY + OUT + FACE_OUT_EXTRA, maxZ + OUT + FACE_OUT_EXTRA);
+        }
     }
 
     /** OpenGL Tessellator color alpha should stay ≥0 and sane; sine can barely exceed ±1 anyway. */

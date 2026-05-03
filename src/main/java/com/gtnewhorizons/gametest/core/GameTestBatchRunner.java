@@ -77,47 +77,7 @@ public class GameTestBatchRunner {
 
         List<GameTestInstance> batchInstances = new ArrayList<>();
         for (GameTestDefinition def : batch.tests) {
-
-            // Load structure template (if the test specifies one)
-            HybridStructureTemplate template = null;
-            if (!def.getTemplateName()
-                .isEmpty()) {
-                try {
-                    template = HybridStructureLoader.load(def.getTemplateName());
-                } catch (IOException e) {
-                    LOG.error(
-                        "Failed to load template '{}' for test '{}' — test will run without a structure: {}",
-                        def.getTemplateName(),
-                        def.getTestId(),
-                        e.getMessage());
-                }
-            }
-
-            // Allocate a cell sized to the template (or the default minimum)
-            int templateSizeX = template != null ? template.getSizeX() : 0;
-            int templateSizeZ = template != null ? template.getSizeZ() : 0;
-            int[] origin = grid.allocateOrigin(templateSizeX, templateSizeZ);
-
-            // Force-load all chunks that the cell intersects
-            int templateSizeY = template != null ? template.getSizeY() : 0;
-            int chunkSizeX = templateSizeX > 0 ? templateSizeX : GameTestGridLayout.DEFAULT_CELL_SIZE;
-            int chunkSizeZ = templateSizeZ > 0 ? templateSizeZ : GameTestGridLayout.DEFAULT_CELL_SIZE;
-            GameTestMod.CHUNK_LOADER.forceChunks(
-                world,
-                origin[0],
-                origin[1],
-                origin[2],
-                origin[0] + chunkSizeX - 1,
-                origin[1] + Math.max(templateSizeY, 1) - 1,
-                origin[2] + chunkSizeZ - 1);
-
-            // Place the structure before the test method is invoked
-            if (template != null) {
-                StructurePlacer.place(template, world, origin[0], origin[1], origin[2]);
-            }
-
-            GameTestInstance inst = new GameTestInstance(def, origin[0], origin[1], origin[2]);
-            inst.start(world);
+            GameTestInstance inst = allocateAndSpawn(def, world);
             batchInstances.add(inst);
             allInstances.add(inst);
         }
@@ -181,6 +141,50 @@ public class GameTestBatchRunner {
             } catch (IllegalAccessException e) {
                 LOG.error("Cannot access @{} method '{}': {}", phase, m.getName(), e.getMessage());
             }
+        }
+    }
+
+    /**
+     * Load template, allocate a grid cell, force-load chunks, place the structure, and start
+     * the test. Returns the running instance.
+     */
+    private GameTestInstance allocateAndSpawn(GameTestDefinition def, WorldServer world) {
+        HybridStructureTemplate template = loadTemplate(def);
+
+        int sizeX = template != null ? template.getSizeX() : 0;
+        int sizeY = template != null ? template.getSizeY() : 0;
+        int sizeZ = template != null ? template.getSizeZ() : 0;
+        int[] origin = grid.allocateOrigin(sizeX, sizeZ);
+
+        int chunkSizeX = Math.max(sizeX, GameTestGridLayout.DEFAULT_CELL_SIZE);
+        int chunkSizeZ = Math.max(sizeZ, GameTestGridLayout.DEFAULT_CELL_SIZE);
+        GameTestMod.CHUNK_LOADER.forceChunks(
+            world,
+            origin[0], origin[1], origin[2],
+            origin[0] + chunkSizeX - 1,
+            origin[1] + Math.max(sizeY, 1) - 1,
+            origin[2] + chunkSizeZ - 1);
+
+        if (template != null) {
+            StructurePlacer.place(template, world, origin[0], origin[1], origin[2]);
+        }
+
+        GameTestInstance inst = new GameTestInstance(def, origin[0], origin[1], origin[2]);
+        inst.start(world);
+        return inst;
+    }
+
+    private static HybridStructureTemplate loadTemplate(GameTestDefinition def) {
+        if (def.getTemplateName().isEmpty()) return null;
+        try {
+            return HybridStructureLoader.load(def.getTemplateName());
+        } catch (IOException e) {
+            LOG.error(
+                "Failed to load template '{}' for test '{}' — test will run without a structure: {}",
+                def.getTemplateName(),
+                def.getTestId(),
+                e.getMessage());
+            return null;
         }
     }
 

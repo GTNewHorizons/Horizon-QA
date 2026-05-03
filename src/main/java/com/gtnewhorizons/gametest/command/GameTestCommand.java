@@ -235,17 +235,7 @@ public class GameTestCommand extends CommandBase {
                     + "Run /gametest runall first to place cells."));
             return;
         }
-        GameTestDefinition def = findDefinition(cell.testId);
-        if (def == null) {
-            sender.addChatMessage(new ChatComponentText(
-                EnumChatFormatting.RED + "Definition not found for '"
-                    + cell.testId + "'."));
-            return;
-        }
-        InteractiveTestSession.get().relaunchAtCell(def);
-        sender.addChatMessage(new ChatComponentText(
-            EnumChatFormatting.GREEN + "Re-running: "
-                + EnumChatFormatting.YELLOW + def.getTestId()));
+        relaunchCell(sender, cell);
     }
 
     // =========================================================================
@@ -265,6 +255,11 @@ public class GameTestCommand extends CommandBase {
                     + "Run /gametest runall first."));
             return;
         }
+        relaunchCell(sender, cell);
+    }
+
+    /** Look up the definition for a cell and relaunch it in-place. */
+    private static void relaunchCell(ICommandSender sender, CellRecord cell) {
         GameTestDefinition def = findDefinition(cell.testId);
         if (def == null) {
             sender.addChatMessage(new ChatComponentText(
