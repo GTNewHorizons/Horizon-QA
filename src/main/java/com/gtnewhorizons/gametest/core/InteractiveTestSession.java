@@ -1,13 +1,13 @@
 package com.gtnewhorizons.gametest.core;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
@@ -44,19 +44,26 @@ public class InteractiveTestSession {
 
     private static InteractiveTestSession CURRENT;
 
+    /**
+     * Optional callback invoked by {@link #clearAll()} to notify client-side systems
+     * (e.g. VisualManager) that all visual state should be wiped.
+     * Set from {@code ClientProxy} so the server core never directly imports client classes.
+     */
+    public static Runnable onClearAllCallback;
+
     private final GameTestRunner runner;
     private final GameTestGridLayout grid;
     private boolean runnerRegistered;
 
     /** Cell footprint for every test that has been placed this session. */
-    private final Map<String, CellRecord> knownCells = new LinkedHashMap<>();
+    private final Map<String, CellRecord> knownCells = new ConcurrentHashMap<>();
     /** Most-recently-created {@link GameTestInstance} per test ID. */
-    private final Map<String, GameTestInstance> lastInstances = new LinkedHashMap<>();
+    private final Map<String, GameTestInstance> lastInstances = new ConcurrentHashMap<>();
     /**
      * Test IDs that failed or timed-out in at least one run this session and have not
      * subsequently passed. Refreshed lazily by {@link #refreshFailedIds()}.
      */
-    private final Set<String> failedIds = new LinkedHashSet<>();
+    private final Set<String> failedIds = ConcurrentHashMap.newKeySet();
 
     private InteractiveTestSession() {
         runner = new GameTestRunner();
@@ -175,6 +182,7 @@ public class InteractiveTestSession {
         lastInstances.clear();
         GameTestMod.CHUNK_LOADER.releaseAll();
         grid.reset();
+        if (onClearAllCallback != null) onClearAllCallback.run();
         LOG.info("[GameTest] Cleared {} test cell(s).", cleared);
     }
 
@@ -209,9 +217,13 @@ public class InteractiveTestSession {
     // Spatial queries
     // -------------------------------------------------------------------------
 
-    /** All cell records placed this session. */
+    /**
+     * All cell records placed this session.
+     * Returns a snapshot copy so the render thread can iterate safely
+     * while the server thread may be adding new entries.
+     */
     public Collection<CellRecord> getKnownCells() {
-        return knownCells.values();
+        return new ArrayList<>(knownCells.values());
     }
 
     /** The most-recently-created instance for a given test ID, or {@code null}. */
@@ -231,9 +243,9 @@ public class InteractiveTestSession {
         int sizeY = template != null ? template.getSizeY() : 0;
         int sizeZ = template != null ? template.getSizeZ() : 0;
 
-        int cellSizeX = Math.max(sizeX, GameTestGridLayout.MIN_CELL_SIZE);
-        int cellSizeY = Math.max(sizeY, 1);
-        int cellSizeZ = Math.max(sizeZ, GameTestGridLayout.MIN_CELL_SIZE);
+        int cellSizeX = sizeX > 0 ? sizeX : GameTestGridLayout.DEFAULT_CELL_SIZE;
+        int cellSizeY = Math.max(sizeY, GameTestGridLayout.DEFAULT_CELL_SIZE);
+        int cellSizeZ = sizeZ > 0 ? sizeZ : GameTestGridLayout.DEFAULT_CELL_SIZE;
 
         GameTestMod.CHUNK_LOADER.forceChunks(world,
                 originX, originY, originZ,
@@ -250,7 +262,7 @@ public class InteractiveTestSession {
                 originX, originY, originZ,
                 originX, originY, originZ,
                 originX + cellSizeX - 1,
-                originY + cellSizeY + 15,
+                originY + cellSizeY - 1,
                 originZ + cellSizeZ - 1);
         knownCells.put(def.getTestId(), cell);
 

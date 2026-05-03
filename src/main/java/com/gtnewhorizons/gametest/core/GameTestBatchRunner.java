@@ -100,14 +100,16 @@ public class GameTestBatchRunner {
 
             // Force-load all chunks that the cell intersects
             int templateSizeY = template != null ? template.getSizeY() : 0;
+            int chunkSizeX = templateSizeX > 0 ? templateSizeX : GameTestGridLayout.DEFAULT_CELL_SIZE;
+            int chunkSizeZ = templateSizeZ > 0 ? templateSizeZ : GameTestGridLayout.DEFAULT_CELL_SIZE;
             GameTestMod.CHUNK_LOADER.forceChunks(
                 world,
                 origin[0],
                 origin[1],
                 origin[2],
-                origin[0] + Math.max(templateSizeX, GameTestGridLayout.MIN_CELL_SIZE) - 1,
+                origin[0] + chunkSizeX - 1,
                 origin[1] + Math.max(templateSizeY, 1) - 1,
-                origin[2] + Math.max(templateSizeZ, GameTestGridLayout.MIN_CELL_SIZE) - 1);
+                origin[2] + chunkSizeZ - 1);
 
             // Place the structure before the test method is invoked
             if (template != null) {

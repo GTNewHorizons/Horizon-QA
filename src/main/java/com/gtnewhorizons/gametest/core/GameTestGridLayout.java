@@ -1,22 +1,21 @@
 package com.gtnewhorizons.gametest.core;
 
 /**
- * Allocates non-overlapping world-space origins for test cells. Tests are placed in rows of up to
- * {@value #MAX_PER_ROW} cells starting at Y={@value #ORIGIN_Y}. Cell dimensions are derived from
- * the structure template size plus {@value #INTER_CELL_GAP} blocks of padding between cells.
- *
- * <p>
- * Each row tracks the deepest (Z-axis) cell it has seen; when the row wraps, the next row's Z
- * origin advances by that maximum depth to prevent cells of different sizes from overlapping.
+ * Allocates non-overlapping world-space origins for test cells on a 2-D grid.
+ * Tests fill left-to-right up to {@value #MAX_PER_ROW} columns, then wrap to the
+ * next row. Cell dimensions equal the structure template size exactly (plus
+ * {@value #INTER_CELL_GAP} blocks of clear separation). Tests without a template
+ * receive a {@value #DEFAULT_CELL_SIZE}-block square cell. Rows advance by the
+ * deepest cell seen in the previous row so that variable-size cells never overlap.
  */
 public class GameTestGridLayout {
 
-    /** Minimum cell footprint in blocks when no template is used (or the template is very small). */
-    static final int MIN_CELL_SIZE = 16;
-    /** Gap blocks inserted between the end of one cell's template and the start of the next. */
-    static final int INTER_CELL_GAP = 2;
-    /** Maximum number of cells per row before wrapping to a new row. */
-    static final int MAX_PER_ROW = 32;
+    /** Cell footprint used when a test has no structure template. */
+    static final int DEFAULT_CELL_SIZE = 5;
+    /** Clear blocks of separation between adjacent cells (horizontal and depth). */
+    static final int INTER_CELL_GAP = 3;
+    /** Grid width in cells before wrapping to the next row. */
+    static final int MAX_PER_ROW = 10;
     /** Y coordinate of every cell origin. */
     static final int ORIGIN_Y = 64;
 
@@ -25,26 +24,30 @@ public class GameTestGridLayout {
     /** World-space Z of the current row. */
     private int rowZ = 0;
     /** Maximum cell depth (Z) seen in the current row, used to advance rowZ on wrap. */
-    private int rowMaxDepth = MIN_CELL_SIZE + INTER_CELL_GAP;
+    private int rowMaxDepth = DEFAULT_CELL_SIZE + INTER_CELL_GAP;
     /** Number of cells allocated in the current row. */
     private int rowCount = 0;
 
     /**
-     * Reserve and return the next cell origin as {@code [x, y, z]}, sizing the cell to accommodate
-     * a structure template of the given dimensions plus {@value #INTER_CELL_GAP} blocks of padding.
+     * Reserve and return the next cell origin as {@code [x, y, z]}.
      *
-     * @param templateSizeX template width along the X axis (0 if no template)
-     * @param templateSizeZ template depth along the Z axis (0 if no template)
+     * <p>If a template size is supplied ({@code > 0}), that exact size is used.
+     * If zero (no template), {@link #DEFAULT_CELL_SIZE} is used instead.
+     * {@value #INTER_CELL_GAP} blocks of clear separation are added on the far X and Z
+     * edges so adjacent cells never touch.
+     *
+     * @param templateSizeX template width along X (0 = no template)
+     * @param templateSizeZ template depth along Z (0 = no template)
      * @return absolute world-space {@code [x, y, z]} of the new cell origin
      */
     public int[] allocateOrigin(int templateSizeX, int templateSizeZ) {
-        int cellW = Math.max(templateSizeX, MIN_CELL_SIZE) + INTER_CELL_GAP;
-        int cellD = Math.max(templateSizeZ, MIN_CELL_SIZE) + INTER_CELL_GAP;
+        int cellW = (templateSizeX > 0 ? templateSizeX : DEFAULT_CELL_SIZE) + INTER_CELL_GAP;
+        int cellD = (templateSizeZ > 0 ? templateSizeZ : DEFAULT_CELL_SIZE) + INTER_CELL_GAP;
 
         if (rowCount >= MAX_PER_ROW) {
             rowX = 0;
             rowZ += rowMaxDepth;
-            rowMaxDepth = MIN_CELL_SIZE + INTER_CELL_GAP;
+            rowMaxDepth = DEFAULT_CELL_SIZE + INTER_CELL_GAP;
             rowCount = 0;
         }
 
@@ -58,9 +61,7 @@ public class GameTestGridLayout {
         return new int[] { x, ORIGIN_Y, z };
     }
 
-    /**
-     * Convenience overload for tests that have no structure template; uses the minimum cell size.
-     */
+    /** Convenience overload for tests that have no structure template. */
     public int[] allocateOrigin() {
         return allocateOrigin(0, 0);
     }
@@ -68,7 +69,7 @@ public class GameTestGridLayout {
     public void reset() {
         rowX = 0;
         rowZ = 0;
-        rowMaxDepth = MIN_CELL_SIZE + INTER_CELL_GAP;
+        rowMaxDepth = DEFAULT_CELL_SIZE + INTER_CELL_GAP;
         rowCount = 0;
     }
 }

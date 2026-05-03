@@ -32,6 +32,10 @@ public class GameTestInstance {
     private GameTestSequence sequence;
     private final List<DelayedAction> delayedActions = new ArrayList<>();
 
+    /** World-space coordinates of the block that triggered the failure (if applicable). */
+    private int failX, failY, failZ;
+    private boolean hasFailPosition;
+
     public GameTestInstance(GameTestDefinition definition, int originX, int originY, int originZ) {
         this.definition = definition;
         this.originX = originX;
@@ -121,6 +125,13 @@ public class GameTestInstance {
         if (status != GameTestStatus.RUNNING) return;
         status = GameTestStatus.FAILED;
         failureCause = cause;
+        if (cause instanceof GameTestAssertException) {
+            GameTestAssertException gae = (GameTestAssertException) cause;
+            failX = gae.getX();
+            failY = gae.getY();
+            failZ = gae.getZ();
+            hasFailPosition = true;
+        }
         String detail = cause != null ? cause.getMessage() : "unknown";
         LOG.error("FAILED   {} - {}", definition.getTestId(), detail);
         if (cause != null && !(cause instanceof GameTestAssertException)) {
@@ -166,6 +177,22 @@ public class GameTestInstance {
 
     public int getTickCount() {
         return tickCount;
+    }
+
+    public boolean hasFailPosition() {
+        return hasFailPosition;
+    }
+
+    public int getFailX() {
+        return failX;
+    }
+
+    public int getFailY() {
+        return failY;
+    }
+
+    public int getFailZ() {
+        return failZ;
     }
 
     // -------------------------------------------------------------------------
