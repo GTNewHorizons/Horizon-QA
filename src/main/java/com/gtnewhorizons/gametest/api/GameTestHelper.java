@@ -588,7 +588,7 @@ public class GameTestHelper {
      */
     public void assertRedstonePower(int x, int y, int z, int minPower) {
         TestPos pos = absolute(x, y, z);
-        int power = world.getBlockPowerInput(pos.x(), pos.y(), pos.z());
+        int power = world.getStrongestIndirectPower(pos.x(), pos.y(), pos.z());
         if (power < minPower) {
             throw new GameTestAssertException(
                 "Expected redstone power >= " + minPower + " at (" + x + "," + y + "," + z + ") but found " + power,
