@@ -78,7 +78,7 @@ public final class GhostBlockDiff {
 
         // Label above voxel: FloatingText wraps long lines (same behaviour as cell labels).
         if (label != null && !label.isEmpty()) {
-            FloatingText.render(x + 0.5, y + 1.5, z + 0.5, new String[] { label }, 0.5f, partialTicks);
+            FloatingText.render(x + 0.5, y + 1.25, z + 0.5, new String[] { label }, 0.5f, partialTicks);
         }
     }
 

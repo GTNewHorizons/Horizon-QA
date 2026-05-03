@@ -26,8 +26,9 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
  * <ol>
  *   <li>A bounding-box wireframe around every known test cell.</li>
  *   <li>A glowing beacon pillar above each cell, color-coded by test status.</li>
- *   <li>Billboarded floating text above the beacon: test name, status, and (for failures)
- *       the assertion message.</li>
+ *   <li>Billboarded floating text above the beacon: test name, status with tick progress while
+ *       running, and (for failures) an ellipsized assertion summary plus fail coordinates when known;
+ *       the red ghost marker keeps the full message.</li>
  *   <li>A red ghost-block at the assertion-failure position when the exception carried
  *       world coordinates.</li>
  *   <li>Any custom {@link GhostBlockDiff} objects submitted through
@@ -53,6 +54,9 @@ public final class GameTestOverlayRenderer {
      * Gives enough clearance so the text does not overlap the beacon start.
      */
     private static final double TEXT_Y_LIFT   = 3.0;
+
+    /** Above-cell failure summary: truncated; full text stays on the ghost {@link FloatingText} at the fail block. */
+    private static final int MAX_CELL_FAILURE_CHARS = 96;
 
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
@@ -114,7 +118,7 @@ public final class GameTestOverlayRenderer {
             ghost.render(pt); // label (if any) is rendered at small scale inside GhostBlockDiff
         }
 
-        // ── Per-cell visuals, pass 2: floating text and ghost blocks (depth-off, always on top) ──
+        // ── Per-cell visuals, pass 2: floating text + failure ghosts (after beacons) ───────────
         // Rendered after all beacons so beacon geometry never overwrites text pixels.
         for (CellRecord cell : cells) {
             GameTestInstance inst   = session.getLastInstance(cell.testId);
@@ -129,7 +133,7 @@ public final class GameTestOverlayRenderer {
                 buildLines(cell.testId, status, inst), pt);
 
             // Ghost block at the assertion-failure coordinate (if available).
-            // Label (small text) wraps long failure messages via FloatingText.
+            // Label: full failure message (above-cell line is ellipsized summary + coords).
             if (inst.hasFailPosition()) {
                 String failLabel = null;
                 if (inst.getFailureCause() != null) {
@@ -163,25 +167,64 @@ public final class GameTestOverlayRenderer {
             GameTestInstance inst) {
         // Short name: strip "namespace:" prefix for readability
         String name = testId.contains(":") ? testId.substring(testId.indexOf(':') + 1) : testId;
-        String statusLine = statusLabel(status);
+        String statusLine = statusLabel(status, inst);
 
-        if ((status == GameTestStatus.FAILED || status == GameTestStatus.TIMED_OUT)
-                && inst != null && inst.getFailureCause() != null) {
-            String msg = inst.getFailureCause().getMessage();
-            if (msg != null && !msg.isEmpty()) {
-                return new String[] { name, statusLine, "\u00a7c" + msg };
-            }
+        if (status == GameTestStatus.TIMED_OUT) {
+            return new String[] { name, statusLine };
         }
+
+        if (status == GameTestStatus.FAILED && inst != null) {
+            Throwable cause = inst.getFailureCause();
+            String msg = cause != null ? cause.getMessage() : null;
+            if (msg != null) msg = msg.trim();
+            boolean hasPos = inst.hasFailPosition();
+
+            if (msg != null && !msg.isEmpty()) {
+                String detail = "\u00a7c" + ellipsize(msg, MAX_CELL_FAILURE_CHARS);
+                if (hasPos) {
+                    return new String[] { name, statusLine, detail,
+                        String.format("\u00a78%d %d %d\u00a7r",
+                            inst.getFailX(), inst.getFailY(), inst.getFailZ()) };
+                }
+                return new String[] { name, statusLine, detail };
+            }
+
+            String fallback = "\u00a7cNon-assertion error - see log\u00a7r";
+            if (hasPos) {
+                return new String[] { name, statusLine, fallback,
+                    String.format("\u00a78%d %d %d\u00a7r",
+                        inst.getFailX(), inst.getFailY(), inst.getFailZ()) };
+            }
+            return new String[] { name, statusLine, fallback };
+        }
+
         return new String[] { name, statusLine };
     }
 
-    private static String statusLabel(GameTestStatus s) {
-        return switch (s) {
+    private static String ellipsize(String s, int maxChars) {
+        if (s.length() <= maxChars) return s;
+        if (maxChars <= 1) return "\u2026";
+        return s.substring(0, maxChars - 1) + "\u2026";
+    }
+
+    private static String statusLabel(GameTestStatus s, GameTestInstance inst) {
+        String base = switch (s) {
             case RUNNING -> "\u00a77RUNNING\u00a7r";
             case PASSED -> "\u00a7aPASSED\u00a7r";
             case FAILED -> "\u00a7cFAILED\u00a7r";
             case TIMED_OUT -> "\u00a76TIMED OUT\u00a7r";
             default -> "\u00a77\u2014\u00a7r";
         };
+        if (inst == null) return base;
+        if (s == GameTestStatus.RUNNING) {
+            int t = inst.getTickCount();
+            int lim = inst.getDefinition().getTimeoutTicks();
+            return base + String.format(" \u00a78%d/%d t\u00a7r", t, lim);
+        }
+        if (s == GameTestStatus.TIMED_OUT) {
+            int lim = inst.getDefinition().getTimeoutTicks();
+            return base + String.format(" \u00a78(after %d t)\u00a7r", lim);
+        }
+        return base;
     }
 }
