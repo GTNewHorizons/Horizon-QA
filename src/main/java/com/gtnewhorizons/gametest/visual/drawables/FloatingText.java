@@ -34,7 +34,7 @@ public final class FloatingText {
     /** Background quad padding in font pixels. */
     private static final int   PAD   = 2;
     /** Beyond this Euclidean distance from the camera, labels are skipped. */
-    private static final double MAX_VIEW_DISTANCE_SQ = 20.0 * 20.0;
+    private static final double MAX_VIEW_DISTANCE_SQ = 5.0 * 5.0;
     /** Max width per line in font pixels; longer segments wrap to extra lines (MC format codes preserved). */
     private static final int MAX_LINE_PIXEL_WIDTH = 240;
 
