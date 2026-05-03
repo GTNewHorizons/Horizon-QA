@@ -1,5 +1,8 @@
 package com.gtnewhorizons.gametest.visual.drawables;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.Tessellator;
@@ -10,8 +13,9 @@ import org.lwjgl.opengl.GL11;
 
 /**
  * Renders one or more lines of text as a billboard label at a world-space position.
- * The text always faces the camera regardless of player orientation (yaw + pitch
- * billboard rotation). Depth testing is disabled so failure messages remain readable
+ * Long lines are wrapped to roughly {@link #MAX_LINE_PIXEL_WIDTH} font pixels per line so nothing
+ * is clipped at the screen edge. The text always faces the camera regardless of player orientation
+ * (yaw + pitch billboard rotation). Depth testing is disabled so failure messages remain readable
  * through terrain without the player needing line-of-sight.
  * Hidden when farther than ten blocks from the view camera (eyes).
  *
@@ -31,8 +35,22 @@ public final class FloatingText {
     private static final int   PAD   = 2;
     /** Beyond this Euclidean distance from the camera, labels are skipped. */
     private static final double MAX_VIEW_DISTANCE_SQ = 20.0 * 20.0;
+    /** Max width per line in font pixels; longer segments wrap to extra lines (MC format codes preserved). */
+    private static final int MAX_LINE_PIXEL_WIDTH = 240;
 
     private FloatingText() {}
+
+    /** Expands caller lines by wrapping overly long segments to fit {@link #MAX_LINE_PIXEL_WIDTH}. */
+    private static String[] wrapLines(FontRenderer fr, String[] lines) {
+        List<String> out = new ArrayList<>(lines.length * 2);
+        for (String raw : lines) {
+            if (raw == null) continue;
+            for (Object chunk : fr.listFormattedStringToWidth(raw, MAX_LINE_PIXEL_WIDTH)) {
+                out.add((String) chunk);
+            }
+        }
+        return out.toArray(new String[out.size()]);
+    }
 
     /**
      * Draw text lines centered at the given world position.
@@ -58,6 +76,9 @@ public final class FloatingText {
 
         FontRenderer fr = mc.fontRenderer;
         if (fr == null) return;
+
+        lines = wrapLines(fr, lines);
+        if (lines.length == 0) return;
 
         float s = SCALE * scaleMultiplier;
 

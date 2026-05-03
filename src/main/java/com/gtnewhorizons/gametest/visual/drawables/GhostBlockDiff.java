@@ -19,8 +19,8 @@ public final class GhostBlockDiff {
     /** Normalised RGB fill color [0..1]. */
     public final float r, g, b;
     /**
-     * Optional short label (e.g. failure reason) rendered via {@link FloatingText}
-     * above this ghost. {@code null} = no label.
+     * Optional label (e.g. failure reason) drawn above this ghost via {@link FloatingText}
+     * at half scale; long strings wrap instead of clipping. {@code null} = no label.
      */
     public final String label;
 
@@ -76,8 +76,8 @@ public final class GhostBlockDiff {
         GL11.glPolygonOffset(0f, 0f);
         GL11.glEnable(GL11.GL_CULL_FACE);
 
-        // Small floating label directly above this ghost block.
-        if (label != null) {
+        // Label above voxel: FloatingText wraps long lines (same behaviour as cell labels).
+        if (label != null && !label.isEmpty()) {
             FloatingText.render(x + 0.5, y + 1.5, z + 0.5, new String[] { label }, 0.5f, partialTicks);
         }
     }

@@ -127,13 +127,13 @@ public final class GameTestOverlayRenderer {
                 buildLines(cell.testId, status, inst), pt);
 
             // Ghost block at the assertion-failure coordinate (if available).
-            // Label (small text) shows the truncated failure message at the exact fail spot.
+            // Label (small text) wraps long failure messages via FloatingText.
             if (inst.hasFailPosition()) {
                 String failLabel = null;
                 if (inst.getFailureCause() != null) {
                     String m = inst.getFailureCause().getMessage();
                     if (m != null && !m.isEmpty()) {
-                        failLabel = m.length() > 32 ? m.substring(0, 29) + "\u2026" : m;
+                        failLabel = m;
                     }
                 }
                 new GhostBlockDiff(
@@ -167,8 +167,6 @@ public final class GameTestOverlayRenderer {
                 && inst != null && inst.getFailureCause() != null) {
             String msg = inst.getFailureCause().getMessage();
             if (msg != null && !msg.isEmpty()) {
-                // Truncate very long messages so they don't spill off screen
-                if (msg.length() > 48) msg = msg.substring(0, 45) + "\u2026";
                 return new String[] { name, statusLine, "\u00a7c" + msg };
             }
         }
