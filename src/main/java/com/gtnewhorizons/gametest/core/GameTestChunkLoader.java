@@ -81,9 +81,24 @@ public final class GameTestChunkLoader implements ForgeChunkManager.OrderedLoadi
     /** Release all tickets acquired during this run. Call once after the final batch completes. */
     public void releaseAll() {
         for (Ticket t : tickets) {
-            ForgeChunkManager.releaseTicket(t);
+            releaseTicketSafe(t);
         }
         tickets.clear();
+    }
+
+    /**
+     * {@link ForgeChunkManager#releaseTicket} assumes {@code Ticket.world} is still a key in Forge's
+     * internal ticket map (e.g. after a dimension unload / map rebuild that can disagree with stale
+     * references). Calling it then throws {@link NullPointerException}; skip cleanly so commands
+     * like {@code /gametest clearall} do not abort.
+     */
+    private static void releaseTicketSafe(Ticket t) {
+        if (t == null || t.world == null) return;
+        try {
+            ForgeChunkManager.releaseTicket(t);
+        } catch (NullPointerException ex) {
+            LOG.warn("[GameTest] Skipped Forge chunk ticket release (world/ticket no longer tracked by Forge).");
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -94,7 +109,7 @@ public final class GameTestChunkLoader implements ForgeChunkManager.OrderedLoadi
     public void ticketsLoaded(List<Ticket> restoredTickets, World world) {
         // Test cells are ephemeral — release any tickets that survived a crash/restart.
         for (Ticket t : restoredTickets) {
-            ForgeChunkManager.releaseTicket(t);
+            releaseTicketSafe(t);
         }
     }
 
