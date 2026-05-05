@@ -1,0 +1,25 @@
+site_name: Horizon-QA Documentation
+site_url: https://GTNewHorizons.github.io/Horizon-QA/
+repo_url: https://github.com/GTNewHorizons/Horizon-QA
+repo_name: GTNewHorizons/Horizon-QA
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Javadoc API: https://GTNewHorizons.github.io/Horizon-QA/javadoc/index.html
