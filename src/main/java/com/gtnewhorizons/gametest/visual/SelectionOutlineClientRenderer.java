@@ -189,8 +189,7 @@ public final class SelectionOutlineClientRenderer {
 
     private static int[] getLivePos2(EntityPlayer player) {
         double dist = Minecraft.getMinecraft().playerController.getBlockReachDistance();
-        Vec3 start = Vec3
-            .createVectorHelper(player.posX, player.posY + player.getEyeHeight(), player.posZ);
+        Vec3 start = Vec3.createVectorHelper(player.posX, player.posY + player.getEyeHeight(), player.posZ);
         Vec3 look = player.getLookVec();
         Vec3 end = Vec3.createVectorHelper(
             start.xCoord + look.xCoord * dist,
@@ -201,9 +200,7 @@ public final class SelectionOutlineClientRenderer {
         if (hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
             return new int[] { hit.blockX, hit.blockY, hit.blockZ };
         } else {
-            return new int[] {
-                MathHelper.floor_double(end.xCoord),
-                MathHelper.floor_double(end.yCoord),
+            return new int[] { MathHelper.floor_double(end.xCoord), MathHelper.floor_double(end.yCoord),
                 MathHelper.floor_double(end.zCoord) };
         }
     }
