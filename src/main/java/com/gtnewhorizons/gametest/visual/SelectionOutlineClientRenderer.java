@@ -3,8 +3,12 @@ package com.gtnewhorizons.gametest.visual;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.MathHelper;
+import net.minecraft.util.MovingObjectPosition;
+import net.minecraft.util.Vec3;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 
 import org.lwjgl.opengl.GL11;
@@ -66,12 +70,29 @@ public final class SelectionOutlineClientRenderer {
         if (held == null || !(held.getItem() instanceof ItemGameTestWand)) return;
 
         NBTTagCompound nbt = held.getTagCompound();
-        if (nbt == null || !nbt.getBoolean(ItemGameTestWand.TAG_POS1_SET)
-            || !nbt.getBoolean(ItemGameTestWand.TAG_POS2_SET)) {
-            return;
+        boolean pos1Set = nbt != null && nbt.getBoolean(ItemGameTestWand.TAG_POS1_SET);
+        boolean pending = nbt != null && nbt.getBoolean(ItemGameTestWand.TAG_PENDING);
+        boolean pos2Set = nbt != null && nbt.getBoolean(ItemGameTestWand.TAG_POS2_SET);
+
+        if (!pos1Set || (!pending && !pos2Set)) return;
+
+        int bx1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_X);
+        int by1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_Y);
+        int bz1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_Z);
+
+        int bx2, by2, bz2;
+        if (pending) {
+            int[] live = getLivePos2(mc.thePlayer);
+            bx2 = live[0];
+            by2 = live[1];
+            bz2 = live[2];
+        } else {
+            bx2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_X);
+            by2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_Y);
+            bz2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_Z);
         }
 
-        SelectionBounds bounds = SelectionBounds.fromNBT(nbt);
+        SelectionBounds bounds = SelectionBounds.fromCoords(bx1, by1, bz1, bx2, by2, bz2);
 
         float pt = event.partialTicks;
         double vx = viewer.lastTickPosX + (viewer.posX - viewer.lastTickPosX) * pt;
@@ -166,6 +187,27 @@ public final class SelectionOutlineClientRenderer {
         GL11.glPolygonOffset(0f, 0f);
     }
 
+    private static int[] getLivePos2(EntityPlayer player) {
+        double dist = Minecraft.getMinecraft().playerController.getBlockReachDistance();
+        Vec3 start = Vec3
+            .createVectorHelper(player.posX, player.posY + player.getEyeHeight(), player.posZ);
+        Vec3 look = player.getLookVec();
+        Vec3 end = Vec3.createVectorHelper(
+            start.xCoord + look.xCoord * dist,
+            start.yCoord + look.yCoord * dist,
+            start.zCoord + look.zCoord * dist);
+
+        MovingObjectPosition hit = player.worldObj.rayTraceBlocks(start, end);
+        if (hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
+            return new int[] { hit.blockX, hit.blockY, hit.blockZ };
+        } else {
+            return new int[] {
+                MathHelper.floor_double(end.xCoord),
+                MathHelper.floor_double(end.yCoord),
+                MathHelper.floor_double(end.zCoord) };
+        }
+    }
+
     private static final class SelectionBounds {
 
         final double x0, y0, z0, x1, y1, z1;
@@ -187,14 +229,7 @@ public final class SelectionOutlineClientRenderer {
             this.fz1 = fz1;
         }
 
-        static SelectionBounds fromNBT(NBTTagCompound nbt) {
-            int bx1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_X);
-            int by1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_Y);
-            int bz1 = nbt.getInteger(ItemGameTestWand.TAG_POS1_Z);
-            int bx2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_X);
-            int by2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_Y);
-            int bz2 = nbt.getInteger(ItemGameTestWand.TAG_POS2_Z);
-
+        static SelectionBounds fromCoords(int bx1, int by1, int bz1, int bx2, int by2, int bz2) {
             double minX = Math.min(bx1, bx2);
             double minY = Math.min(by1, by2);
             double minZ = Math.min(bz1, bz2);
