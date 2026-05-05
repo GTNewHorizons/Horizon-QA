@@ -85,9 +85,7 @@ public class ItemGameTestWand extends Item {
         if (hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
             return new int[] { hit.blockX, hit.blockY, hit.blockZ };
         } else {
-            return new int[] {
-                MathHelper.floor_double(end.xCoord),
-                MathHelper.floor_double(end.yCoord),
+            return new int[] { MathHelper.floor_double(end.xCoord), MathHelper.floor_double(end.yCoord),
                 MathHelper.floor_double(end.zCoord) };
         }
     }
