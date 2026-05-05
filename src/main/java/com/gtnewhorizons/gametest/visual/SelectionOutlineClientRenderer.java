@@ -254,7 +254,7 @@ public final class SelectionOutlineClientRenderer {
     }
 
     private static float clamp01(float x) {
-        return x <= 0f ? 0f : x >= 1f ? 1f : x;
+        return x <= 0f ? 0f : Math.min(x, 1f);
     }
 
     private static float facePulseModulation(float wtime, float periodTicks) {

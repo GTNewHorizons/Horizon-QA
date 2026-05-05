@@ -110,7 +110,7 @@ public class ItemGameTestWand extends Item {
                     + y
                     + ", "
                     + z
-                    + ") \u2014 right-click to set "
+                    + ") — right-click to set "
                     + EnumChatFormatting.AQUA
                     + "Pos2"));
     }
@@ -145,9 +145,9 @@ public class ItemGameTestWand extends Item {
                 new ChatComponentText(
                     EnumChatFormatting.YELLOW + "Selection: "
                         + dx
-                        + "\u00d7"
+                        + "×"
                         + dy
-                        + "\u00d7"
+                        + "×"
                         + dz
                         + " ("
                         + (dx * dy * dz)
@@ -202,7 +202,7 @@ public class ItemGameTestWand extends Item {
             int dx = Math.abs(nbt.getInteger(TAG_POS2_X) - nbt.getInteger(TAG_POS1_X)) + 1;
             int dy = Math.abs(nbt.getInteger(TAG_POS2_Y) - nbt.getInteger(TAG_POS1_Y)) + 1;
             int dz = Math.abs(nbt.getInteger(TAG_POS2_Z) - nbt.getInteger(TAG_POS1_Z)) + 1;
-            list.add(EnumChatFormatting.YELLOW + "Size: " + dx + "\u00d7" + dy + "\u00d7" + dz);
+            list.add(EnumChatFormatting.YELLOW + "Size: " + dx + "×" + dy + "×" + dz);
         }
     }
 
