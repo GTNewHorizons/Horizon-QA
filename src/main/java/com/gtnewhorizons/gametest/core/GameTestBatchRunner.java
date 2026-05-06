@@ -88,7 +88,7 @@ public class GameTestBatchRunner {
 
         ConsoleReporter.report(allInstances);
 
-        File reportFile = new File(".", "TEST-gametest.xml");
+        File reportFile = new File("TEST-gametest.xml");
         try {
             JUnitXmlReporter.write(allInstances, reportFile);
             LOG.info("JUnit XML report written to {}", reportFile.getAbsolutePath());
