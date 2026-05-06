@@ -1,12 +1,16 @@
 package com.gtnewhorizons.gametest.report;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 
+import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.gametest.core.GameTestInstance;
 import com.gtnewhorizons.gametest.core.GameTestStatus;
 
@@ -17,26 +21,29 @@ public final class JUnitXmlReporter {
     private JUnitXmlReporter() {}
 
     public static void write(List<GameTestInstance> instances, File outputFile) throws IOException {
-        File parent = outputFile.getParentFile();
-        if (parent != null) parent.mkdirs();
-
-        long failures = 0, errors = 0;
-        for (GameTestInstance inst : instances) {
-            GameTestStatus s = inst.getStatus();
-            if (s == GameTestStatus.FAILED) failures++;
-            else if (s == GameTestStatus.TIMED_OUT) errors++;
+        Path path = outputFile.toPath();
+        Path parent = path.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
         }
 
-        try (PrintWriter pw = new PrintWriter(new FileWriter(outputFile))) {
+        var rollup = rollup(instances);
+
+        try (var pw = new PrintWriter(Files.newBufferedWriter(path, StandardCharsets.UTF_8))) {
             pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
             pw.printf(
-                "<testsuite name=\"gametest\" tests=\"%d\" failures=\"%d\" errors=\"%d\" time=\"%.3f\">%n",
+                "<testsuite name=\"gametest\" tests=\"%d\" failures=\"%d\" errors=\"%d\" skipped=\"%d\""
+                    + " time=\"%.3f\" timestamp=\"%s\" hostname=\"localhost\">%n",
                 instances.size(),
-                failures,
-                errors,
-                suiteDuration(instances));
+                rollup.failures(),
+                rollup.errors(),
+                rollup.skipped(),
+                suiteDuration(instances),
+                sanitizeAttr(
+                    Instant.now()
+                        .toString()));
 
-            for (GameTestInstance inst : instances) {
+            for (var inst : instances) {
                 writeTestCase(pw, inst);
             }
 
@@ -48,70 +55,147 @@ public final class JUnitXmlReporter {
         String testId = inst.getDefinition()
             .getTestId();
         int sep = Math.max(testId.lastIndexOf('.'), testId.lastIndexOf('#'));
-        String classname = sep > 0 ? testId.substring(0, sep) : "gametest";
-        String name = sep > 0 ? testId.substring(sep + 1) : testId;
+
+        var classname = sep > 0 ? testId.substring(0, sep) : "gametest";
+        var name = sep > 0 ? testId.substring(sep + 1) : testId;
         double time = inst.getTickCount() / TICKS_PER_SECOND;
 
-        GameTestStatus status = inst.getStatus();
+        var status = inst.getStatus();
 
         if (status == GameTestStatus.PASSED) {
             pw.printf(
                 "  <testcase name=\"%s\" classname=\"%s\" time=\"%.3f\"/>%n",
-                escape(name),
-                escape(classname),
+                sanitizeAttr(name),
+                sanitizeAttr(classname),
                 time);
             return;
         }
 
-        pw.printf("  <testcase name=\"%s\" classname=\"%s\" time=\"%.3f\">%n", escape(name), escape(classname), time);
+        pw.printf(
+            "  <testcase name=\"%s\" classname=\"%s\" time=\"%.3f\">%n",
+            sanitizeAttr(name),
+            sanitizeAttr(classname),
+            time);
 
         if (status == GameTestStatus.FAILED) {
             Throwable cause = inst.getFailureCause();
-            String message = cause != null ? cause.getMessage() : "Test failed";
-            String type = cause != null ? cause.getClass()
+            var message = cause != null ? cause.getMessage() : "Test failed";
+            var type = cause != null ? cause.getClass()
                 .getName() : "java.lang.AssertionError";
-            pw.printf("    <failure message=\"%s\" type=\"%s\">%n", escape(message), escape(type));
+
+            pw.printf("    <failure message=\"%s\" type=\"%s\">%n", sanitizeAttr(message), sanitizeAttr(type));
             if (cause != null) {
                 pw.print(escapeBody(stackTrace(cause)));
             }
             pw.println("    </failure>");
         } else if (status == GameTestStatus.TIMED_OUT) {
             pw.printf(
-                "    <error message=\"Timed out after %d ticks\" type=\"GameTestTimeoutError\"/>%n",
-                inst.getTickCount());
+                "    <error message=\"Timed out after %d ticks\" type=\"%s\"/>%n",
+                inst.getTickCount(),
+                sanitizeAttr("GameTestTimeoutError"));
         } else {
-            pw.printf("    <error message=\"Test did not complete (status: %s)\" type=\"GameTestError\"/>%n", status);
+            pw.printf(
+                "    <error message=\"Test did not complete (status: %s)\" type=\"%s\"/>%n",
+                sanitizeAttr(status.toString()),
+                sanitizeAttr("GameTestError"));
         }
 
         pw.println("  </testcase>");
     }
 
     private static double suiteDuration(List<GameTestInstance> instances) {
-        int max = 0;
-        for (GameTestInstance inst : instances) {
-            if (inst.getTickCount() > max) max = inst.getTickCount();
-        }
-        return max / TICKS_PER_SECOND;
+        return instances.stream()
+            .mapToInt(GameTestInstance::getTickCount)
+            .max()
+            .orElse(0) / TICKS_PER_SECOND;
     }
 
     private static String stackTrace(Throwable t) {
-        StringWriter sw = new StringWriter();
+        var sw = new StringWriter();
         t.printStackTrace(new PrintWriter(sw));
         return sw.toString();
     }
 
-    private static String escape(String s) {
-        if (s == null) return "";
-        return s.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\"", "&quot;");
+    private static SuiteRollup rollup(List<GameTestInstance> instances) {
+        long failures = 0, errors = 0, skipped = 0;
+        for (var inst : instances) {
+            switch (inst.getStatus()) {
+                case PASSED -> {}
+                case FAILED -> failures++;
+                case TIMED_OUT, NOT_STARTED, RUNNING -> errors++;
+            }
+        }
+        return new SuiteRollup(failures, errors, skipped);
     }
 
+    @Desugar
+    private record SuiteRollup(long failures, long errors, long skipped) {}
+
+    /**
+     * Single-pass XML 1.0 attribute sanitizer.
+     * Escapes XML entities and strips invalid/control characters.
+     * 
+     * @param s string to sanitize
+     */
+    private static String sanitizeAttr(String s) {
+        if (s == null) return "";
+        var out = new StringBuilder(s.length() + 16);
+        for (int offset = 0; offset < s.length();) {
+            int cp = s.codePointAt(offset);
+            switch (cp) {
+                case '&' -> out.append("&amp;");
+                case '<' -> out.append("&lt;");
+                case '>' -> out.append("&gt;");
+                case '"' -> out.append("&quot;");
+                case '\r', '\n', '\t' -> out.append(' ');
+                default -> {
+                    if (isValidXml10Char(cp)) {
+                        out.appendCodePoint(cp);
+                    }
+                }
+            }
+            offset += Character.charCount(cp);
+        }
+        return out.toString();
+    }
+
+    /**
+     * Single-pass XML 1.0 body sanitizer.
+     * Escapes entities and strips invalid characters (preserves standard whitespace).
+     * 
+     * @param s string to sanitize
+     */
     private static String escapeBody(String s) {
         if (s == null) return "";
-        return s.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;");
+        var out = new StringBuilder(s.length() + 16);
+        for (int offset = 0; offset < s.length();) {
+            int cp = s.codePointAt(offset);
+            switch (cp) {
+                case '&' -> out.append("&amp;");
+                case '<' -> out.append("&lt;");
+                case '>' -> out.append("&gt;");
+                default -> {
+                    if (isValidXml10Char(cp)) {
+                        out.appendCodePoint(cp);
+                    }
+                }
+            }
+            offset += Character.charCount(cp);
+        }
+        return out.toString();
+    }
+
+    /**
+     * Valid XML 1.0 chars, excluding the 0x7F-0x9F control block to prevent CI parser crashes.
+     * 
+     * @param cp code point
+     */
+    private static boolean isValidXml10Char(int cp) {
+        return cp == 0x9 || cp == 0xA
+            || cp == 0xD
+            || (cp >= 0x20 && cp <= 0x7E) // Standard printable ASCII
+            || (cp >= 0xA0 && cp <= 0xD7FF) // Valid Unicode (excluding C1 controls)
+            || (cp >= 0xE000 && cp <= 0xFFFD) // Valid Unicode
+            || (cp >= 0x10000 && cp <= 0x10FFFF);// Supplementary planes
     }
 }
