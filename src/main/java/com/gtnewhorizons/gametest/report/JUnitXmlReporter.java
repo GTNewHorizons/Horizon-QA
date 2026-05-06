@@ -39,8 +39,9 @@ public final class JUnitXmlReporter {
                 rollup.errors(),
                 rollup.skipped(),
                 suiteDuration(instances),
-                sanitizeAttr(Instant.now().toString())
-            );
+                sanitizeAttr(
+                    Instant.now()
+                        .toString()));
 
             for (var inst : instances) {
                 writeTestCase(pw, inst);
@@ -51,7 +52,8 @@ public final class JUnitXmlReporter {
     }
 
     private static void writeTestCase(PrintWriter pw, GameTestInstance inst) {
-        String testId = inst.getDefinition().getTestId();
+        String testId = inst.getDefinition()
+            .getTestId();
         int sep = Math.max(testId.lastIndexOf('.'), testId.lastIndexOf('#'));
 
         var classname = sep > 0 ? testId.substring(0, sep) : "gametest";
@@ -65,8 +67,7 @@ public final class JUnitXmlReporter {
                 "  <testcase name=\"%s\" classname=\"%s\" time=\"%.3f\"/>%n",
                 sanitizeAttr(name),
                 sanitizeAttr(classname),
-                time
-            );
+                time);
             return;
         }
 
@@ -74,13 +75,13 @@ public final class JUnitXmlReporter {
             "  <testcase name=\"%s\" classname=\"%s\" time=\"%.3f\">%n",
             sanitizeAttr(name),
             sanitizeAttr(classname),
-            time
-        );
+            time);
 
         if (status == GameTestStatus.FAILED) {
             Throwable cause = inst.getFailureCause();
             var message = cause != null ? cause.getMessage() : "Test failed";
-            var type = cause != null ? cause.getClass().getName() : "java.lang.AssertionError";
+            var type = cause != null ? cause.getClass()
+                .getName() : "java.lang.AssertionError";
 
             pw.printf("    <failure message=\"%s\" type=\"%s\">%n", sanitizeAttr(message), sanitizeAttr(type));
             if (cause != null) {
@@ -91,14 +92,12 @@ public final class JUnitXmlReporter {
             pw.printf(
                 "    <error message=\"Timed out after %d ticks\" type=\"%s\"/>%n",
                 inst.getTickCount(),
-                sanitizeAttr("GameTestTimeoutError")
-            );
+                sanitizeAttr("GameTestTimeoutError"));
         } else {
             pw.printf(
                 "    <error message=\"Test did not complete (status: %s)\" type=\"%s\"/>%n",
                 sanitizeAttr(status.toString()),
-                sanitizeAttr("GameTestError")
-            );
+                sanitizeAttr("GameTestError"));
         }
 
         pw.println("  </testcase>");
@@ -135,12 +134,13 @@ public final class JUnitXmlReporter {
     /**
      * Single-pass XML 1.0 attribute sanitizer.
      * Escapes XML entities and strips invalid/control characters.
+     * 
      * @param s string to sanitize
      */
     private static String sanitizeAttr(String s) {
         if (s == null) return "";
         var out = new StringBuilder(s.length() + 16);
-        for (int offset = 0; offset < s.length(); ) {
+        for (int offset = 0; offset < s.length();) {
             int cp = s.codePointAt(offset);
             switch (cp) {
                 case '&' -> out.append("&amp;");
@@ -162,12 +162,13 @@ public final class JUnitXmlReporter {
     /**
      * Single-pass XML 1.0 body sanitizer.
      * Escapes entities and strips invalid characters (preserves standard whitespace).
+     * 
      * @param s string to sanitize
      */
     private static String escapeBody(String s) {
         if (s == null) return "";
         var out = new StringBuilder(s.length() + 16);
-        for (int offset = 0; offset < s.length(); ) {
+        for (int offset = 0; offset < s.length();) {
             int cp = s.codePointAt(offset);
             switch (cp) {
                 case '&' -> out.append("&amp;");
@@ -186,13 +187,15 @@ public final class JUnitXmlReporter {
 
     /**
      * Valid XML 1.0 chars, excluding the 0x7F-0x9F control block to prevent CI parser crashes.
+     * 
      * @param cp code point
      */
     private static boolean isValidXml10Char(int cp) {
-        return cp == 0x9 || cp == 0xA || cp == 0xD
-            || (cp >= 0x20 && cp <= 0x7E)        // Standard printable ASCII
-            || (cp >= 0xA0 && cp <= 0xD7FF)      // Valid Unicode (excluding C1 controls)
-            || (cp >= 0xE000 && cp <= 0xFFFD)    // Valid Unicode
+        return cp == 0x9 || cp == 0xA
+            || cp == 0xD
+            || (cp >= 0x20 && cp <= 0x7E) // Standard printable ASCII
+            || (cp >= 0xA0 && cp <= 0xD7FF) // Valid Unicode (excluding C1 controls)
+            || (cp >= 0xE000 && cp <= 0xFFFD) // Valid Unicode
             || (cp >= 0x10000 && cp <= 0x10FFFF);// Supplementary planes
     }
 }
