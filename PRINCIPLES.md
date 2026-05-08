@@ -1,0 +1,14 @@
+# PRINCIPLES
+ 
+These are the design constraints this framework is built around. They exist to prevent the most common failure modes in mod testing infrastructure: tests that pass for the wrong reasons, tests that are brittle to refactors, and test failures that tell you nothing useful.
+ 
+Reference this document in PR reviews. If a contribution conflicts with one of these, say which one and why.
+ 
+1. **Functional tests, not unit tests.** A test boots a real server, places real blocks, and runs the real machine. We do not reimplement GT logic in mocks. If GT changes behavior, our tests should catch it, not break silently because the mock diverged.
+2. **Mock supply, not validation.** Tests may use any means necessary to satisfy a machine's input preconditions. What they must never do is bypass or reimplement recipe-gating, efficiency, or output-routing logic. Supply gets the machine into a testable state. Validation is what you are testing.
+3. **Role-based addressing.** Tests reference *"the input bus"*, *"the energy hatch"*; never *"the block at (1,1,2)"*. Positions live in the structure template. Tests that hardcode coordinates break on any structure rotation or layout change.
+4. **Wait on state, not ticks.** Assert against observable machine state: formed, processing, idle, exploded, stalled. Hardcoded tick counts are acceptable only as timeout budgets (the maximum you're willing to wait before failing), not as a proxy for "the recipe finished."
+5. **Negative tests are load-bearing.** The primary idiom of this framework is asserting every tick that something bad has *not* happened. Most real-world regressions are "this thing that should not have occurred, occurred." Design tests accordingly.
+6. **Leave no trace.** A test must not permanently mutate global registries, recipe maps, or player data. If a test requires a synthetic recipe or material, it must clean it up during test teardown. Global state mutation is the failure mode where one test silently poisons another, and the failure surfaces far from the cause.
+7. **Tests organised by system, not by file.** E2E tests live in a package hierarchy that mirrors the *system under test*, not the source class that implements it. Single-mod multiblock tests go under `multiblock/<machine-name>/`. Cross-mod compatibility tests go under `compatibility/<mod-a>_<mod-b>/`. The `examples/` directory is for the framework's own documented examples only, not general test growth.
+8. **Failure output is part of the product.** A passing test is cheap. Every failure must be diagnosable from the JUnit XML alone: what went in, what state the machine was in, what was expected versus observed, and the event sequence leading up to the failure. If a contributor cannot identify the root cause from the XML report alone, the failure output is a bug.
