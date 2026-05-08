@@ -1,7 +1,5 @@
 package com.gtnewhorizons.gametest.api.gt;
 
-import java.lang.reflect.Method;
-
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -13,8 +11,10 @@ import net.minecraftforge.fluids.IFluidHandler;
 
 import com.gtnewhorizons.gametest.api.GameTestAssertException;
 import com.gtnewhorizons.gametest.api.GameTestHelper;
-import com.gtnewhorizons.gametest.api.annotation.Experimental;
 import com.gtnewhorizons.gametest.api.TestPos;
+import com.gtnewhorizons.gametest.api.annotation.Experimental;
+import com.gtnewhorizons.gametest.api.gt.adapter.GT5UnofficialAdapter;
+import com.gtnewhorizons.gametest.api.gt.adapter.GTAdapter;
 
 import gregtech.api.interfaces.IConfigurationCircuitSupport;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -37,6 +37,8 @@ import gregtech.api.util.GTUtility;
  */
 @Experimental
 public class GTNHGameTestHelper {
+
+    private static final GTAdapter GT = new GT5UnofficialAdapter();
 
     /** Blocks in each axis from the test origin included in the fast-forward region. */
     private static final int DEFAULT_WARP_RANGE = 32;
@@ -372,10 +374,6 @@ public class GTNHGameTestHelper {
      * Assert that at least {@code expectedPollution} units of pollution were emitted in the
      * origin chunk since this helper was created (i.e. since {@link GameTestHelper#gtnh()} was
      * first called).
-     *
-     * <p>
-     * Pollution is read from {@code gregtech.common.pollution.Pollution} via reflection. If
-     * the class or method is absent, this assertion silently passes.
      */
     public void assertPollutionEmitted(long expectedPollution) {
         long emitted = getPollutionAtOrigin() - pollutionBefore;
@@ -391,37 +389,27 @@ public class GTNHGameTestHelper {
     /**
      * Assert that the cleanroom controller at {@code relPos} has an efficiency of at least
      * {@code expectedEfficiency} (0–10000, representing 0–100.00 %).
-     *
-     * <p>
-     * Efficiency is read from {@code mEfficiency} via reflection so the helper compiles
-     * without a hard dependency on the cleanroom's concrete class.
      */
     public void assertCleanroomStatus(TestPos relPos, int expectedEfficiency) {
         IGregTechTileEntity igte = requireGTTE(relPos);
         IMetaTileEntity mte = igte.getMetaTileEntity();
+        int efficiency;
         try {
-            java.lang.reflect.Field f = mte.getClass()
-                .getField("mEfficiency");
-            int efficiency = f.getInt(mte);
-            if (efficiency < expectedEfficiency) {
-                throw error(
-                    "Cleanroom at " + relPos
-                        + " has efficiency "
-                        + efficiency
-                        + " but expected >= "
-                        + expectedEfficiency,
-                    relPos);
-            }
-        } catch (NoSuchFieldException e) {
+            efficiency = GT.getEfficiency(mte);
+        } catch (IllegalStateException | IllegalArgumentException e) {
             throw error(
                 "TE at " + relPos
-                    + " has no 'mEfficiency' field — is it really a cleanroom? ("
+                    + " does not expose mEfficiency via GTAdapter — is it really a cleanroom? ("
                     + mte.getClass()
                         .getName()
-                    + ")",
+                    + "): "
+                    + e.getMessage(),
                 relPos);
-        } catch (IllegalAccessException e) {
-            throw error("Cannot read mEfficiency at " + relPos + ": " + e.getMessage(), relPos);
+        }
+        if (efficiency < expectedEfficiency) {
+            throw error(
+                "Cleanroom at " + relPos + " has efficiency " + efficiency + " but expected >= " + expectedEfficiency,
+                relPos);
         }
     }
 
@@ -459,19 +447,7 @@ public class GTNHGameTestHelper {
         return new GameTestAssertException(message, abs);
     }
 
-    /**
-     * Read the pollution level at the origin chunk via reflection on
-     * {@code gregtech.common.pollution.Pollution}. Returns 0 if the class is absent.
-     */
     private long getPollutionAtOrigin() {
-        try {
-            Class<?> cls = Class.forName("gregtech.common.pollution.Pollution");
-            Method m = cls.getMethod("getPollution", net.minecraft.world.chunk.Chunk.class);
-            net.minecraft.world.chunk.Chunk chunk = world.getChunkFromBlockCoords(originX, originZ);
-            Object result = m.invoke(null, chunk);
-            return ((Number) result).longValue();
-        } catch (Exception ignored) {
-            return 0L;
-        }
+        return GT.getPollution(world.getChunkFromBlockCoords(originX, originZ));
     }
 }
