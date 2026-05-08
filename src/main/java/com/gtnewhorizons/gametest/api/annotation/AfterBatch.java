@@ -8,6 +8,7 @@ import java.lang.annotation.Target;
 /**
  * Marks a static method run once after all tests in the same {@link GameTest#batch()}.
  */
+@Stable
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface AfterBatch {

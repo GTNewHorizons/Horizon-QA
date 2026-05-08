@@ -1,7 +1,10 @@
 package com.gtnewhorizons.gametest.api.gt;
 
+import com.gtnewhorizons.gametest.api.annotation.Experimental;
+
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 
+@Experimental
 public enum MaintenanceType {
 
     WRENCH,

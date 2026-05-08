@@ -7,8 +7,11 @@ import java.util.List;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.WorldServer;
 
+import com.gtnewhorizons.gametest.api.annotation.Experimental;
+
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 
+@Experimental
 public class VirtualEUDynamo {
 
     private final List<EUSupplyJob> jobs = new ArrayList<>();

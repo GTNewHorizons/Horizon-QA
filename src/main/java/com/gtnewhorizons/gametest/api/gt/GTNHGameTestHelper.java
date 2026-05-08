@@ -13,6 +13,7 @@ import net.minecraftforge.fluids.IFluidHandler;
 
 import com.gtnewhorizons.gametest.api.GameTestAssertException;
 import com.gtnewhorizons.gametest.api.GameTestHelper;
+import com.gtnewhorizons.gametest.api.annotation.Experimental;
 import com.gtnewhorizons.gametest.api.TestPos;
 
 import gregtech.api.interfaces.IConfigurationCircuitSupport;
@@ -34,6 +35,7 @@ import gregtech.api.util.GTUtility;
  * GT tile entities in the test region are force-ticked without advancing global server time, so
  * recipe completion tests finish in milliseconds of wall-clock time.
  */
+@Experimental
 public class GTNHGameTestHelper {
 
     /** Blocks in each axis from the test origin included in the fast-forward region. */

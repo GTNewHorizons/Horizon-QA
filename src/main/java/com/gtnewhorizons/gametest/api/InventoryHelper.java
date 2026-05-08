@@ -4,10 +4,13 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 
+import com.gtnewhorizons.gametest.api.annotation.Experimental;
+
 /**
  * Utility for inserting into / querying {@link IInventory} and {@link ISidedInventory} tile entities
  * without knowing which interface the block implements.
  */
+@Experimental
 public final class InventoryHelper {
 
     private InventoryHelper() {}

@@ -3,6 +3,9 @@ package com.gtnewhorizons.gametest.api;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.storage.WorldInfo;
 
+import com.gtnewhorizons.gametest.api.annotation.Experimental;
+
+@Experimental
 public enum Weather {
 
     CLEAR(false, false),

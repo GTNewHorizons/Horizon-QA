@@ -2,6 +2,9 @@ package com.gtnewhorizons.gametest.api;
 
 import java.util.Objects;
 
+import com.gtnewhorizons.gametest.api.annotation.Stable;
+
+@Stable
 public final class TestPos {
 
     private final int x;

@@ -7,6 +7,8 @@ import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
+import com.gtnewhorizons.gametest.api.annotation.Experimental;
+
 /**
  * Traverses {@link NBTTagCompound} structures using dotted-path notation.
  * <p>
@@ -19,6 +21,7 @@ import net.minecraft.nbt.NBTTagList;
  * <li>{@code "ForgeCaps.mymod:cap.level"} — nested compound traversal (colons are valid within a segment)</li>
  * </ul>
  */
+@Experimental
 public final class NBTPathAccessor {
 
     private static final Field TAG_LIST_FIELD;
