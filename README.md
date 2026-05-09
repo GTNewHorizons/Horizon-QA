@@ -17,4 +17,13 @@ Horizon QA is an end-to-end testing framework for GTNH. It implements the modern
 3. Write a Java test class using `@GameTest` to define the logic and assertions.
 4. Run tests using the `/gametest runall` command and view results in-game or in the build logs.
 
-The project maintains the `com.gtnewhorizons.gametest` package and standard naming conventions to stay compatible with existing GameTest knowledge.
+## Legal Disclaimer & Clean-Room Implementation
+
+**Horizon-QA** is an independent, clean-room implementation of a testing framework for Minecraft 1.7.10. While the API structure, class names, and annotations are heavily inspired by modern Minecraft's GameTest framework to ensure developer familiarity and ease of use, the underlying codebase is entirely original.
+
+* **No Proprietary Code:** This project was developed entirely from scratch by observing public documentation, videos, and the external behavior of modern testing tools. It contains **zero** decompiled or proprietary source code from Mojang/Microsoft.
+* **Transformative Work:** The framework safely translates modern API concepts into the fundamentally different 1.7.10 architecture and includes custom, transformative extensions built specifically for GregTech New Horizons (GTNH).
+* **Licensing:** Because the implementation logic is 100% original, this project is legally and safely distributed under the **MIT License**.
+
+### Notice to Contributors
+To protect the legal integrity of this project, please **do not** reference, decompile, or copy any source code from modern Minecraft versions when submitting Pull Requests. Any PR found to contain proprietary Mojang code will be immediately rejected.
