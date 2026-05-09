@@ -79,6 +79,14 @@ public class GameTestHelper {
     }
 
     /**
+     * Run {@code callback} once per test tick until the test ends (pass or fail). Useful for negative assertions that
+     * must hold continuously.
+     */
+    public void onEachTick(Runnable callback) {
+        instance.addEachTickCallback(callback);
+    }
+
+    /**
      * Immediately fail this test with {@code message}. Throws {@link GameTestAssertException} so that
      * any enclosing {@code thenExecute} lambda propagates the failure correctly.
      */

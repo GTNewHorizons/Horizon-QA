@@ -29,6 +29,7 @@ public class GameTestInstance {
     private Throwable failureCause;
     private GameTestSequence sequence;
     private BooleanSupplier succeedWhen;
+    private final List<Runnable> eachTickCallbacks = new ArrayList<>();
     private final List<DelayedAction> delayedActions = new ArrayList<>();
 
     private int failX, failY, failZ;
@@ -58,6 +59,15 @@ public class GameTestInstance {
     public void tick() {
         if (status != GameTestStatus.RUNNING) return;
         tickCount++;
+
+        for (Runnable callback : eachTickCallbacks) {
+            try {
+                callback.run();
+            } catch (Throwable t) {
+                fail(t);
+                return;
+            }
+        }
 
         if (succeedWhen != null) {
             try {
@@ -146,6 +156,13 @@ public class GameTestInstance {
             throw new IllegalStateException("succeedWhen has already been set on this test");
         }
         this.succeedWhen = predicate;
+    }
+
+    public void addEachTickCallback(Runnable callback) {
+        if (callback == null) {
+            throw new IllegalArgumentException("onEachTick callback must not be null");
+        }
+        eachTickCallbacks.add(callback);
     }
 
     public boolean isDone() {
