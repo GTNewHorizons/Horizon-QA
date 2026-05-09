@@ -7,10 +7,10 @@ import java.lang.reflect.Modifier;
 
 import net.minecraft.world.chunk.Chunk;
 
+import com.gtnewhorizons.gametest.api.annotation.Experimental;
+
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
-
-import com.gtnewhorizons.gametest.api.annotation.Experimental;
 
 /** {@link GTAdapter} targeting GTNH GT5-Unofficial; resolves all reflective lookups at construction time. */
 @Experimental
@@ -83,10 +83,14 @@ public final class GT5UnofficialAdapter implements GTAdapter {
         try {
             return efficiencyField.getInt(mte);
         } catch (IllegalAccessException e) {
-            throw new IllegalStateException("Cannot read mEfficiency on " + mte.getClass().getName(), e);
+            throw new IllegalStateException(
+                "Cannot read mEfficiency on " + mte.getClass()
+                    .getName(),
+                e);
         } catch (IllegalArgumentException e) {
             throw new IllegalStateException(
-                "mEfficiency field is not compatible with " + mte.getClass().getName(),
+                "mEfficiency field is not compatible with " + mte.getClass()
+                    .getName(),
                 e);
         }
     }
