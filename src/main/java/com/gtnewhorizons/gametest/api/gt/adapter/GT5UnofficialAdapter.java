@@ -59,6 +59,14 @@ public final class GT5UnofficialAdapter implements GTAdapter {
             null);
     }
 
+    private static MTEMultiBlockBase asMultiBlock(IMetaTileEntity mte) {
+        if (mte instanceof MTEMultiBlockBase multi) return multi;
+        throw new IllegalArgumentException(
+            "Expected an MTEMultiBlockBase but got " + (mte == null ? "null"
+                : mte.getClass()
+                    .getName()));
+    }
+
     @Override
     public long getPollution(Chunk chunk) {
         try {
@@ -79,6 +87,31 @@ public final class GT5UnofficialAdapter implements GTAdapter {
     }
 
     @Override
+    public boolean isStructureFormed(IMetaTileEntity mte) {
+        return asMultiBlock(mte).mMachine;
+    }
+
+    @Override
+    public boolean isActive(IMetaTileEntity mte) {
+        return asMultiBlock(mte).mMaxProgresstime > 0;
+    }
+
+    @Override
+    public int getProgressTime(IMetaTileEntity mte) {
+        return asMultiBlock(mte).mProgresstime;
+    }
+
+    @Override
+    public int getMaxProgressTime(IMetaTileEntity mte) {
+        return asMultiBlock(mte).mMaxProgresstime;
+    }
+
+    @Override
+    public int getEUt(IMetaTileEntity mte) {
+        return asMultiBlock(mte).mEUt;
+    }
+
+    @Override
     public int getEfficiency(IMetaTileEntity mte) {
         try {
             return efficiencyField.getInt(mte);
@@ -93,5 +126,31 @@ public final class GT5UnofficialAdapter implements GTAdapter {
                     .getName(),
                 e);
         }
+    }
+
+    @Override
+    public int getRepairStatus(IMetaTileEntity mte) {
+        return asMultiBlock(mte).getRepairStatus();
+    }
+
+    @Override
+    public void fixAllMaintenanceIssues(IMetaTileEntity mte) {
+        asMultiBlock(mte).fixAllIssues();
+    }
+
+    @Override
+    public long getRecipesDone(IMetaTileEntity mte) {
+        return asMultiBlock(mte).recipesDone;
+    }
+
+    @Override
+    public int getLastParallel(IMetaTileEntity mte) {
+        return asMultiBlock(mte).lastParallel;
+    }
+
+    @Override
+    public String getCheckRecipeResultId(IMetaTileEntity mte) {
+        return asMultiBlock(mte).getCheckRecipeResult()
+            .getID();
     }
 }
