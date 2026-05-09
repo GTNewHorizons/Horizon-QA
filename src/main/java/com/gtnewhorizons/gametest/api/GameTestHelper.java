@@ -1,11 +1,8 @@
 package com.gtnewhorizons.gametest.api;
 
-import com.gtnewhorizons.gametest.api.annotation.Stable;
-import com.gtnewhorizons.gametest.api.gt.GTNHGameTestHelper;
-import com.gtnewhorizons.gametest.core.GameTestInstance;
-import com.gtnewhorizons.gametest.core.GameTestSequence;
-import com.mojang.authlib.GameProfile;
-import cpw.mods.fml.common.Loader;
+import java.util.UUID;
+import java.util.function.BooleanSupplier;
+
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
 import net.minecraft.inventory.IInventory;
@@ -20,8 +17,13 @@ import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidHandler;
 
-import java.util.UUID;
-import java.util.function.BooleanSupplier;
+import com.gtnewhorizons.gametest.api.annotation.Stable;
+import com.gtnewhorizons.gametest.api.gt.GTNHGameTestHelper;
+import com.gtnewhorizons.gametest.core.GameTestInstance;
+import com.gtnewhorizons.gametest.core.GameTestSequence;
+import com.mojang.authlib.GameProfile;
+
+import cpw.mods.fml.common.Loader;
 
 /**
  * Passed to every {@code @GameTest} method. Provides world interaction, assertions, and the fluent
