@@ -22,7 +22,7 @@ public class BasicTests {
             .thenSucceed();
     }
 
-    @GameTest(timeoutTicks = 20)
+    @GameTest(timeoutTicks = 20, required = false)
     public static void simpleFail(GameTestHelper helper) {
         helper.startSequence()
             .thenExecute(() -> helper.fail("Intentional failure"))

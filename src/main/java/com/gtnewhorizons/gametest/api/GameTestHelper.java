@@ -1,6 +1,7 @@
 package com.gtnewhorizons.gametest.api;
 
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
@@ -29,6 +30,7 @@ import cpw.mods.fml.common.Loader;
  * sequence API.
  */
 @Stable
+@SuppressWarnings("unused")
 public class GameTestHelper {
 
     private final GameTestInstance instance;
@@ -69,6 +71,11 @@ public class GameTestHelper {
      */
     public void succeed() {
         instance.succeed();
+    }
+
+    /** Polls {@code predicate} each tick; passes on the first {@code true}. At most once per test. */
+    public void succeedWhen(BooleanSupplier predicate) {
+        instance.setSucceedWhen(predicate);
     }
 
     /**
@@ -347,8 +354,7 @@ public class GameTestHelper {
             }
             return;
         }
-        if (actual == null || !InventoryHelper.stacksMatch(actual, expected)
-            || actual.stackSize != expected.stackSize) {
+        if (!InventoryHelper.stacksMatch(actual, expected) || actual.stackSize != expected.stackSize) {
             String actualStr = actual != null ? actual.stackSize + "x " + actual.getDisplayName() : "<empty>";
             throw new GameTestAssertException(
                 "Slot " + slot
@@ -531,7 +537,7 @@ public class GameTestHelper {
      */
     public void pulseRedstone(int x, int y, int z, int durationTicks) {
         setBlock(x, y, z, Blocks.redstone_block, 0);
-        instance.scheduleDelayed(durationTicks, () -> { destroyBlock(x, y, z); });
+        instance.scheduleDelayed(durationTicks, () -> destroyBlock(x, y, z));
     }
 
     /**
