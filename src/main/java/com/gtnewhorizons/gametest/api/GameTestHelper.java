@@ -1,7 +1,11 @@
 package com.gtnewhorizons.gametest.api;
 
-import java.util.UUID;
-
+import com.gtnewhorizons.gametest.api.annotation.Stable;
+import com.gtnewhorizons.gametest.api.gt.GTNHGameTestHelper;
+import com.gtnewhorizons.gametest.core.GameTestInstance;
+import com.gtnewhorizons.gametest.core.GameTestSequence;
+import com.mojang.authlib.GameProfile;
+import cpw.mods.fml.common.Loader;
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
 import net.minecraft.inventory.IInventory;
@@ -16,19 +20,15 @@ import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidHandler;
 
-import com.gtnewhorizons.gametest.api.annotation.Stable;
-import com.gtnewhorizons.gametest.api.gt.GTNHGameTestHelper;
-import com.gtnewhorizons.gametest.core.GameTestInstance;
-import com.gtnewhorizons.gametest.core.GameTestSequence;
-import com.mojang.authlib.GameProfile;
-
-import cpw.mods.fml.common.Loader;
+import java.util.UUID;
+import java.util.function.BooleanSupplier;
 
 /**
  * Passed to every {@code @GameTest} method. Provides world interaction, assertions, and the fluent
  * sequence API.
  */
 @Stable
+@SuppressWarnings("unused")
 public class GameTestHelper {
 
     private final GameTestInstance instance;
@@ -69,6 +69,11 @@ public class GameTestHelper {
      */
     public void succeed() {
         instance.succeed();
+    }
+
+    /** Polls {@code predicate} each tick; passes on the first {@code true}. At most once per test. */
+    public void succeedWhen(BooleanSupplier predicate) {
+        instance.setSucceedWhen(predicate);
     }
 
     /**

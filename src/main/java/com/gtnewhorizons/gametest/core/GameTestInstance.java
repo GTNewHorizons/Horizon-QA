@@ -1,17 +1,16 @@
 package com.gtnewhorizons.gametest.core;
 
+import com.gtnewhorizons.gametest.api.GameTestAssertException;
+import com.gtnewhorizons.gametest.api.GameTestHelper;
+import net.minecraft.world.WorldServer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
-import net.minecraft.world.WorldServer;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import com.gtnewhorizons.gametest.api.GameTestAssertException;
-import com.gtnewhorizons.gametest.api.GameTestHelper;
+import java.util.function.BooleanSupplier;
 
 public class GameTestInstance {
 
@@ -26,6 +25,7 @@ public class GameTestInstance {
     private int tickCount = 0;
     private Throwable failureCause;
     private GameTestSequence sequence;
+    private BooleanSupplier succeedWhen;
     private final List<DelayedAction> delayedActions = new ArrayList<>();
 
     private int failX, failY, failZ;
@@ -55,9 +55,26 @@ public class GameTestInstance {
     public void tick() {
         if (status != GameTestStatus.RUNNING) return;
         tickCount++;
+
+        if (succeedWhen != null) {
+            try {
+                if (succeedWhen.getAsBoolean()) {
+                    succeed();
+                    return;
+                }
+            } catch (Throwable t) {
+                fail(t);
+                return;
+            }
+        }
+
         if (tickCount > definition.getTimeoutTicks()) {
-            status = GameTestStatus.TIMED_OUT;
-            LOG.warn("TIMEOUT  {} (timed out after {} ticks)", definition.getTestId(), tickCount);
+            if (succeedWhen != null) {
+                fail("succeedWhen predicate did not return true within " + definition.getTimeoutTicks() + " ticks");
+            } else {
+                status = GameTestStatus.TIMED_OUT;
+                LOG.warn("TIMEOUT  {} (timed out after {} ticks)", definition.getTestId(), tickCount);
+            }
             return;
         }
         Iterator<DelayedAction> it = delayedActions.iterator();
@@ -119,6 +136,16 @@ public class GameTestInstance {
 
     public void setSequence(GameTestSequence seq) {
         this.sequence = seq;
+    }
+
+    public void setSucceedWhen(BooleanSupplier predicate) {
+        if (predicate == null) {
+            throw new IllegalArgumentException("succeedWhen predicate must not be null");
+        }
+        if (this.succeedWhen != null) {
+            throw new IllegalStateException("succeedWhen has already been set on this test");
+        }
+        this.succeedWhen = predicate;
     }
 
     public boolean isDone() {
