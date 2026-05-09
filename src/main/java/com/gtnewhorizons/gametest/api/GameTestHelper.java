@@ -79,6 +79,15 @@ public class GameTestHelper {
     }
 
     /**
+     * Schedule {@link #succeed()} to run at {@code timeoutTicks - 1}.
+     */
+    public void succeedAtTimeout() {
+        instance.scheduleDelayed(
+            instance.getDefinition()
+                .getTimeoutTicks() - 1, this::succeed);
+    }
+
+    /**
      * Run {@code callback} once per test tick until the test ends (pass or fail). Useful for negative assertions that
      * must hold continuously.
      */
