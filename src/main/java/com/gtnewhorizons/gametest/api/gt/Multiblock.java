@@ -21,11 +21,11 @@ import gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
  * on each call (not cached), so they stay valid across structure rescans.
  *
  * <p>
- * Create with {@link GTNHGameTestHelper#machine(TestPos)}. Mod-specific controllers that keep hatches off the standard
+ * Create with {@link GTNHGameTestHelper#multiblock(TestPos)}. Mod-specific controllers that keep hatches off the standard
  * {@link MTEMultiBlockBase} lists are not covered.
  */
 @Experimental
-public final class Machine {
+public final class Multiblock {
 
     private static final int DEFAULT_RUN_TICKS = 1500;
 
@@ -33,7 +33,7 @@ public final class Machine {
     private final TestPos absPos;
     private final GTNHGameTestHelper helper;
 
-    Machine(GTNHGameTestHelper helper, WorldServer world, TestPos absPos) {
+    Multiblock(GTNHGameTestHelper helper, WorldServer world, TestPos absPos) {
         this.helper = helper;
         this.world = world;
         this.absPos = absPos;

@@ -9,7 +9,7 @@ import com.gtnewhorizons.gametest.api.GameTestAssertException;
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
 
 /**
- * Collection of {@link Bus} instances from {@link Machine#inputs()} or {@link Machine#outputs()}.
+ * Collection of {@link Bus} instances from {@link Multiblock#inputs()} or {@link Multiblock#outputs()}.
  */
 @Experimental
 public final class BusGroup {

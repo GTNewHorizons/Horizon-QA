@@ -11,7 +11,7 @@ import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 
 /**
- * View of a single input or output bus tile. Obtained from {@link Machine}.
+ * View of a single input or output bus tile. Obtained from {@link Multiblock}.
  */
 @Experimental
 public final class Bus {

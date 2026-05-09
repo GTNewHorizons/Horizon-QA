@@ -687,12 +687,12 @@ public class GTNHGameTestHelper {
     }
 
     /**
-     * Controller at {@code relPos} (test-local coordinates). {@link Machine} reads hatch lists from the live tile each
+     * Controller at {@code relPos} (test-local coordinates). {@link Multiblock} reads hatch lists from the live tile each
      * time.
      */
-    public Machine machine(TestPos relPos) {
+    public Multiblock multiblock(TestPos relPos) {
         TestPos abs = base.absolute(relPos.x(), relPos.y(), relPos.z());
-        return new Machine(this, world, abs);
+        return new Multiblock(this, world, abs);
     }
 
     /** Test-local coordinates from a world-absolute {@link TestPos}. */
