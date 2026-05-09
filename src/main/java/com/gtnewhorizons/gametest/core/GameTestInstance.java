@@ -11,6 +11,7 @@ import net.minecraft.world.WorldServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.gametest.api.GameTestAssertException;
 import com.gtnewhorizons.gametest.api.GameTestHelper;
 
@@ -96,8 +97,6 @@ public class GameTestInstance {
         if (sequence != null) {
             try {
                 sequence.tick(tickCount);
-            } catch (GameTestAssertException e) {
-                fail(e);
             } catch (Throwable t) {
                 fail(t);
             }
@@ -122,8 +121,7 @@ public class GameTestInstance {
         if (status != GameTestStatus.RUNNING) return;
         status = GameTestStatus.FAILED;
         failureCause = cause;
-        if (cause instanceof GameTestAssertException) {
-            GameTestAssertException gae = (GameTestAssertException) cause;
+        if (cause instanceof GameTestAssertException gae) {
             failX = gae.getX();
             failY = gae.getY();
             failZ = gae.getZ();
@@ -198,14 +196,8 @@ public class GameTestInstance {
         return failZ;
     }
 
-    private static final class DelayedAction {
+    @Desugar
+    private record DelayedAction(int triggerTick, Runnable action) {
 
-        final int triggerTick;
-        final Runnable action;
-
-        DelayedAction(int triggerTick, Runnable action) {
-            this.triggerTick = triggerTick;
-            this.action = action;
-        }
     }
 }
