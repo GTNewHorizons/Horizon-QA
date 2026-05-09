@@ -352,8 +352,7 @@ public class GameTestHelper {
             }
             return;
         }
-        if (actual == null || !InventoryHelper.stacksMatch(actual, expected)
-            || actual.stackSize != expected.stackSize) {
+        if (!InventoryHelper.stacksMatch(actual, expected) || actual.stackSize != expected.stackSize) {
             String actualStr = actual != null ? actual.stackSize + "x " + actual.getDisplayName() : "<empty>";
             throw new GameTestAssertException(
                 "Slot " + slot
@@ -536,7 +535,7 @@ public class GameTestHelper {
      */
     public void pulseRedstone(int x, int y, int z, int durationTicks) {
         setBlock(x, y, z, Blocks.redstone_block, 0);
-        instance.scheduleDelayed(durationTicks, () -> { destroyBlock(x, y, z); });
+        instance.scheduleDelayed(durationTicks, () -> destroyBlock(x, y, z));
     }
 
     /**
