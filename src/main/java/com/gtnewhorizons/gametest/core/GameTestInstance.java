@@ -1,16 +1,18 @@
 package com.gtnewhorizons.gametest.core;
 
-import com.gtnewhorizons.gametest.api.GameTestAssertException;
-import com.gtnewhorizons.gametest.api.GameTestHelper;
-import net.minecraft.world.WorldServer;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+
+import net.minecraft.world.WorldServer;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.gtnewhorizons.gametest.api.GameTestAssertException;
+import com.gtnewhorizons.gametest.api.GameTestHelper;
 
 public class GameTestInstance {
 
