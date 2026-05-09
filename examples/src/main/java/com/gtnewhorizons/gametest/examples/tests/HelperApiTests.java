@@ -2,8 +2,10 @@ package com.gtnewhorizons.gametest.examples.tests;
 
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
+import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.FakePlayer;
 
 import com.gtnewhorizons.gametest.api.GameTestHelper;
@@ -175,5 +177,29 @@ public class HelperApiTests {
             .thenExecute(() -> helper.simulateRightClick(0, 0, 0, player, null))
             .thenIdle(1)
             .thenSucceed();
+    }
+
+    @GameTest(timeoutTicks = 60)
+    public static void hopperFillsChestBelow(GameTestHelper helper) {
+        helper.setBlock(0, 0, 0, Blocks.chest);
+        helper.setBlock(0, 1, 0, Blocks.hopper, 0);
+        helper.startSequence()
+            .thenIdle(1)
+            .thenExecute(() -> helper.insertItem(0, 1, 0, new ItemStack(Items.iron_ingot, 3)));
+        helper.succeedWhen(() -> {
+            TileEntity te = helper.getWorld()
+                .getTileEntity(helper.getOriginX(), helper.getOriginY(), helper.getOriginZ());
+            if (!(te instanceof IInventory inv)) return false;
+            for (int i = 0; i < inv.getSizeInventory(); i++) {
+                ItemStack s = inv.getStackInSlot(i);
+                if (s != null && s.getItem() == Items.iron_ingot) return true;
+            }
+            return false;
+        });
+    }
+
+    @GameTest(timeoutTicks = 5, required = false)
+    public static void succeedWhenTimesOutAsHardFail(GameTestHelper helper) {
+        helper.succeedWhen(() -> false);
     }
 }
