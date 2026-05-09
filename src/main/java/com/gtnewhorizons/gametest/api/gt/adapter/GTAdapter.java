@@ -2,9 +2,9 @@ package com.gtnewhorizons.gametest.api.gt.adapter;
 
 import net.minecraft.world.chunk.Chunk;
 
-import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
-
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
+
+import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 
 /** GT-version-specific operations used by GTNH gametest helpers. */
 @Experimental
