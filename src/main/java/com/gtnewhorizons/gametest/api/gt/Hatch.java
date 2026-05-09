@@ -31,15 +31,13 @@ public final class Hatch {
         int filled = handler.fill(ForgeDirection.UNKNOWN, fluid, true);
         if (filled < fluid.amount) {
             throw new GameTestAssertException(
-                "Could not fill "
-                    + fluid.amount
+                "Could not fill " + fluid.amount
                     + " mB of '"
                     + fluid.getLocalizedName()
                     + "' into "
                     + label
                     + "; only "
-                    + filled
-                    + " mB accepted", te.getXCoord(), te.getYCoord(), te.getZCoord());
+                    + filled + " mB accepted", te.getXCoord(), te.getYCoord(), te.getZCoord());
         }
         return this;
     }
@@ -51,14 +49,12 @@ public final class Hatch {
         if (drained == null || drained.getFluidID() != fluid.getFluidID() || drained.amount < fluid.amount) {
             String actual = drained != null ? drained.amount + " mB " + drained.getLocalizedName() : "<empty>";
             throw new GameTestAssertException(
-                "Expected "
-                    + fluid.amount
+                "Expected " + fluid.amount
                     + " mB of '"
                     + fluid.getLocalizedName()
                     + "' in "
                     + label
-                    + " but found "
-                    + actual, te.getXCoord(), te.getYCoord(), te.getZCoord());
+                    + " but found " + actual, te.getXCoord(), te.getYCoord(), te.getZCoord());
         }
     }
 

@@ -21,7 +21,8 @@ import gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
  * on each call (not cached), so they stay valid across structure rescans.
  *
  * <p>
- * Create with {@link GTNHGameTestHelper#multiblock(TestPos)}. Mod-specific controllers that keep hatches off the standard
+ * Create with {@link GTNHGameTestHelper#multiblock(TestPos)}. Mod-specific controllers that keep hatches off the
+ * standard
  * {@link MTEMultiBlockBase} lists are not covered.
  */
 @Experimental

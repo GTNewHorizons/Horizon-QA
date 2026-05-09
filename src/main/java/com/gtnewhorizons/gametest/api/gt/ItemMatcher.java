@@ -26,10 +26,9 @@ public final class ItemMatcher {
     public static ItemMatcher of(ItemStack template) {
         if (template == null) throw new IllegalArgumentException("template must not be null");
         return new ItemMatcher(
-            stack -> stack != null
-                && stack.getItem() == template.getItem()
-                && stack.getItemDamage() == template.getItemDamage()
-                && nbtMatches(template, stack), template.getDisplayName() + " x" + template.stackSize);
+            stack -> stack != null && stack.getItem() == template.getItem()
+                && stack.getItemDamage() == template.getItemDamage() && nbtMatches(template, stack),
+            template.getDisplayName() + " x" + template.stackSize);
     }
 
     public static ItemMatcher predicate(Predicate<ItemStack> test) {

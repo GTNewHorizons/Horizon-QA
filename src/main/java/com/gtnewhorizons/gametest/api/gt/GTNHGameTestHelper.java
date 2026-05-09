@@ -414,7 +414,8 @@ public class GTNHGameTestHelper {
     }
 
     /**
-     * Controller at {@code relPos} (test-local coordinates). {@link Multiblock} reads hatch lists from the live tile each
+     * Controller at {@code relPos} (test-local coordinates). {@link Multiblock} reads hatch lists from the live tile
+     * each
      * time.
      */
     public Multiblock multiblock(TestPos relPos) {
