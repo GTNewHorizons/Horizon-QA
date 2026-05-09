@@ -84,7 +84,8 @@ public class GameTestHelper {
     public void succeedAtTimeout() {
         instance.scheduleDelayed(
             instance.getDefinition()
-                .getTimeoutTicks() - 1, this::succeed);
+                .getTimeoutTicks() - 1,
+            this::succeed);
     }
 
     /**
