@@ -93,7 +93,6 @@ public class InteractiveTestSession {
         }
 
         ensureRunnerRegistered();
-        clearCell(world, existing);
         HybridStructureTemplate template = loadTemplate(def);
         GameTestInstance inst = spawnTestAt(def, world, existing.originX, existing.originY, existing.originZ, template);
         runner.addInstance(inst);
@@ -158,14 +157,16 @@ public class InteractiveTestSession {
         int cellSizeY = sizeY > 0 ? sizeY : GameTestGridLayout.DEFAULT_CELL_SIZE;
         int cellSizeZ = sizeZ > 0 ? sizeZ : GameTestGridLayout.DEFAULT_CELL_SIZE;
 
-        GameTestMod.CHUNK_LOADER.forceChunks(
-            world,
-            originX,
-            originY,
-            originZ,
-            originX + cellSizeX - 1,
-            originY + cellSizeY - 1,
-            originZ + cellSizeZ - 1);
+        int cellMinX = originX;
+        int cellMinY = originY;
+        int cellMinZ = originZ;
+        int cellMaxX = originX + cellSizeX - 1;
+        int cellMaxY = originY + cellSizeY - 1;
+        int cellMaxZ = originZ + cellSizeZ - 1;
+
+        GameTestMod.CHUNK_LOADER.forceChunks(world, cellMinX, cellMinY, cellMinZ, cellMaxX, cellMaxY, cellMaxZ);
+
+        TestCellScanner.preClear(world, cellMinX, cellMinY, cellMinZ, cellMaxX, cellMaxY, cellMaxZ);
 
         if (template != null) {
             StructurePlacer.place(template, world, originX, originY, originZ);
@@ -176,15 +177,36 @@ public class InteractiveTestSession {
             originX,
             originY,
             originZ,
-            originX,
-            originY,
-            originZ,
-            originX + cellSizeX - 1,
-            originY + cellSizeY - 1,
-            originZ + cellSizeZ - 1);
+            cellMinX,
+            cellMinY,
+            cellMinZ,
+            cellMaxX,
+            cellMaxY,
+            cellMaxZ);
         knownCells.put(def.getTestId(), cell);
 
         GameTestInstance inst = new GameTestInstance(def, originX, originY, originZ);
+
+        int tmplMaxX = sizeX > 0 ? originX + sizeX - 1 : -1;
+        int tmplMaxY = sizeY > 0 ? originY + sizeY - 1 : -1;
+        int tmplMaxZ = sizeZ > 0 ? originZ + sizeZ - 1 : -1;
+        TestCellScanner.registerIsolationCheck(
+            inst,
+            world,
+            cellMinX,
+            cellMinY,
+            cellMinZ,
+            cellMaxX,
+            cellMaxY,
+            cellMaxZ,
+            originX,
+            originY,
+            originZ,
+            tmplMaxX,
+            tmplMaxY,
+            tmplMaxZ,
+            template != null);
+
         inst.start(world);
         lastInstances.put(def.getTestId(), inst);
         return inst;

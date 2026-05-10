@@ -141,22 +141,47 @@ public class GameTestBatchRunner {
         int sizeZ = template != null ? template.getSizeZ() : 0;
         int[] origin = grid.allocateOrigin(sizeX, sizeZ);
 
-        int chunkSizeX = Math.max(sizeX, GameTestGridLayout.DEFAULT_CELL_SIZE);
-        int chunkSizeZ = Math.max(sizeZ, GameTestGridLayout.DEFAULT_CELL_SIZE);
-        GameTestMod.CHUNK_LOADER.forceChunks(
-            world,
-            origin[0],
-            origin[1],
-            origin[2],
-            origin[0] + chunkSizeX - 1,
-            origin[1] + Math.max(sizeY, 1) - 1,
-            origin[2] + chunkSizeZ - 1);
+        int cellSizeX = Math.max(sizeX, GameTestGridLayout.DEFAULT_CELL_SIZE);
+        int cellSizeY = Math.max(sizeY, 1);
+        int cellSizeZ = Math.max(sizeZ, GameTestGridLayout.DEFAULT_CELL_SIZE);
+
+        int cellMinX = origin[0];
+        int cellMinY = origin[1];
+        int cellMinZ = origin[2];
+        int cellMaxX = origin[0] + cellSizeX - 1;
+        int cellMaxY = origin[1] + cellSizeY - 1;
+        int cellMaxZ = origin[2] + cellSizeZ - 1;
+
+        GameTestMod.CHUNK_LOADER.forceChunks(world, cellMinX, cellMinY, cellMinZ, cellMaxX, cellMaxY, cellMaxZ);
+
+        TestCellScanner.preClear(world, cellMinX, cellMinY, cellMinZ, cellMaxX, cellMaxY, cellMaxZ);
 
         if (template != null) {
             StructurePlacer.place(template, world, origin[0], origin[1], origin[2]);
         }
 
         GameTestInstance inst = new GameTestInstance(def, origin[0], origin[1], origin[2]);
+
+        int tmplMaxX = sizeX > 0 ? origin[0] + sizeX - 1 : -1;
+        int tmplMaxY = sizeY > 0 ? origin[1] + sizeY - 1 : -1;
+        int tmplMaxZ = sizeZ > 0 ? origin[2] + sizeZ - 1 : -1;
+        TestCellScanner.registerIsolationCheck(
+            inst,
+            world,
+            cellMinX,
+            cellMinY,
+            cellMinZ,
+            cellMaxX,
+            cellMaxY,
+            cellMaxZ,
+            origin[0],
+            origin[1],
+            origin[2],
+            tmplMaxX,
+            tmplMaxY,
+            tmplMaxZ,
+            template != null);
+
         inst.start(world);
         return inst;
     }
