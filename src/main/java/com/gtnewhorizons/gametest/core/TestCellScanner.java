@@ -12,20 +12,23 @@ import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 
 final class TestCellScanner {
 
-    private static final int OUTER_MARGIN = GameTestGridLayout.INTER_CELL_GAP + 1;
+    private static final int OUTER_MARGIN = GameTestGridLayout.INTER_CELL_GAP;
 
     private TestCellScanner() {}
 
     static void preClear(WorldServer world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    if (!world.isAirBlock(x, y, z)) {
-                        world.setBlockToAir(x, y, z);
-                    }
-                }
-            }
-        }
+        GridSweeper.clear(world, minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    static void preClearWithMargin(WorldServer world, int cellMinX, int cellMinY, int cellMinZ, int cellMaxX,
+        int cellMaxY, int cellMaxZ) {
+        int minX = cellMinX - OUTER_MARGIN;
+        int minY = Math.max(0, cellMinY - OUTER_MARGIN);
+        int minZ = cellMinZ - OUTER_MARGIN;
+        int maxX = cellMaxX + OUTER_MARGIN;
+        int maxY = cellMaxY + OUTER_MARGIN;
+        int maxZ = cellMaxZ + OUTER_MARGIN;
+        GridSweeper.clear(world, minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     static void registerIsolationCheck(GameTestInstance inst, WorldServer world, int cellMinX, int cellMinY,
