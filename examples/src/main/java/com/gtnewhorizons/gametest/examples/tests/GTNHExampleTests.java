@@ -16,74 +16,74 @@ import gregtech.api.enums.TierEU;
 public class GTNHExampleTests {
 
     @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
-    public static void testTitaniumSmelting(GameTestHelper baseHelper) {
-        GTNHGameTestHelper helper = baseHelper.gtnh();
-        Multiblock multi = helper.multiblock(new TestPos(1, 0, 0));
+    public static void testTitaniumSmelting(GameTestHelper helper) {
+        GTNHGameTestHelper gtnh = helper.gtnh();
+        Multiblock multi = gtnh.multiblock(new TestPos(1, 0, 0));
         multi.assertFormed();
         multi.fixMaintenance();
         multi.inputBus(0).insert(Materials.Nickel.getDust(1), Materials.Aluminium.getDust(3));
-        helper.insertProgrammedCircuit(new TestPos(1, 0, 1), 0);
-        helper.supplyEU(new TestPos(0, 0, 0), TierEU.EV, 1, 900);
+        gtnh.insertProgrammedCircuit(new TestPos(1, 0, 1), 0);
+        gtnh.supplyEU(new TestPos(0, 0, 0), TierEU.EV, 1, 900);
         multi.runRecipe();
         multi.outputs().assertContains(ItemMatcher.of(Materials.NickelAluminide.getIngots(4)));
-        baseHelper.succeed();
+        helper.succeed();
     }
 
     @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
-    public static void testTitaniumSmeltingImperative(GameTestHelper baseHelper) {
-        GTNHGameTestHelper helper = baseHelper.gtnh();
+    public static void testTitaniumSmeltingImperative(GameTestHelper helper) {
+        GTNHGameTestHelper gtnh = helper.gtnh();
 
         TestPos controller = new TestPos(1, 0, 0);
         TestPos energyHatch = new TestPos(0, 0, 0);
         TestPos inputBus = new TestPos(1, 0, 1);
         TestPos outputBus = new TestPos(1, 0, 2);
 
-        helper.assertMachineFormed(controller);
-        helper.fixAllMaintenanceIssues(controller);
+        gtnh.assertMachineFormed(controller);
+        gtnh.fixAllMaintenanceIssues(controller);
 
-        baseHelper.insertItem(inputBus, Materials.Nickel.getDust(1));
-        baseHelper.insertItem(inputBus, Materials.Aluminium.getDust(3));
-        helper.insertProgrammedCircuit(inputBus, 0);
+        helper.insertItem(inputBus, Materials.Nickel.getDust(1));
+        helper.insertItem(inputBus, Materials.Aluminium.getDust(3));
+        gtnh.insertProgrammedCircuit(inputBus, 0);
 
-        helper.supplyEU(energyHatch, TierEU.EV, 1, 900);
-        helper.runUntilMachineIdle(controller, 1500);
+        gtnh.supplyEU(energyHatch, TierEU.EV, 1, 900);
+        gtnh.runUntilMachineIdle(controller, 1500);
 
-        helper.assertItemInBus(outputBus, Materials.NickelAluminide.getIngots(4));
+        gtnh.assertItemInBus(outputBus, Materials.NickelAluminide.getIngots(4));
 
-        baseHelper.succeed();
+        helper.succeed();
     }
 
     @GameTest(template = "ebf", timeoutTicks = 20, batch = "gtnh", required = false)
-    public static void testMaintenanceIssueDetection(GameTestHelper baseHelper) {
-        GTNHGameTestHelper helper = baseHelper.gtnh();
+    public static void testMaintenanceIssueDetection(GameTestHelper helper) {
+        GTNHGameTestHelper gtnh = helper.gtnh();
         TestPos controller = new TestPos(1, 0, 0);
 
-        helper.assertMachineFormed(controller);
-        helper.assertMachineHasIssues(controller, MaintenanceType.WRENCH);
+        gtnh.assertMachineFormed(controller);
+        gtnh.assertMachineHasIssues(controller, MaintenanceType.WRENCH);
 
-        baseHelper.succeed();
+        helper.succeed();
     }
 
     @GameTest(template = "ebf", timeoutTicks = 20, batch = "gtnh")
-    public static void testEnergyHatchAcceptsEU(GameTestHelper baseHelper) {
-        GTNHGameTestHelper helper = baseHelper.gtnh();
+    public static void testEnergyHatchAcceptsEU(GameTestHelper helper) {
+        GTNHGameTestHelper gtnh = helper.gtnh();
         TestPos energyHatch = new TestPos(0, 0, 0);
 
-        helper.supplyEU(energyHatch, 512, 1, 100);
-        helper.fastForwardTicks(100);
-        helper.assertEUStored(energyHatch, 1);
+        gtnh.supplyEU(energyHatch, 512, 1, 100);
+        gtnh.fastForwardTicks(100);
+        gtnh.assertEUStored(energyHatch, 1);
 
-        baseHelper.succeed();
+        helper.succeed();
     }
 
     @GameTest(template = "ebf", timeoutTicks = 20, batch = "gtnh")
-    public static void testFluidHatchFillAndAssert(GameTestHelper baseHelper) {
-        GTNHGameTestHelper helper = baseHelper.gtnh();
+    public static void testFluidHatchFillAndAssert(GameTestHelper helper) {
+        GTNHGameTestHelper gtnh = helper.gtnh();
         TestPos inputBus = new TestPos(2, 0, 0);
 
-        helper.fillHatch(inputBus, "nitrogen", 2000);
-        helper.assertFluidInHatch(inputBus, "nitrogen", 2000);
+        gtnh.fillHatch(inputBus, "nitrogen", 2000);
+        gtnh.assertFluidInHatch(inputBus, "nitrogen", 2000);
 
-        baseHelper.succeed();
+        helper.succeed();
     }
 }
