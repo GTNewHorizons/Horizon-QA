@@ -14,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.gametest.api.GameTestAssertException;
 import com.gtnewhorizons.gametest.api.GameTestHelper;
+import com.gtnewhorizons.gametest.api.TestIsolationViolation;
 
 public class GameTestInstance {
 
@@ -32,6 +33,7 @@ public class GameTestInstance {
     private final List<Runnable> eachTickCallbacks = new ArrayList<>();
     private final List<DelayedAction> delayedActions = new ArrayList<>();
     private final List<Runnable> cleanupCallbacks = new ArrayList<>();
+    private final List<String> warnings = new ArrayList<>();
 
     private int failX, failY, failZ;
     private boolean hasFailPosition;
@@ -122,7 +124,9 @@ public class GameTestInstance {
         if (status != GameTestStatus.RUNNING) return;
         status = GameTestStatus.PASSED;
         runCleanup();
-        LOG.info("PASSED   {}", definition.getTestId());
+        if (status == GameTestStatus.PASSED) {
+            LOG.info("PASSED   {}", definition.getTestId());
+        }
     }
 
     public void fail(String message) {
@@ -152,15 +156,33 @@ public class GameTestInstance {
         cleanupCallbacks.add(callback);
     }
 
+    public void addWarning(String message) {
+        if (message != null) warnings.add(message);
+    }
+
+    public List<String> getWarnings() {
+        return warnings;
+    }
+
     private void runCleanup() {
+        TestIsolationViolation isolationViolation = null;
         for (Runnable cb : cleanupCallbacks) {
             try {
                 cb.run();
+            } catch (TestIsolationViolation e) {
+                if (isolationViolation == null) isolationViolation = e;
             } catch (Throwable t) {
                 LOG.error("Exception in cleanup callback for {}: {}", definition.getTestId(), t.getMessage(), t);
             }
         }
         cleanupCallbacks.clear();
+        if (isolationViolation != null) {
+            if (status == GameTestStatus.PASSED) {
+                status = GameTestStatus.FAILED;
+                failureCause = isolationViolation;
+            }
+            LOG.error("ISOLATION {} - {}", definition.getTestId(), isolationViolation.getMessage());
+        }
     }
 
     public void setSequence(GameTestSequence seq) {
