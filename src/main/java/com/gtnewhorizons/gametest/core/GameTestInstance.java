@@ -31,6 +31,7 @@ public class GameTestInstance {
     private BooleanSupplier succeedWhen;
     private final List<Runnable> eachTickCallbacks = new ArrayList<>();
     private final List<DelayedAction> delayedActions = new ArrayList<>();
+    private final List<Runnable> cleanupCallbacks = new ArrayList<>();
 
     private int failX, failY, failZ;
     private boolean hasFailPosition;
@@ -120,6 +121,7 @@ public class GameTestInstance {
     public void succeed() {
         if (status != GameTestStatus.RUNNING) return;
         status = GameTestStatus.PASSED;
+        runCleanup();
         LOG.info("PASSED   {}", definition.getTestId());
     }
 
@@ -137,11 +139,28 @@ public class GameTestInstance {
             failZ = gae.getZ();
             hasFailPosition = true;
         }
+        runCleanup();
         String detail = cause != null ? cause.getMessage() : "unknown";
         LOG.error("FAILED   {} - {}", definition.getTestId(), detail);
         if (cause != null && !(cause instanceof GameTestAssertException)) {
             LOG.error("Caused by:", cause);
         }
+    }
+
+    public void addCleanup(Runnable callback) {
+        if (callback == null) throw new IllegalArgumentException("cleanup callback must not be null");
+        cleanupCallbacks.add(callback);
+    }
+
+    private void runCleanup() {
+        for (Runnable cb : cleanupCallbacks) {
+            try {
+                cb.run();
+            } catch (Throwable t) {
+                LOG.error("Exception in cleanup callback for {}: {}", definition.getTestId(), t.getMessage(), t);
+            }
+        }
+        cleanupCallbacks.clear();
     }
 
     public void setSequence(GameTestSequence seq) {
