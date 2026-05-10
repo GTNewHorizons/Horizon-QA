@@ -6,6 +6,7 @@ import java.util.List;
 import net.minecraft.item.ItemStack;
 
 import com.gtnewhorizons.gametest.api.GameTestAssertException;
+import com.gtnewhorizons.gametest.api.TestPos;
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
 
 /**
@@ -16,9 +17,11 @@ public final class BusGroup {
 
     private final List<Bus> buses = new ArrayList<>();
     private final String label;
+    private final TestPos controllerPos;
 
-    BusGroup(String label) {
+    BusGroup(String label, TestPos controllerPos) {
         this.label = label;
+        this.controllerPos = controllerPos;
     }
 
     void add(Bus bus) {
@@ -33,7 +36,11 @@ public final class BusGroup {
                 if (slot != null && matcher.matches(slot)) return;
             }
         }
-        throw new GameTestAssertException(label + " does not contain " + matcher + " in any bus", 0, 0, 0);
+        throw new GameTestAssertException(
+            label + " does not contain " + matcher + " in any bus",
+            controllerPos.x(),
+            controllerPos.y(),
+            controllerPos.z());
     }
 
     public void assertEmpty() {
