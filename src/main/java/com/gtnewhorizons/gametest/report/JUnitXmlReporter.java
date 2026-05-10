@@ -61,8 +61,10 @@ public final class JUnitXmlReporter {
         double time = inst.getTickCount() / TICKS_PER_SECOND;
 
         var status = inst.getStatus();
+        var warnings = inst.getWarnings();
+        boolean hasWarnings = !warnings.isEmpty();
 
-        if (status == GameTestStatus.PASSED) {
+        if (status == GameTestStatus.PASSED && !hasWarnings) {
             pw.printf(
                 "  <testcase name=\"%s\" classname=\"%s\" time=\"%.3f\"/>%n",
                 sanitizeAttr(name),
@@ -93,11 +95,19 @@ public final class JUnitXmlReporter {
                 "    <error message=\"Timed out after %d ticks\" type=\"%s\"/>%n",
                 inst.getTickCount(),
                 sanitizeAttr("GameTestTimeoutError"));
-        } else {
+        } else if (status != GameTestStatus.PASSED) {
             pw.printf(
                 "    <error message=\"Test did not complete (status: %s)\" type=\"%s\"/>%n",
                 sanitizeAttr(status.toString()),
                 sanitizeAttr("GameTestError"));
+        }
+
+        if (hasWarnings) {
+            pw.println("    <system-out>");
+            for (String w : warnings) {
+                pw.print(escapeBody("WARNING: " + w + "\n"));
+            }
+            pw.println("    </system-out>");
         }
 
         pw.println("  </testcase>");

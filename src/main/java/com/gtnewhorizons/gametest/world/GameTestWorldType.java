@@ -27,7 +27,7 @@ public class GameTestWorldType extends WorldType {
 
     @Override
     public int getSpawnFuzz() {
-        return 0;
+        return 1;
     }
 
     @Override
