@@ -423,6 +423,11 @@ public class GTNHGameTestHelper {
         return new Multiblock(this, world, abs);
     }
 
+    /** Registers a supply job using world-absolute coordinates. Used by {@link Hatch#supply}. */
+    void supplyEUAbsolute(int absX, int absY, int absZ, long voltage, long amperage, int durationTicks) {
+        dynamo.addJob(world, absX, absY, absZ, voltage, amperage, durationTicks);
+    }
+
     /** Test-local coordinates from a world-absolute {@link TestPos}. */
     TestPos absoluteToRelative(TestPos abs) {
         return new TestPos(abs.x() - originX, abs.y() - originY, abs.z() - originZ);

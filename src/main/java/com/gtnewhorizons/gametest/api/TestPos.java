@@ -17,6 +17,10 @@ public final class TestPos {
         this.z = z;
     }
 
+    public static TestPos at(int x, int y, int z) {
+        return new TestPos(x, y, z);
+    }
+
     public int x() {
         return x;
     }

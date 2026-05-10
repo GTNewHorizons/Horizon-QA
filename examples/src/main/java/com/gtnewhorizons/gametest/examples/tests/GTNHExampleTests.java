@@ -1,11 +1,12 @@
 package com.gtnewhorizons.gametest.examples.tests;
 
+import static com.gtnewhorizons.gametest.api.TestPos.at;
+
 import com.gtnewhorizons.gametest.api.GameTestHelper;
 import com.gtnewhorizons.gametest.api.TestPos;
 import com.gtnewhorizons.gametest.api.annotation.GameTest;
 import com.gtnewhorizons.gametest.api.annotation.GameTestHolder;
 import com.gtnewhorizons.gametest.api.gt.GTNHGameTestHelper;
-import com.gtnewhorizons.gametest.api.gt.ItemMatcher;
 import com.gtnewhorizons.gametest.api.gt.MaintenanceType;
 import com.gtnewhorizons.gametest.api.gt.Multiblock;
 
@@ -18,14 +19,17 @@ public class GTNHExampleTests {
     @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
     public static void testTitaniumSmelting(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
-        Multiblock multi = gtnh.multiblock(new TestPos(1, 0, 0));
-        multi.assertFormed();
-        multi.fixMaintenance();
-        multi.inputBus(0).insert(Materials.Nickel.getDust(1), Materials.Aluminium.getDust(3));
-        gtnh.insertProgrammedCircuit(new TestPos(1, 0, 1), 0);
-        gtnh.supplyEU(new TestPos(0, 0, 0), TierEU.EV, 1, 900);
-        multi.runRecipe();
-        multi.outputs().assertContains(ItemMatcher.of(Materials.NickelAluminide.getIngots(4)));
+        Multiblock ebf = gtnh.multiblock(at(1, 0, 0));
+        ebf.assertFormed();
+        ebf.fixMaintenance();
+        ebf.inputBus(0)
+            .insert(Materials.Nickel.getDust(1), Materials.Aluminium.getDust(3))
+            .programmedCircuit(0);
+        ebf.energyHatch(0)
+            .supply(TierEU.EV, 1, 900);
+        ebf.runRecipe();
+        ebf.outputs()
+            .assertContains(Materials.NickelAluminide.getIngots(4));
         helper.succeed();
     }
 
