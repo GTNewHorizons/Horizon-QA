@@ -170,7 +170,7 @@ public final class Multiblock {
             throw error(
                 "energyHatch[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
         }
-        return new Hatch(hatch.getBaseMetaTileEntity(), "energyHatch[" + index + "] at " + absPos);
+        return new Hatch(hatch.getBaseMetaTileEntity(), "energyHatch[" + index + "] at " + absPos, helper);
     }
 
     /**
@@ -199,7 +199,7 @@ public final class Multiblock {
         if (hatch instanceof MTEHatchInputDebug) {
             throw error("inputHatch[" + index + "] at " + absPos + " is a debug hatch — it is not fillable");
         }
-        return new Hatch(hatch.getBaseMetaTileEntity(), "inputHatch[" + index + "] at " + absPos);
+        return new Hatch(hatch.getBaseMetaTileEntity(), "inputHatch[" + index + "] at " + absPos, null);
     }
 
     /**
@@ -214,7 +214,7 @@ public final class Multiblock {
             throw error(
                 "outputHatch[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
         }
-        return new Hatch(hatch.getBaseMetaTileEntity(), "outputHatch[" + index + "] at " + absPos);
+        return new Hatch(hatch.getBaseMetaTileEntity(), "outputHatch[" + index + "] at " + absPos, null);
     }
 
     /**

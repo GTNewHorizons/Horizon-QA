@@ -7,8 +7,10 @@ import com.gtnewhorizons.gametest.api.GameTestAssertException;
 import com.gtnewhorizons.gametest.api.InventoryHelper;
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
 
+import gregtech.api.interfaces.IConfigurationCircuitSupport;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
+import gregtech.api.util.GTUtility;
 
 /**
  * View of a single input or output bus tile. Obtained from {@link Multiblock}.
@@ -42,6 +44,52 @@ public final class Bus {
             }
         }
         return this;
+    }
+
+    /**
+     * Sets the programmed circuit on this bus to {@code config} (0–24). Writes directly into the circuit slot to
+     * bypass the normal inventory insertion that skips that slot.
+     *
+     * @throws IllegalArgumentException if {@code config} is out of range or the circuit item is unavailable
+     * @throws GameTestAssertException  if this bus does not support configuration circuits
+     */
+    public Bus programmedCircuit(int config) {
+        ItemStack circuit = GTUtility.getIntegratedCircuit(config);
+        if (circuit == null) {
+            throw new IllegalArgumentException("GTUtility.getIntegratedCircuit returned null for config " + config);
+        }
+        IMetaTileEntity mte = te.getMetaTileEntity();
+        if (mte == null) {
+            throw new GameTestAssertException(
+                label + " has no meta tile entity",
+                te.getXCoord(),
+                te.getYCoord(),
+                te.getZCoord());
+        }
+        if (!(mte instanceof IConfigurationCircuitSupport circuitSupport)) {
+            throw new GameTestAssertException(
+                label + " does not support configuration circuits ("
+                    + mte.getClass()
+                        .getSimpleName()
+                    + ")",
+                te.getXCoord(),
+                te.getYCoord(),
+                te.getZCoord());
+        }
+        if (!circuitSupport.allowSelectCircuit()) {
+            throw new GameTestAssertException(
+                label + " has circuit support disabled",
+                te.getXCoord(),
+                te.getYCoord(),
+                te.getZCoord());
+        }
+        mte.setInventorySlotContents(circuitSupport.getCircuitSlot(), circuit);
+        return this;
+    }
+
+    /** Passes when at least one slot contains {@code stack} (item, damage, and NBT match; stack size ignored). */
+    public void assertContains(ItemStack stack) {
+        assertContains(ItemMatcher.of(stack));
     }
 
     /** Passes when at least one slot matches {@code matcher}. */

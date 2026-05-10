@@ -28,6 +28,11 @@ public final class BusGroup {
         buses.add(bus);
     }
 
+    /** Passes when some slot in some bus contains {@code stack} (item, damage, and NBT match; stack size ignored). */
+    public void assertContains(ItemStack stack) {
+        assertContains(ItemMatcher.of(stack));
+    }
+
     /** Passes when some slot in some bus matches {@code matcher}. */
     public void assertContains(ItemMatcher matcher) {
         for (Bus bus : buses) {

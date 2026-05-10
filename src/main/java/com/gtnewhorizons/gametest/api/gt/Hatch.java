@@ -20,10 +20,27 @@ public final class Hatch {
 
     private final IGregTechTileEntity te;
     private final String label;
+    private final GTNHGameTestHelper helper;
 
-    Hatch(IGregTechTileEntity te, String label) {
+    Hatch(IGregTechTileEntity te, String label, GTNHGameTestHelper helper) {
         this.te = te;
         this.label = label;
+        this.helper = helper;
+    }
+
+    /**
+     * Registers a virtual EU supply job on this hatch. Starting from the next time-warp pass (via
+     * {@link GTNHGameTestHelper#fastForwardTicks} or {@link Multiblock#runRecipe}), this hatch will receive
+     * {@code voltage × amperage} EU per simulated tick for {@code durationTicks} ticks.
+     *
+     * @throws IllegalStateException if this hatch was not constructed with a helper reference (not an energy hatch)
+     */
+    public Hatch supply(long voltage, long amperage, int durationTicks) {
+        if (helper == null) {
+            throw new IllegalStateException(label + " was not configured for EU supply (not an energy hatch handle)");
+        }
+        helper.supplyEUAbsolute(te.getXCoord(), te.getYCoord(), te.getZCoord(), voltage, amperage, durationTicks);
+        return this;
     }
 
     public Hatch fill(FluidStack fluid) {
