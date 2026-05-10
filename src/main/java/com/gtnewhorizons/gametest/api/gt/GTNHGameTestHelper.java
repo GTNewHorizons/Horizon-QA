@@ -413,6 +413,21 @@ public class GTNHGameTestHelper {
         }
     }
 
+    /**
+     * Controller at {@code relPos} (test-local coordinates). {@link Multiblock} reads hatch lists from the live tile
+     * each
+     * time.
+     */
+    public Multiblock multiblock(TestPos relPos) {
+        TestPos abs = base.absolute(relPos.x(), relPos.y(), relPos.z());
+        return new Multiblock(this, world, abs);
+    }
+
+    /** Test-local coordinates from a world-absolute {@link TestPos}. */
+    TestPos absoluteToRelative(TestPos abs) {
+        return new TestPos(abs.x() - originX, abs.y() - originY, abs.z() - originZ);
+    }
+
     private IGregTechTileEntity requireGTTE(TestPos relPos) {
         TestPos abs = base.absolute(relPos.x(), relPos.y(), relPos.z());
         TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
