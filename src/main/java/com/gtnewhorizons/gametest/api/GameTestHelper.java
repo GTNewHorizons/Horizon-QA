@@ -1,5 +1,8 @@
 package com.gtnewhorizons.gametest.api;
 
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
@@ -102,6 +105,358 @@ public class GameTestHelper {
      */
     public void fail(String message) {
         throw new GameTestAssertException(message, originX, originY, originZ);
+    }
+
+    /** Immediately fail this test with no message. */
+    public void fail() {
+        throw new GameTestAssertException("Test failed", originX, originY, originZ);
+    }
+
+    /** Fail if {@code condition} is {@code false}. */
+    public void assertTrue(boolean condition, String message) {
+        if (!condition) throw new GameTestAssertException(message, originX, originY, originZ);
+    }
+
+    /** Fail if {@code condition} is {@code false}. */
+    public void assertTrue(boolean condition) {
+        if (!condition) throw new GameTestAssertException("Expected true but was false", originX, originY, originZ);
+    }
+
+    /** Fail if {@code condition} is {@code true}. */
+    public void assertFalse(boolean condition, String message) {
+        if (condition) throw new GameTestAssertException(message, originX, originY, originZ);
+    }
+
+    /** Fail if {@code condition} is {@code true}. */
+    public void assertFalse(boolean condition) {
+        if (condition) throw new GameTestAssertException("Expected false but was true", originX, originY, originZ);
+    }
+
+    /** Fail if {@code actual} is not {@code null}. */
+    public void assertNull(Object actual, String message) {
+        if (actual != null) throw new GameTestAssertException(message, originX, originY, originZ);
+    }
+
+    /** Fail if {@code actual} is not {@code null}. */
+    public void assertNull(Object actual) {
+        if (actual != null)
+            throw new GameTestAssertException("Expected null but was: <" + actual + ">", originX, originY, originZ);
+    }
+
+    /** Fail if {@code actual} is {@code null}. */
+    public void assertNotNull(Object actual, String message) {
+        if (actual == null) throw new GameTestAssertException(message, originX, originY, originZ);
+    }
+
+    /** Fail if {@code actual} is {@code null}. */
+    public void assertNotNull(Object actual) {
+        if (actual == null) throw new GameTestAssertException("Expected non-null value", originX, originY, originZ);
+    }
+
+    /** Fail if {@code expected} and {@code actual} are not equal per {@link Objects#equals}. */
+    public void assertEquals(Object expected, Object actual, String message) {
+        if (!Objects.equals(expected, actual)) throw new GameTestAssertException(
+            message + ": expected <" + expected + "> but found <" + actual + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code expected} and {@code actual} are not equal per {@link Objects#equals}. */
+    public void assertEquals(Object expected, Object actual) {
+        if (!Objects.equals(expected, actual)) throw new GameTestAssertException(
+            "Expected <" + expected + "> but found <" + actual + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code expected != actual}. */
+    public void assertEquals(long expected, long actual, String message) {
+        if (expected != actual) throw new GameTestAssertException(
+            message + ": expected <" + expected + "> but found <" + actual + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code expected != actual}. */
+    public void assertEquals(long expected, long actual) {
+        if (expected != actual) throw new GameTestAssertException(
+            "Expected <" + expected + "> but found <" + actual + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code |expected - actual| > delta}. */
+    public void assertEquals(double expected, double actual, double delta, String message) {
+        if (Math.abs(expected - actual) > delta) throw new GameTestAssertException(
+            message + ": expected <" + expected + "> but found <" + actual + "> (delta " + delta + ")",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code |expected - actual| > delta}. */
+    public void assertEquals(double expected, double actual, double delta) {
+        if (Math.abs(expected - actual) > delta) throw new GameTestAssertException(
+            "Expected <" + expected + "> but found <" + actual + "> (delta " + delta + ")",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code unexpected} and {@code actual} are equal per {@link Objects#equals}. */
+    public void assertNotEquals(Object unexpected, Object actual, String message) {
+        if (Objects.equals(unexpected, actual)) throw new GameTestAssertException(
+            message + ": expected anything except <" + unexpected + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code unexpected} and {@code actual} are equal per {@link Objects#equals}. */
+    public void assertNotEquals(Object unexpected, Object actual) {
+        if (Objects.equals(unexpected, actual)) throw new GameTestAssertException(
+            "Expected anything except <" + unexpected + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code unexpected == actual}. */
+    public void assertNotEquals(long unexpected, long actual, String message) {
+        if (unexpected == actual) throw new GameTestAssertException(
+            message + ": expected anything except <" + unexpected + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code unexpected == actual}. */
+    public void assertNotEquals(long unexpected, long actual) {
+        if (unexpected == actual) throw new GameTestAssertException(
+            "Expected anything except <" + unexpected + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code |unexpected - actual| <= delta}. */
+    public void assertNotEquals(double unexpected, double actual, double delta, String message) {
+        if (Math.abs(unexpected - actual) <= delta) throw new GameTestAssertException(
+            message + ": expected anything except <" + unexpected + "> (delta " + delta + ")",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code |unexpected - actual| <= delta}. */
+    public void assertNotEquals(double unexpected, double actual, double delta) {
+        if (Math.abs(unexpected - actual) <= delta) throw new GameTestAssertException(
+            "Expected anything except <" + unexpected + "> (delta " + delta + ")",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code expected} and {@code actual} are not the same object reference ({@code ==}). */
+    public void assertSame(Object expected, Object actual, String message) {
+        if (expected != actual) throw new GameTestAssertException(
+            message + ": expected same instance <" + expected + "> but found <" + actual + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code expected} and {@code actual} are not the same object reference ({@code ==}). */
+    public void assertSame(Object expected, Object actual) {
+        if (expected != actual) throw new GameTestAssertException(
+            "Expected same instance <" + expected + "> but found <" + actual + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code unexpected} and {@code actual} are the same object reference ({@code ==}). */
+    public void assertNotSame(Object unexpected, Object actual, String message) {
+        if (unexpected == actual) throw new GameTestAssertException(
+            message + ": expected different instances but both were <" + actual + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /** Fail if {@code unexpected} and {@code actual} are the same object reference ({@code ==}). */
+    public void assertNotSame(Object unexpected, Object actual) {
+        if (unexpected == actual) throw new GameTestAssertException(
+            "Expected different instances but both were <" + actual + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /**
+     * Fail if {@code actual} is not an instance of {@code type}. Returns {@code actual} cast to {@code T}.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T assertInstanceOf(Class<T> type, Object actual, String message) {
+        if (!type.isInstance(actual)) {
+            String actualType = actual == null ? "null"
+                : actual.getClass()
+                    .getSimpleName();
+            throw new GameTestAssertException(
+                message + ": expected instance of " + type.getSimpleName() + " but was " + actualType,
+                originX,
+                originY,
+                originZ);
+        }
+        return (T) actual;
+    }
+
+    /**
+     * Fail if {@code actual} is not an instance of {@code type}. Returns {@code actual} cast to {@code T}.
+     */
+    public <T> T assertInstanceOf(Class<T> type, Object actual) {
+        return assertInstanceOf(type, actual, "Type assertion failed");
+    }
+
+    /**
+     * Assert that {@code action} throws an exception of exactly type {@code expectedType}.
+     * Returns the thrown exception for further inspection. Fails if nothing is thrown or the
+     * wrong type is thrown.
+     */
+    public <T extends Throwable> T assertThrows(Class<T> expectedType, Runnable action, String message) {
+        try {
+            action.run();
+        } catch (Throwable actual) {
+            if (expectedType.isInstance(actual)) {
+                return expectedType.cast(actual);
+            }
+            throw new GameTestAssertException(
+                message + ": expected "
+                    + expectedType.getSimpleName()
+                    + " but got "
+                    + actual.getClass()
+                        .getSimpleName(),
+                originX,
+                originY,
+                originZ);
+        }
+        throw new GameTestAssertException(
+            message + ": expected " + expectedType.getSimpleName() + " to be thrown but nothing was thrown",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /**
+     * Assert that {@code action} throws an exception of exactly type {@code expectedType}.
+     * Returns the thrown exception for further inspection.
+     */
+    public <T extends Throwable> T assertThrows(Class<T> expectedType, Runnable action) {
+        return assertThrows(expectedType, action, "assertThrows failed");
+    }
+
+    /**
+     * Assert that two iterables contain equal elements in the same order (deep equality via
+     * {@link Objects#equals}).
+     */
+    public void assertIterableEquals(Iterable<?> expected, Iterable<?> actual, String message) {
+        Iterator<?> expIt = expected.iterator();
+        Iterator<?> actIt = actual.iterator();
+        int index = 0;
+        while (expIt.hasNext() && actIt.hasNext()) {
+            Object exp = expIt.next();
+            Object act = actIt.next();
+            if (!Objects.equals(exp, act)) throw new GameTestAssertException(
+                message + ": element [" + index + "]: expected <" + exp + "> but found <" + act + ">",
+                originX,
+                originY,
+                originZ);
+            index++;
+        }
+        if (expIt.hasNext()) throw new GameTestAssertException(
+            message + ": expected iterable has more elements at index " + index,
+            originX,
+            originY,
+            originZ);
+        if (actIt.hasNext()) throw new GameTestAssertException(
+            message + ": actual iterable has more elements at index " + index,
+            originX,
+            originY,
+            originZ);
+    }
+
+    /**
+     * Assert that two iterables contain equal elements in the same order.
+     */
+    public void assertIterableEquals(Iterable<?> expected, Iterable<?> actual) {
+        assertIterableEquals(expected, actual, "Iterable mismatch");
+    }
+
+    /**
+     * Assert that {@code actualLines} matches {@code expectedLines} line by line. Each expected line is
+     * first compared verbatim; on mismatch it is tried as a {@link java.util.regex.Pattern regex}.
+     * Use {@code ">>"} to skip all remaining actual lines, or {@code ">> N >>"} to skip exactly N lines.
+     */
+    public void assertLinesMatch(List<String> expectedLines, List<String> actualLines, String message) {
+        int ai = 0;
+        int ei = 0;
+        while (ei < expectedLines.size()) {
+            String exp = expectedLines.get(ei);
+            if (">>".equals(exp)) {
+                ai = actualLines.size();
+                ei++;
+                continue;
+            }
+            if (exp.startsWith(">> ") && exp.endsWith(" >>")) {
+                String inner = exp.substring(3, exp.length() - 3)
+                    .trim();
+                try {
+                    ai += Integer.parseInt(inner);
+                    ei++;
+                    continue;
+                } catch (NumberFormatException ignored) {}
+            }
+            if (ai >= actualLines.size()) throw new GameTestAssertException(
+                message + ": line [" + ei + "] expected <" + exp + "> but actual output ended",
+                originX,
+                originY,
+                originZ);
+            String act = actualLines.get(ai);
+            if (!exp.equals(act)) {
+                boolean matched = false;
+                try {
+                    matched = act.matches(exp);
+                } catch (java.util.regex.PatternSyntaxException ignored) {}
+                if (!matched) throw new GameTestAssertException(
+                    message + ": line [" + ei + "]: expected <" + exp + "> but found <" + act + ">",
+                    originX,
+                    originY,
+                    originZ);
+            }
+            ei++;
+            ai++;
+        }
+        if (ai < actualLines.size()) throw new GameTestAssertException(
+            message + ": "
+                + (actualLines.size() - ai)
+                + " unmatched actual line(s) starting with <"
+                + actualLines.get(ai)
+                + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /**
+     * Assert that {@code actualLines} matches {@code expectedLines} — see
+     * {@link #assertLinesMatch(List, List, String)}.
+     */
+    public void assertLinesMatch(List<String> expectedLines, List<String> actualLines) {
+        assertLinesMatch(expectedLines, actualLines, "Lines mismatch");
     }
 
     public WorldServer getWorld() {
