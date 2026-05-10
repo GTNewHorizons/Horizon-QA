@@ -99,6 +99,11 @@ public class GameTestHelper {
         instance.addEachTickCallback(callback);
     }
 
+    /** Register {@code callback} to run once when this test ends, regardless of outcome. */
+    public void afterTest(Runnable callback) {
+        instance.addCleanup(callback);
+    }
+
     /**
      * Immediately fail this test with {@code message}. Throws {@link GameTestAssertException} so that
      * any enclosing {@code thenExecute} lambda propagates the failure correctly.

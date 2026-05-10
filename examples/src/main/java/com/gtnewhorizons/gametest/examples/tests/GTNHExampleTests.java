@@ -9,9 +9,12 @@ import com.gtnewhorizons.gametest.api.annotation.GameTestHolder;
 import com.gtnewhorizons.gametest.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.gametest.api.gt.MaintenanceType;
 import com.gtnewhorizons.gametest.api.gt.Multiblock;
+import com.gtnewhorizons.gametest.api.gt.TestRecipeScope;
 
+import gregtech.api.enums.GTValues;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.TierEU;
+import gregtech.api.util.GTRecipeBuilder;
 
 @GameTestHolder(value = "gametestexamples")
 public class GTNHExampleTests {
@@ -87,6 +90,32 @@ public class GTNHExampleTests {
 
         gtnh.fillHatch(inputBus, "nitrogen", 2000);
         gtnh.assertFluidInHatch(inputBus, "nitrogen", 2000);
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
+    public static void testSyntheticRecipe(GameTestHelper helper) {
+        GTNHGameTestHelper gtnh = helper.gtnh();
+        Multiblock ebf = gtnh.multiblock(at(1, 0, 0));
+        ebf.assertFormed();
+        ebf.fixMaintenance();
+
+        GTRecipeBuilder synthetic = GTValues.RA.stdBuilder()
+            .itemInputs(Materials.Lead.getDust(1))
+            .itemOutputs(Materials.Gold.getIngots(1))
+            .duration(200)
+            .eut(TierEU.EV);
+
+        try (TestRecipeScope ignored = gtnh.withTestRecipe(ebf, synthetic)) {
+            ebf.inputBus(0)
+                .insert(Materials.Lead.getDust(1));
+            ebf.energyHatch(0)
+                .supply(TierEU.EV, 1, 300);
+            ebf.runRecipe();
+            ebf.outputs()
+                .assertContains(Materials.Gold.getIngots(1));
+        }
 
         helper.succeed();
     }

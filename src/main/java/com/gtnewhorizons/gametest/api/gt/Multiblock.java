@@ -15,6 +15,7 @@ import gregtech.api.metatileentity.implementations.MTEHatchInputDebug;
 import gregtech.api.metatileentity.implementations.MTEHatchOutput;
 import gregtech.api.metatileentity.implementations.MTEHatchOutputBus;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
+import gregtech.api.recipe.RecipeMap;
 import gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
 import gregtech.common.tileentities.machines.MTEHatchInputME;
 
@@ -251,6 +252,26 @@ public final class Multiblock {
     /** Whether the controller is in the middle of a recipe cycle. */
     public boolean isProcessing() {
         return resolveController().mMaxProgresstime > 0;
+    }
+
+    RecipeMap<?> resolveRecipeMap() {
+        MTEMultiBlockBase ctrl = resolveController();
+        RecipeMap<?> map = ctrl.getRecipeMap();
+        if (map == null) {
+            throw new GameTestAssertException(
+                "Controller at " + absPos
+                    + " does not expose a RecipeMap; withTestRecipe is unsupported for this multi in v0.1",
+                absPos);
+        }
+        return map;
+    }
+
+    WorldServer worldServer() {
+        return world;
+    }
+
+    TestPos controllerAbsPos() {
+        return absPos;
     }
 
     private MTEMultiBlockBase resolveController() {

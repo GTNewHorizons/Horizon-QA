@@ -20,6 +20,9 @@ import gregtech.api.interfaces.IConfigurationCircuitSupport;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
+import gregtech.api.recipe.RecipeMap;
+import gregtech.api.util.GTRecipe;
+import gregtech.api.util.GTRecipeBuilder;
 import gregtech.api.util.GTUtility;
 
 /**
@@ -421,6 +424,34 @@ public class GTNHGameTestHelper {
     public Multiblock multiblock(TestPos relPos) {
         TestPos abs = base.absolute(relPos.x(), relPos.y(), relPos.z());
         return new Multiblock(this, world, abs);
+    }
+
+    /**
+     * Inject a synthetic {@link GTRecipe} into the multiblock's recipemap for the duration of the returned
+     * {@link TestRecipeScope}. The recipe (and its backend caches) is removed when the scope is closed.
+     *
+     * @throws GameTestAssertException if the controller does not expose a RecipeMap
+     */
+    public TestRecipeScope withTestRecipe(Multiblock multi, GTRecipe recipe) {
+        RecipeMap<?> map = multi.resolveRecipeMap();
+        TestRecipeScope scope = new TestRecipeScope(map, recipe, multi.worldServer(), multi.controllerAbsPos());
+        base.afterTest(scope::close);
+        return scope;
+    }
+
+    /**
+     * Builds {@code builder} and injects the result into the multiblock's recipemap for the duration of the returned
+     * {@link TestRecipeScope}. Fails the test immediately if the builder produces no recipe.
+     *
+     * @throws GameTestAssertException if the builder produces no recipe or the controller does not expose a RecipeMap
+     */
+    public TestRecipeScope withTestRecipe(Multiblock multi, GTRecipeBuilder builder) {
+        GTRecipe recipe = builder.build()
+            .orElseThrow(
+                () -> new GameTestAssertException(
+                    "Recipe builder produced no recipe — verify itemInputs, itemOutputs, duration and eut are set",
+                    multi.controllerAbsPos()));
+        return withTestRecipe(multi, recipe);
     }
 
     /** Registers a supply job using world-absolute coordinates. Used by {@link Hatch#supply}. */
