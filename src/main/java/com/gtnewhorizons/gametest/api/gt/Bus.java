@@ -34,13 +34,11 @@ public final class Bus {
             int leftover = InventoryHelper.insert(inv, stack);
             if (leftover > 0) {
                 throw new GameTestAssertException(
-                    "Could not fully insert "
-                        + stack.getDisplayName()
-                        + " into "
-                        + label
-                        + ": "
-                        + leftover
-                        + " items remaining", te.getXCoord(), te.getYCoord(), te.getZCoord());
+                    "Could not fully insert " + stack
+                        .getDisplayName() + " into " + label + ": " + leftover + " items remaining",
+                    te.getXCoord(),
+                    te.getYCoord(),
+                    te.getZCoord());
             }
         }
         return this;
@@ -75,13 +73,8 @@ public final class Bus {
     public ItemStack slot(int index) {
         IInventory inv = inventory();
         if (index < 0 || index >= inv.getSizeInventory()) {
-            throw new IndexOutOfBoundsException("Slot "
-                + index
-                + " out of range for "
-                + label
-                + " (size="
-                + inv.getSizeInventory()
-                + ")");
+            throw new IndexOutOfBoundsException(
+                "Slot " + index + " out of range for " + label + " (size=" + inv.getSizeInventory() + ")");
         }
         return inv.getStackInSlot(index);
     }

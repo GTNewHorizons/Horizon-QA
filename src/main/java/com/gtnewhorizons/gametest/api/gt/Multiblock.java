@@ -50,9 +50,9 @@ public final class Multiblock {
             multi.checkStructure(true);
         }
         if (!multi.mMachine) {
-            throw error("Multiblock at "
-                + absPos
-                + " is not formed (mMachine=false). Verify the template is placed correctly.");
+            throw error(
+                "Multiblock at " + absPos
+                    + " is not formed (mMachine=false). Verify the template is placed correctly.");
         }
         multi.mStartUpCheck = -1;
     }
@@ -193,9 +193,13 @@ public final class Multiblock {
             throw error("No GT tile entity at controller position " + absPos);
         }
         if (!(igte.getMetaTileEntity() instanceof MTEMultiBlockBase multi)) {
-            throw error("TE at " + absPos + " is not an MTEMultiBlockBase (found: " + igte.getMetaTileEntity()
-                .getClass()
-                .getSimpleName() + ")");
+            throw error(
+                "TE at " + absPos
+                    + " is not an MTEMultiBlockBase (found: "
+                    + igte.getMetaTileEntity()
+                        .getClass()
+                        .getSimpleName()
+                    + ")");
         }
         return multi;
     }

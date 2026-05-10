@@ -37,7 +37,11 @@ public final class Hatch {
                     + "' into "
                     + label
                     + "; only "
-                    + filled + " mB accepted", te.getXCoord(), te.getYCoord(), te.getZCoord());
+                    + filled
+                    + " mB accepted",
+                te.getXCoord(),
+                te.getYCoord(),
+                te.getZCoord());
         }
         return this;
     }
@@ -54,7 +58,11 @@ public final class Hatch {
                     + fluid.getLocalizedName()
                     + "' in "
                     + label
-                    + " but found " + actual, te.getXCoord(), te.getYCoord(), te.getZCoord());
+                    + " but found "
+                    + actual,
+                te.getXCoord(),
+                te.getYCoord(),
+                te.getZCoord());
         }
     }
 
