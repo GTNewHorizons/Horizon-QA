@@ -90,11 +90,14 @@ public final class Multiblock {
         MTEMultiBlockBase multi = resolveController();
         MTEHatchInputBus hatch = multi.mInputBusses.get(index);
         if (hatch == null) {
-            throw error("inputBus[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
+            throw error(
+                "inputBus[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
         }
         if (hatch instanceof MTEHatchCraftingInputME) {
             throw error(
-                "inputBus[" + index + "] at " + absPos
+                "inputBus[" + index
+                    + "] at "
+                    + absPos
                     + " is an ME crafting bus — inserting into it is not supported; use inputs() to iterate non-ME input buses");
         }
         return new Bus(hatch.getBaseMetaTileEntity(), "inputBus[" + index + "] at " + absPos);
@@ -111,7 +114,8 @@ public final class Multiblock {
         MTEMultiBlockBase multi = resolveController();
         MTEHatchOutputBus hatch = multi.mOutputBusses.get(index);
         if (hatch == null) {
-            throw error("outputBus[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
+            throw error(
+                "outputBus[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
         }
         return new Bus(hatch.getBaseMetaTileEntity(), "outputBus[" + index + "] at " + absPos);
     }
@@ -163,7 +167,8 @@ public final class Multiblock {
         MTEMultiBlockBase multi = resolveController();
         MTEHatchEnergy hatch = multi.mEnergyHatches.get(index);
         if (hatch == null) {
-            throw error("energyHatch[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
+            throw error(
+                "energyHatch[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
         }
         return new Hatch(hatch.getBaseMetaTileEntity(), "energyHatch[" + index + "] at " + absPos);
     }
@@ -181,11 +186,14 @@ public final class Multiblock {
         MTEMultiBlockBase multi = resolveController();
         MTEHatchInput hatch = multi.mInputHatches.get(index);
         if (hatch == null) {
-            throw error("inputHatch[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
+            throw error(
+                "inputHatch[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
         }
         if (hatch instanceof MTEHatchInputME) {
             throw error(
-                "inputHatch[" + index + "] at " + absPos
+                "inputHatch[" + index
+                    + "] at "
+                    + absPos
                     + " is an ME fluid hatch — filling it is not supported in v0.1");
         }
         if (hatch instanceof MTEHatchInputDebug) {
@@ -203,7 +211,8 @@ public final class Multiblock {
         MTEMultiBlockBase multi = resolveController();
         MTEHatchOutput hatch = multi.mOutputHatches.get(index);
         if (hatch == null) {
-            throw error("outputHatch[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
+            throw error(
+                "outputHatch[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
         }
         return new Hatch(hatch.getBaseMetaTileEntity(), "outputHatch[" + index + "] at " + absPos);
     }

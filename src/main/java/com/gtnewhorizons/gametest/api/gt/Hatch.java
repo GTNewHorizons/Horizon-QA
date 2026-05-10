@@ -57,7 +57,8 @@ public final class Hatch {
         IMetaTileEntity mte = requireMte();
         if (mte instanceof MTEHatchMultiInput multiInput) {
             for (FluidStack stored : multiInput.getStoredFluid()) {
-                if (stored != null && stored.getFluidID() == fluid.getFluidID() && stored.amount >= fluid.amount) return;
+                if (stored != null && stored.getFluidID() == fluid.getFluidID() && stored.amount >= fluid.amount)
+                    return;
             }
             throw new GameTestAssertException(
                 "Expected " + fluid.amount + " mB of '" + fluid.getLocalizedName() + "' in " + label + " but not found",
