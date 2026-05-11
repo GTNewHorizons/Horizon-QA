@@ -24,6 +24,7 @@ import com.gtnewhorizons.gametest.api.annotation.Stable;
 import com.gtnewhorizons.gametest.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.gametest.core.GameTestInstance;
 import com.gtnewhorizons.gametest.core.GameTestSequence;
+import com.gtnewhorizons.gametest.core.TestEventRecorder;
 import com.mojang.authlib.GameProfile;
 
 import cpw.mods.fml.common.Loader;
@@ -466,6 +467,14 @@ public class GameTestHelper {
 
     public WorldServer getWorld() {
         return world;
+    }
+
+    /**
+     * Event recorder for this test instance. Records of {@link com.gtnewhorizons.gametest.api.event.TestEvent} are
+     * appended in emit order; see {@link TestEventRecorder} for kill-switch semantics.
+     */
+    public TestEventRecorder getRecorder() {
+        return instance.getRecorder();
     }
 
     public int getOriginX() {

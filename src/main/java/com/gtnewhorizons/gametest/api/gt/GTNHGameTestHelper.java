@@ -13,8 +13,20 @@ import com.gtnewhorizons.gametest.api.GameTestAssertException;
 import com.gtnewhorizons.gametest.api.GameTestHelper;
 import com.gtnewhorizons.gametest.api.TestPos;
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
+import com.gtnewhorizons.gametest.api.event.CleanroomEfficiencyChanged;
+import com.gtnewhorizons.gametest.api.event.EUSupplyJobRegistered;
+import com.gtnewhorizons.gametest.api.event.HatchFilled;
+import com.gtnewhorizons.gametest.api.event.MachineExploded;
+import com.gtnewhorizons.gametest.api.event.MachineFormed;
+import com.gtnewhorizons.gametest.api.event.MaintenanceFixed;
+import com.gtnewhorizons.gametest.api.event.PollutionEmitted;
+import com.gtnewhorizons.gametest.api.event.ProgrammedCircuitSet;
+import com.gtnewhorizons.gametest.api.event.StructureCheckRan;
+import com.gtnewhorizons.gametest.api.event.state.ExplodedCause;
+import com.gtnewhorizons.gametest.api.event.state.FormedCause;
 import com.gtnewhorizons.gametest.api.gt.adapter.GT5UnofficialAdapter;
 import com.gtnewhorizons.gametest.api.gt.adapter.GTAdapter;
+import com.gtnewhorizons.gametest.core.TestEventRecorder;
 
 import gregtech.api.interfaces.IConfigurationCircuitSupport;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -51,10 +63,11 @@ public class GTNHGameTestHelper {
     private final int originX;
     private final int originY;
     private final int originZ;
-    private final VirtualEUDynamo dynamo = new VirtualEUDynamo();
+    private final TestEventRecorder recorder;
+    private final VirtualEUDynamo dynamo;
+    private final long pollutionBefore;
 
     private int warpRange = DEFAULT_WARP_RANGE;
-    private long pollutionBefore;
 
     public GTNHGameTestHelper(GameTestHelper base, WorldServer world, int originX, int originY, int originZ) {
         this.base = base;
@@ -62,7 +75,31 @@ public class GTNHGameTestHelper {
         this.originX = originX;
         this.originY = originY;
         this.originZ = originZ;
+        this.recorder = base.getRecorder();
+        this.dynamo = new VirtualEUDynamo(recorder);
         this.pollutionBefore = getPollutionAtOrigin();
+    }
+
+    /** Event recorder for this test. See {@link TestEventRecorder}. */
+    public TestEventRecorder recorder() {
+        return recorder;
+    }
+
+    /** Adapter used to read GT-internal state through one quarantined seam. */
+    public GTAdapter adapter() {
+        return GT;
+    }
+
+    int originX() {
+        return originX;
+    }
+
+    int originY() {
+        return originY;
+    }
+
+    int originZ() {
+        return originZ;
     }
 
     /**
@@ -92,8 +129,19 @@ public class GTNHGameTestHelper {
                     + ")",
                 relPos);
         }
+        boolean wasFormed = multi.mMachine;
+        boolean ranCheck = false;
         if (!multi.mMachine) {
             multi.checkStructure(true);
+            ranCheck = true;
+            final boolean nowFormed = multi.mMachine;
+            recorder.record(
+                () -> new StructureCheckRan(
+                    recorder.clock()
+                        .tick(),
+                    relPos,
+                    true,
+                    nowFormed));
         }
         if (!multi.mMachine) {
             throw error(
@@ -102,6 +150,18 @@ public class GTNHGameTestHelper {
                 relPos);
         }
         multi.mStartUpCheck = -1;
+        FormedCause cause = ranCheck ? FormedCause.FORCED_BY_ASSERTION
+            : (wasFormed ? FormedCause.OBSERVED_ON_FIRST_POLL : FormedCause.FORMED_DURING_WARP);
+        String mteClass = mte.getClass()
+            .getSimpleName();
+        recorder.record(
+            () -> new MachineFormed(
+                recorder.clock()
+                    .tick(),
+                relPos,
+                mteClass,
+                cause,
+                GT.snapshotHatches(mte)));
     }
 
     /**
@@ -113,6 +173,12 @@ public class GTNHGameTestHelper {
         MTEMultiBlockBase multi = requireMultiBlock(relPos);
         multi.fixAllIssues();
         multi.enableWorking();
+        recorder.record(
+            () -> new MaintenanceFixed(
+                recorder.clock()
+                    .tick(),
+                relPos,
+                "ALL"));
     }
 
     /**
@@ -134,6 +200,15 @@ public class GTNHGameTestHelper {
      * once per simulated tick before the GT TE pass.
      */
     public void fastForwardTicks(int ticks) {
+        fastForwardTicks(ticks, java.util.Collections.emptyList());
+    }
+
+    /**
+     * Same as {@link #fastForwardTicks(int)} but registers {@code watchedControllersAbs} (world-absolute positions)
+     * with the warp differ so per-tick recipe / formation / maintenance / explosion transitions are emitted as
+     * {@link com.gtnewhorizons.gametest.api.event.TestEvent}s into the per-test recorder.
+     */
+    public void fastForwardTicks(int ticks, java.util.List<TestPos> watchedControllersAbs) {
         TimeWarpHandler.fastForward(
             world,
             originX,
@@ -144,7 +219,10 @@ public class GTNHGameTestHelper {
             originZ + warpRange,
             ticks,
             dynamo,
-            null);
+            null,
+            recorder,
+            GT,
+            watchedControllersAbs);
     }
 
     /**
@@ -167,7 +245,10 @@ public class GTNHGameTestHelper {
             () -> {
                 TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
                 return !(te instanceof IGregTechTileEntity igte) || !igte.isActive();
-            });
+            },
+            recorder,
+            GT,
+            java.util.Collections.singletonList(abs));
 
         TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
         if (te instanceof IGregTechTileEntity igte && igte.isActive()) {
@@ -196,6 +277,14 @@ public class GTNHGameTestHelper {
     public void supplyEU(TestPos relPos, long voltage, long amperage, int durationTicks) {
         TestPos abs = base.absolute(relPos.x(), relPos.y(), relPos.z());
         dynamo.addJob(world, abs.x(), abs.y(), abs.z(), voltage, amperage, durationTicks);
+        recorder.record(
+            () -> new EUSupplyJobRegistered(
+                recorder.clock()
+                    .tick(),
+                abs,
+                voltage,
+                amperage,
+                durationTicks));
     }
 
     /**
@@ -219,6 +308,12 @@ public class GTNHGameTestHelper {
         if (te instanceof IGregTechTileEntity) {
             throw error("Machine at " + relPos + " did not explode (GT TE still present)", relPos);
         }
+        recorder.record(
+            () -> new MachineExploded(
+                recorder.clock()
+                    .tick(),
+                abs,
+                ExplodedCause.UNKNOWN));
     }
 
     /**
@@ -280,6 +375,16 @@ public class GTNHGameTestHelper {
                     + " mB accepted",
                 relPos);
         }
+        final int finalFilled = filled;
+        final FluidStack fs = fluidStack;
+        recorder.record(
+            () -> new HatchFilled(
+                recorder.clock()
+                    .tick(),
+                abs,
+                FluidRegistry.getFluidName(fs),
+                fs.amount,
+                finalFilled));
     }
 
     /**
@@ -349,6 +454,13 @@ public class GTNHGameTestHelper {
             throw error("TE at " + relPos + " has circuit support disabled", relPos);
         }
         mte.setInventorySlotContents(circuitSupport.getCircuitSlot(), circuit);
+        TestPos absC = base.absolute(relPos.x(), relPos.y(), relPos.z());
+        recorder.record(
+            () -> new ProgrammedCircuitSet(
+                recorder.clock()
+                    .tick(),
+                absC,
+                config));
     }
 
     /**
@@ -387,6 +499,13 @@ public class GTNHGameTestHelper {
                 originY,
                 originZ);
         }
+        recorder.record(
+            () -> new PollutionEmitted(
+                recorder.clock()
+                    .tick(),
+                new TestPos(originX, originY, originZ),
+                emitted,
+                emitted));
     }
 
     /**
@@ -414,6 +533,14 @@ public class GTNHGameTestHelper {
                 "Cleanroom at " + relPos + " has efficiency " + efficiency + " but expected >= " + expectedEfficiency,
                 relPos);
         }
+        final int finalEff = efficiency;
+        TestPos absE = base.absolute(relPos.x(), relPos.y(), relPos.z());
+        recorder.record(
+            () -> new CleanroomEfficiencyChanged(
+                recorder.clock()
+                    .tick(),
+                absE,
+                finalEff));
     }
 
     /**
@@ -434,7 +561,12 @@ public class GTNHGameTestHelper {
      */
     public TestRecipeScope withTestRecipe(Multiblock multi, GTRecipe recipe) {
         RecipeMap<?> map = multi.resolveRecipeMap();
-        TestRecipeScope scope = new TestRecipeScope(map, recipe, multi.worldServer(), multi.controllerAbsPos());
+        TestRecipeScope scope = new TestRecipeScope(
+            map,
+            recipe,
+            multi.worldServer(),
+            multi.controllerAbsPos(),
+            recorder);
         base.afterTest(scope::close);
         return scope;
     }

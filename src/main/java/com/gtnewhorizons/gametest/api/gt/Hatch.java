@@ -1,11 +1,16 @@
 package com.gtnewhorizons.gametest.api.gt;
 
 import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidHandler;
 
 import com.gtnewhorizons.gametest.api.GameTestAssertException;
+import com.gtnewhorizons.gametest.api.TestPos;
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
+import com.gtnewhorizons.gametest.api.event.EUSupplyJobRegistered;
+import com.gtnewhorizons.gametest.api.event.HatchFilled;
+import com.gtnewhorizons.gametest.core.TestEventRecorder;
 
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
@@ -21,11 +26,17 @@ public final class Hatch {
     private final IGregTechTileEntity te;
     private final String label;
     private final GTNHGameTestHelper helper;
+    private final TestEventRecorder recorder;
 
     Hatch(IGregTechTileEntity te, String label, GTNHGameTestHelper helper) {
+        this(te, label, helper, helper != null ? helper.recorder() : null);
+    }
+
+    Hatch(IGregTechTileEntity te, String label, GTNHGameTestHelper helper, TestEventRecorder recorder) {
         this.te = te;
         this.label = label;
         this.helper = helper;
+        this.recorder = recorder;
     }
 
     /**
@@ -40,6 +51,16 @@ public final class Hatch {
             throw new IllegalStateException(label + " was not configured for EU supply (not an energy hatch handle)");
         }
         helper.supplyEUAbsolute(te.getXCoord(), te.getYCoord(), te.getZCoord(), voltage, amperage, durationTicks);
+        TestEventRecorder rec = helper.recorder();
+        TestPos pos = new TestPos(te.getXCoord(), te.getYCoord(), te.getZCoord());
+        rec.record(
+            () -> new EUSupplyJobRegistered(
+                rec.clock()
+                    .tick(),
+                pos,
+                voltage,
+                amperage,
+                durationTicks));
         return this;
     }
 
@@ -60,6 +81,20 @@ public final class Hatch {
                 te.getXCoord(),
                 te.getYCoord(),
                 te.getZCoord());
+        }
+        if (recorder != null) {
+            final TestEventRecorder rec = recorder;
+            final int finalFilled = filled;
+            final FluidStack fs = fluid;
+            TestPos pos = new TestPos(te.getXCoord(), te.getYCoord(), te.getZCoord());
+            rec.record(
+                () -> new HatchFilled(
+                    rec.clock()
+                        .tick(),
+                    pos,
+                    FluidRegistry.getFluidName(fs),
+                    fs.amount,
+                    finalFilled));
         }
         return this;
     }

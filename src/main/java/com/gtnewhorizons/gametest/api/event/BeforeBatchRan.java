@@ -1,0 +1,19 @@
+package com.gtnewhorizons.gametest.api.event;
+
+import com.github.bsideup.jabel.Desugar;
+import com.gtnewhorizons.gametest.api.annotation.Experimental;
+
+@Experimental
+@Desugar
+public record BeforeBatchRan(int tick, String batch, String methodName) implements TestEvent {
+
+    @Override
+    public String category() {
+        return Category.LIFECYCLE;
+    }
+
+    @Override
+    public String summary() {
+        return "@BeforeBatch '" + methodName + "' ran for batch '" + batch + "'";
+    }
+}

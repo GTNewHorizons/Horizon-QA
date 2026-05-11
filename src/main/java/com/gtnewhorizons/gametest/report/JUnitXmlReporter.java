@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.List;
 
 import com.github.bsideup.jabel.Desugar;
+import com.gtnewhorizons.gametest.api.event.TestEvent;
 import com.gtnewhorizons.gametest.core.GameTestInstance;
 import com.gtnewhorizons.gametest.core.GameTestStatus;
 
@@ -62,9 +63,12 @@ public final class JUnitXmlReporter {
 
         var status = inst.getStatus();
         var warnings = inst.getWarnings();
+        var events = inst.getRecorder()
+            .snapshot();
         boolean hasWarnings = !warnings.isEmpty();
+        boolean hasEvents = !events.isEmpty();
 
-        if (status == GameTestStatus.PASSED && !hasWarnings) {
+        if (status == GameTestStatus.PASSED && !hasWarnings && !hasEvents) {
             pw.printf(
                 "  <testcase name=\"%s\" classname=\"%s\" time=\"%.3f\"/>%n",
                 sanitizeAttr(name),
@@ -102,8 +106,11 @@ public final class JUnitXmlReporter {
                 sanitizeAttr("GameTestError"));
         }
 
-        if (hasWarnings) {
+        if (hasWarnings || hasEvents) {
             pw.println("    <system-out>");
+            for (TestEvent e : events) {
+                pw.print(escapeBody(formatEvent(e) + "\n"));
+            }
             for (String w : warnings) {
                 pw.print(escapeBody("WARNING: " + w + "\n"));
             }
@@ -111,6 +118,10 @@ public final class JUnitXmlReporter {
         }
 
         pw.println("  </testcase>");
+    }
+
+    private static String formatEvent(TestEvent e) {
+        return String.format("[t=%5d] [%-11s] %s", e.tick(), e.category(), e.summary());
     }
 
     private static double suiteDuration(List<GameTestInstance> instances) {

@@ -6,6 +6,11 @@ import net.minecraft.world.WorldServer;
 import com.gtnewhorizons.gametest.api.GameTestAssertException;
 import com.gtnewhorizons.gametest.api.TestPos;
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
+import com.gtnewhorizons.gametest.api.event.MachineFormed;
+import com.gtnewhorizons.gametest.api.event.MaintenanceFixed;
+import com.gtnewhorizons.gametest.api.event.StructureCheckRan;
+import com.gtnewhorizons.gametest.api.event.state.FormedCause;
+import com.gtnewhorizons.gametest.core.TestEventRecorder;
 
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatchEnergy;
@@ -55,8 +60,20 @@ public final class Multiblock {
      */
     public void assertFormed() {
         MTEMultiBlockBase multi = resolveController();
+        boolean wasFormed = multi.mMachine;
+        boolean ranCheck = false;
         if (!multi.mMachine) {
             multi.checkStructure(true);
+            ranCheck = true;
+            final boolean nowFormed = multi.mMachine;
+            TestEventRecorder rec = helper.recorder();
+            rec.record(
+                () -> new StructureCheckRan(
+                    rec.clock()
+                        .tick(),
+                    absPos,
+                    true,
+                    nowFormed));
         }
         if (!multi.mMachine) {
             throw error(
@@ -64,6 +81,20 @@ public final class Multiblock {
                     + " is not formed (mMachine=false). Verify the template is placed correctly.");
         }
         multi.mStartUpCheck = -1;
+        FormedCause cause = ranCheck ? FormedCause.FORCED_BY_ASSERTION
+            : (wasFormed ? FormedCause.OBSERVED_ON_FIRST_POLL : FormedCause.FORMED_DURING_WARP);
+        String mteClass = multi.getClass()
+            .getSimpleName();
+        TestEventRecorder rec = helper.recorder();
+        rec.record(
+            () -> new MachineFormed(
+                rec.clock()
+                    .tick(),
+                absPos,
+                mteClass,
+                cause,
+                helper.adapter()
+                    .snapshotHatches(multi)));
     }
 
     /** Whether the controller reports a formed structure. */
@@ -76,6 +107,13 @@ public final class Multiblock {
         MTEMultiBlockBase multi = resolveController();
         multi.fixAllIssues();
         multi.enableWorking();
+        TestEventRecorder rec = helper.recorder();
+        rec.record(
+            () -> new MaintenanceFixed(
+                rec.clock()
+                    .tick(),
+                absPos,
+                "ALL"));
     }
 
     /**
@@ -101,7 +139,7 @@ public final class Multiblock {
                     + absPos
                     + " is an ME crafting bus — inserting into it is not supported; use inputs() to iterate non-ME input buses");
         }
-        return new Bus(hatch.getBaseMetaTileEntity(), "inputBus[" + index + "] at " + absPos);
+        return new Bus(hatch.getBaseMetaTileEntity(), "inputBus[" + index + "] at " + absPos, helper.recorder());
     }
 
     /**
@@ -118,7 +156,7 @@ public final class Multiblock {
             throw error(
                 "outputBus[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
         }
-        return new Bus(hatch.getBaseMetaTileEntity(), "outputBus[" + index + "] at " + absPos);
+        return new Bus(hatch.getBaseMetaTileEntity(), "outputBus[" + index + "] at " + absPos, helper.recorder());
     }
 
     /**
@@ -134,7 +172,7 @@ public final class Multiblock {
         for (MTEHatchInputBus hatch : multi.mInputBusses) {
             if (hatch == null || !hatch.isValid()) continue;
             if (hatch instanceof MTEHatchCraftingInputME) continue;
-            group.add(new Bus(hatch.getBaseMetaTileEntity(), "inputBus at " + absPos));
+            group.add(new Bus(hatch.getBaseMetaTileEntity(), "inputBus at " + absPos, helper.recorder()));
         }
         return group;
     }
@@ -149,7 +187,7 @@ public final class Multiblock {
         BusGroup group = new BusGroup("outputs() at " + absPos, absPos);
         for (MTEHatchOutputBus hatch : multi.mOutputBusses) {
             if (hatch == null || !hatch.isValid()) continue;
-            group.add(new Bus(hatch.getBaseMetaTileEntity(), "outputBus at " + absPos));
+            group.add(new Bus(hatch.getBaseMetaTileEntity(), "outputBus at " + absPos, helper.recorder()));
         }
         return group;
     }
@@ -200,7 +238,11 @@ public final class Multiblock {
         if (hatch instanceof MTEHatchInputDebug) {
             throw error("inputHatch[" + index + "] at " + absPos + " is a debug hatch — it is not fillable");
         }
-        return new Hatch(hatch.getBaseMetaTileEntity(), "inputHatch[" + index + "] at " + absPos, null);
+        return new Hatch(
+            hatch.getBaseMetaTileEntity(),
+            "inputHatch[" + index + "] at " + absPos,
+            null,
+            helper.recorder());
     }
 
     /**
@@ -215,7 +257,11 @@ public final class Multiblock {
             throw error(
                 "outputHatch[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
         }
-        return new Hatch(hatch.getBaseMetaTileEntity(), "outputHatch[" + index + "] at " + absPos, null);
+        return new Hatch(
+            hatch.getBaseMetaTileEntity(),
+            "outputHatch[" + index + "] at " + absPos,
+            null,
+            helper.recorder());
     }
 
     /**

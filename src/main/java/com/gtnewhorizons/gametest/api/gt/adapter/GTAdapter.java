@@ -3,6 +3,9 @@ package com.gtnewhorizons.gametest.api.gt.adapter;
 import net.minecraft.world.chunk.Chunk;
 
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
+import com.gtnewhorizons.gametest.api.event.state.HatchTopology;
+import com.gtnewhorizons.gametest.api.event.state.MaintenanceSnapshot;
+import com.gtnewhorizons.gametest.api.event.state.RecipeStateSnapshot;
 
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 
@@ -30,9 +33,11 @@ public interface GTAdapter {
 
     /**
      * Energy consumed (or produced) per tick for the current recipe. Negative values indicate consumption, positive
-     * values indicate generation.
+     * values indicate generation. Returned as {@code long} because
+     * {@link gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase}
+     * subclasses (EBF, fusion, etc.) use a {@code long}-backed energy field that can exceed {@code int} range.
      */
-    int getEUt(IMetaTileEntity mte);
+    long getEUt(IMetaTileEntity mte);
 
     /** Cleanroom controller efficiency in the 0–10000 range (0.00 %–100.00 %). */
     int getEfficiency(IMetaTileEntity mte);
@@ -62,4 +67,13 @@ public interface GTAdapter {
      * Never {@code null}.
      */
     String getCheckRecipeResultId(IMetaTileEntity mte);
+
+    /** Bundled recipe-state read used by the warp differ. Single call to minimise per-tick polling cost. */
+    RecipeStateSnapshot snapshotRecipeState(IMetaTileEntity mte);
+
+    /** Bitmask of the six maintenance flags. A set bit means the issue is currently present. */
+    MaintenanceSnapshot snapshotMaintenance(IMetaTileEntity mte);
+
+    /** Sizes of the standard hatch lists. Used for {@code MachineFormed} event payloads. */
+    HatchTopology snapshotHatches(IMetaTileEntity mte);
 }

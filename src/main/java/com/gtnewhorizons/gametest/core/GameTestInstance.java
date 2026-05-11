@@ -15,6 +15,11 @@ import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.gametest.api.GameTestAssertException;
 import com.gtnewhorizons.gametest.api.GameTestHelper;
 import com.gtnewhorizons.gametest.api.TestIsolationViolation;
+import com.gtnewhorizons.gametest.api.TestPos;
+import com.gtnewhorizons.gametest.api.event.AssertionFailed;
+import com.gtnewhorizons.gametest.api.event.IsolationViolation;
+import com.gtnewhorizons.gametest.api.event.TestFinished;
+import com.gtnewhorizons.gametest.api.event.TestStarted;
 
 public class GameTestInstance {
 
@@ -34,6 +39,7 @@ public class GameTestInstance {
     private final List<DelayedAction> delayedActions = new ArrayList<>();
     private final List<Runnable> cleanupCallbacks = new ArrayList<>();
     private final List<String> warnings = new ArrayList<>();
+    private final TestEventRecorder recorder = new TestEventRecorder();
 
     private int failX, failY, failZ;
     private boolean hasFailPosition;
@@ -48,6 +54,12 @@ public class GameTestInstance {
     public void start(WorldServer world) {
         status = GameTestStatus.RUNNING;
         GameTestHelper helper = new GameTestHelper(this, world, originX, originY, originZ);
+        recorder.record(
+            () -> new TestStarted(
+                recorder.clock()
+                    .tick(),
+                definition.getTestId(),
+                new TestPos(originX, originY, originZ)));
         try {
             definition.getMethod()
                 .invoke(null, helper);
@@ -62,6 +74,8 @@ public class GameTestInstance {
     public void tick() {
         if (status != GameTestStatus.RUNNING) return;
         tickCount++;
+        recorder.clock()
+            .advance();
 
         for (Runnable callback : eachTickCallbacks) {
             try {
@@ -123,6 +137,14 @@ public class GameTestInstance {
     public void succeed() {
         if (status != GameTestStatus.RUNNING) return;
         status = GameTestStatus.PASSED;
+        recorder.record(
+            () -> new TestFinished(
+                recorder.clock()
+                    .tick(),
+                definition.getTestId(),
+                "passed",
+                recorder.clock()
+                    .tick()));
         runCleanup();
         if (status == GameTestStatus.PASSED) {
             LOG.info("PASSED   {}", definition.getTestId());
@@ -143,6 +165,27 @@ public class GameTestInstance {
             failZ = gae.getZ();
             hasFailPosition = true;
         }
+        final Throwable c = cause;
+        recorder.record(() -> {
+            String msg = c != null ? String.valueOf(c.getMessage()) : "unknown";
+            String type = c != null ? c.getClass()
+                .getName() : "java.lang.AssertionError";
+            TestPos pos = hasFailPosition ? new TestPos(failX, failY, failZ) : null;
+            return new AssertionFailed(
+                recorder.clock()
+                    .tick(),
+                msg,
+                type,
+                pos);
+        });
+        recorder.record(
+            () -> new TestFinished(
+                recorder.clock()
+                    .tick(),
+                definition.getTestId(),
+                "failed",
+                recorder.clock()
+                    .tick()));
         runCleanup();
         String detail = cause != null ? cause.getMessage() : "unknown";
         LOG.error("FAILED   {} - {}", definition.getTestId(), detail);
@@ -181,6 +224,15 @@ public class GameTestInstance {
                 status = GameTestStatus.FAILED;
                 failureCause = isolationViolation;
             }
+            final TestIsolationViolation iv = isolationViolation;
+            recorder.record(
+                () -> new IsolationViolation(
+                    recorder.clock()
+                        .tick(),
+                    iv.getClass()
+                        .getSimpleName(),
+                    null,
+                    iv.getMessage()));
             LOG.error("ISOLATION {} - {}", definition.getTestId(), isolationViolation.getMessage());
         }
     }
@@ -252,6 +304,10 @@ public class GameTestInstance {
 
     public int getFailZ() {
         return failZ;
+    }
+
+    public TestEventRecorder getRecorder() {
+        return recorder;
     }
 
     @Desugar

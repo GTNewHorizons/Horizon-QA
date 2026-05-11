@@ -40,4 +40,5 @@ plugins:
 
 nav:
   - Home: index.md
+  - Test Events: events.md
   - Javadoc API: https://GTNewHorizons.github.io/Horizon-QA/javadoc/index.html

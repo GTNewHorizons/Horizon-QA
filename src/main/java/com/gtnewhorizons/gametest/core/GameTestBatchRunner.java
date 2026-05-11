@@ -18,6 +18,8 @@ import org.apache.logging.log4j.Logger;
 
 import com.gtnewhorizons.gametest.GameTestJvmFlags;
 import com.gtnewhorizons.gametest.GameTestMod;
+import com.gtnewhorizons.gametest.api.TestPos;
+import com.gtnewhorizons.gametest.api.event.StructurePlaced;
 import com.gtnewhorizons.gametest.report.ConsoleReporter;
 import com.gtnewhorizons.gametest.report.JUnitXmlReporter;
 import com.gtnewhorizons.gametest.structure.HybridStructureLoader;
@@ -84,6 +86,21 @@ public class GameTestBatchRunner {
         List<GameTestInstance> batchInstances = new ArrayList<>(planned.size());
         for (PlannedTest p : planned) {
             GameTestInstance inst = new GameTestInstance(p.def, p.originX, p.originY, p.originZ);
+            if (p.template != null) {
+                final String templateName = p.def.getTemplateName();
+                final int sx = p.tmplSizeX, sy = p.tmplSizeY, sz = p.tmplSizeZ;
+                final TestPos origin = new TestPos(p.originX, p.originY, p.originZ);
+                TestEventRecorder rec = inst.getRecorder();
+                rec.record(
+                    () -> new StructurePlaced(
+                        rec.clock()
+                            .tick(),
+                        templateName,
+                        origin,
+                        sx,
+                        sy,
+                        sz));
+            }
 
             int tmplMaxX = p.tmplSizeX > 0 ? p.originX + p.tmplSizeX - 1 : -1;
             int tmplMaxY = p.tmplSizeY > 0 ? p.originY + p.tmplSizeY - 1 : -1;

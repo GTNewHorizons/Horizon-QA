@@ -5,7 +5,11 @@ import net.minecraft.item.ItemStack;
 
 import com.gtnewhorizons.gametest.api.GameTestAssertException;
 import com.gtnewhorizons.gametest.api.InventoryHelper;
+import com.gtnewhorizons.gametest.api.TestPos;
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
+import com.gtnewhorizons.gametest.api.event.BusInserted;
+import com.gtnewhorizons.gametest.api.event.ProgrammedCircuitSet;
+import com.gtnewhorizons.gametest.core.TestEventRecorder;
 
 import gregtech.api.interfaces.IConfigurationCircuitSupport;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -20,10 +24,16 @@ public final class Bus {
 
     private final IGregTechTileEntity te;
     private final String label;
+    private final TestEventRecorder recorder;
 
     Bus(IGregTechTileEntity te, String label) {
+        this(te, label, null);
+    }
+
+    Bus(IGregTechTileEntity te, String label, TestEventRecorder recorder) {
         this.te = te;
         this.label = label;
+        this.recorder = recorder;
     }
 
     /**
@@ -41,6 +51,17 @@ public final class Bus {
                     te.getXCoord(),
                     te.getYCoord(),
                     te.getZCoord());
+            }
+            if (recorder != null) {
+                final ItemStack s = stack;
+                final TestPos pos = new TestPos(te.getXCoord(), te.getYCoord(), te.getZCoord());
+                recorder.record(
+                    () -> new BusInserted(
+                        recorder.clock()
+                            .tick(),
+                        pos,
+                        s.getDisplayName(),
+                        s.stackSize));
             }
         }
         return this;
@@ -84,6 +105,15 @@ public final class Bus {
                 te.getZCoord());
         }
         mte.setInventorySlotContents(circuitSupport.getCircuitSlot(), circuit);
+        if (recorder != null) {
+            TestPos pos = new TestPos(te.getXCoord(), te.getYCoord(), te.getZCoord());
+            recorder.record(
+                () -> new ProgrammedCircuitSet(
+                    recorder.clock()
+                        .tick(),
+                    pos,
+                    config));
+        }
         return this;
     }
 

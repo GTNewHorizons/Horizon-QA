@@ -10,6 +10,9 @@ import org.apache.logging.log4j.Logger;
 
 import com.gtnewhorizons.gametest.api.TestPos;
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
+import com.gtnewhorizons.gametest.api.event.TestRecipeInjected;
+import com.gtnewhorizons.gametest.api.event.TestRecipeRemoved;
+import com.gtnewhorizons.gametest.core.TestEventRecorder;
 
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.logic.ProcessingLogic;
@@ -56,14 +59,30 @@ public final class TestRecipeScope implements AutoCloseable {
     private final GTRecipe recipe;
     private final WorldServer world;
     private final TestPos controllerAbsPos;
+    private final TestEventRecorder recorder;
     private boolean closed = false;
 
-    TestRecipeScope(RecipeMap<?> recipeMap, GTRecipe recipe, WorldServer world, TestPos controllerAbsPos) {
+    TestRecipeScope(RecipeMap<?> recipeMap, GTRecipe recipe, WorldServer world, TestPos controllerAbsPos,
+        TestEventRecorder recorder) {
         this.recipeMap = recipeMap;
         this.recipe = recipe;
         this.world = world;
         this.controllerAbsPos = controllerAbsPos;
+        this.recorder = recorder;
         recipeMap.add(recipe);
+        if (recorder != null) {
+            String mapName = recipeMap.unlocalizedName;
+            int eut = recipe.mEUt;
+            int dur = recipe.mDuration;
+            recorder.record(
+                () -> new TestRecipeInjected(
+                    recorder.clock()
+                        .tick(),
+                    controllerAbsPos,
+                    mapName,
+                    eut,
+                    dur));
+        }
     }
 
     @Override
@@ -73,6 +92,15 @@ public final class TestRecipeScope implements AutoCloseable {
 
         RecipeMapBackend backend = recipeMap.getBackend();
         backend.removeRecipe(recipe);
+        if (recorder != null) {
+            String mapName = recipeMap.unlocalizedName;
+            recorder.record(
+                () -> new TestRecipeRemoved(
+                    recorder.clock()
+                        .tick(),
+                    controllerAbsPos,
+                    mapName));
+        }
 
         try {
             GTRecipe[] cache = (GTRecipe[]) CACHE_MAP_FIELD.get(backend);

@@ -8,8 +8,12 @@ import java.lang.reflect.Modifier;
 import net.minecraft.world.chunk.Chunk;
 
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
+import com.gtnewhorizons.gametest.api.event.state.HatchTopology;
+import com.gtnewhorizons.gametest.api.event.state.MaintenanceSnapshot;
+import com.gtnewhorizons.gametest.api.event.state.RecipeStateSnapshot;
 
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
+import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 
 /** {@link GTAdapter} targeting GTNH GT5-Unofficial; resolves all reflective lookups at construction time. */
@@ -107,8 +111,22 @@ public final class GT5UnofficialAdapter implements GTAdapter {
     }
 
     @Override
-    public int getEUt(IMetaTileEntity mte) {
-        return asMultiBlock(mte).mEUt;
+    public long getEUt(IMetaTileEntity mte) {
+        MTEMultiBlockBase multi = asMultiBlock(mte);
+        return effectiveEUt(multi);
+    }
+
+    /**
+     * Resolves the energy-per-tick for any multiblock controller. {@link MTEExtendedPowerMultiBlockBase} subclasses
+     * override {@code setEnergyUsage} to write to a {@code long lEUt} field and leave {@code mEUt} at zero, so a plain
+     * {@code mEUt} read returns 0 for the entire high-tier hierarchy (EBFs, fusion reactors, etc.). This method picks
+     * the canonical field for each subclass.
+     */
+    private static long effectiveEUt(MTEMultiBlockBase multi) {
+        if (multi instanceof MTEExtendedPowerMultiBlockBase<?>extended) {
+            return extended.lEUt;
+        }
+        return multi.mEUt;
     }
 
     @Override
@@ -152,5 +170,58 @@ public final class GT5UnofficialAdapter implements GTAdapter {
     public String getCheckRecipeResultId(IMetaTileEntity mte) {
         return asMultiBlock(mte).getCheckRecipeResult()
             .getID();
+    }
+
+    @Override
+    public RecipeStateSnapshot snapshotRecipeState(IMetaTileEntity mte) {
+        MTEMultiBlockBase multi = asMultiBlock(mte);
+        int efficiency;
+        try {
+            efficiency = efficiencyField.getInt(multi);
+        } catch (IllegalAccessException | IllegalArgumentException e) {
+            efficiency = 0;
+        }
+        String resultId;
+        try {
+            resultId = multi.getCheckRecipeResult()
+                .getID();
+        } catch (RuntimeException e) {
+            resultId = "";
+        }
+        return new RecipeStateSnapshot(
+            multi.mMachine,
+            multi.mProgresstime,
+            multi.mMaxProgresstime,
+            effectiveEUt(multi),
+            efficiency,
+            resultId);
+    }
+
+    @Override
+    public MaintenanceSnapshot snapshotMaintenance(IMetaTileEntity mte) {
+        MTEMultiBlockBase multi = asMultiBlock(mte);
+        int mask = 0;
+        if (!multi.mWrench) mask |= MaintenanceSnapshot.WRENCH;
+        if (!multi.mScrewdriver) mask |= MaintenanceSnapshot.SCREWDRIVER;
+        if (!multi.mSoftMallet) mask |= MaintenanceSnapshot.SOFT_MALLET;
+        if (!multi.mHardHammer) mask |= MaintenanceSnapshot.HARD_HAMMER;
+        if (!multi.mSolderingTool) mask |= MaintenanceSnapshot.SOLDERING_TOOL;
+        if (!multi.mCrowbar) mask |= MaintenanceSnapshot.CROWBAR;
+        return mask == 0 ? MaintenanceSnapshot.OK : new MaintenanceSnapshot(mask);
+    }
+
+    @Override
+    public HatchTopology snapshotHatches(IMetaTileEntity mte) {
+        MTEMultiBlockBase multi = asMultiBlock(mte);
+        return new HatchTopology(
+            sizeOf(multi.mInputBusses),
+            sizeOf(multi.mOutputBusses),
+            sizeOf(multi.mInputHatches),
+            sizeOf(multi.mOutputHatches),
+            sizeOf(multi.mEnergyHatches));
+    }
+
+    private static int sizeOf(java.util.Collection<?> list) {
+        return list == null ? 0 : list.size();
     }
 }
