@@ -5,9 +5,10 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
@@ -227,7 +228,7 @@ public class GameTestBatchRunner {
     private static List<Batch> buildBatches(List<GameTestDefinition> tests, Map<String, List<Method>> beforeMethods,
         Map<String, List<Method>> afterMethods) {
 
-        Map<String, List<GameTestDefinition>> testsByBatch = new LinkedHashMap<>();
+        Map<String, List<GameTestDefinition>> testsByBatch = new TreeMap<>();
         for (GameTestDefinition def : tests) {
             testsByBatch.computeIfAbsent(def.getBatch(), k -> new ArrayList<>())
                 .add(def);
@@ -235,6 +236,8 @@ public class GameTestBatchRunner {
 
         List<Batch> result = new ArrayList<>();
         for (Map.Entry<String, List<GameTestDefinition>> entry : testsByBatch.entrySet()) {
+            entry.getValue()
+                .sort(Comparator.comparing(GameTestDefinition::getTestId));
             String name = entry.getKey();
             List<Method> before = beforeMethods.getOrDefault(name, new ArrayList<>());
             List<Method> after = afterMethods.getOrDefault(name, new ArrayList<>());
