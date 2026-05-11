@@ -40,19 +40,23 @@ public class VirtualEUDynamo {
             TileEntity te = job.world.getTileEntity(job.absX, job.absY, job.absZ);
             if (te instanceof IGregTechTileEntity igte) {
                 long attempted = job.voltage * job.amperage;
-                if (recorder != null) {
-                    long capacity = igte.getEUCapacity();
+                // GT's increaseStoredEnergyUnits is all-or-nothing: if the buffer is at or above capacity
+                // when the call enters, the whole push is rejected; otherwise the full amount is credited
+                // even if it spills past capacity. So overflow detection is just "buffer already full".
+                // Emit at most once per supply job so a recipe that under-consumes by a small margin
+                // (e.g. 2048 EU/t supply with a 1920 EU/t recipe) doesn't spam one event per cycle.
+                if (recorder != null && !job.overflowEventEmitted) {
                     long stored = igte.getStoredEU();
-                    long room = Math.max(0L, capacity - stored);
-                    if (attempted > room) {
-                        long accepted = room;
+                    long capacity = igte.getEUCapacity();
+                    if (stored >= capacity) {
                         recorder.record(
                             () -> new EUBufferOverflow(
                                 recorder.clock()
                                     .tick(),
                                 new TestPos(job.absX, job.absY, job.absZ),
                                 attempted,
-                                accepted));
+                                0L));
+                        job.overflowEventEmitted = true;
                     }
                 }
                 boolean doNotExceedCapacity = false;
@@ -78,6 +82,7 @@ public class VirtualEUDynamo {
         final long voltage;
         final long amperage;
         int remainingTicks;
+        boolean overflowEventEmitted;
 
         EUSupplyJob(WorldServer world, int absX, int absY, int absZ, long voltage, long amperage, int durationTicks) {
             this.world = world;

@@ -15,13 +15,9 @@ public record EUBufferOverflow(int tick, TestPos hatch, long attempted, long acc
 
     @Override
     public String summary() {
-        return "EU buffer overflow at " + hatch
-            + ": only "
-            + accepted
-            + "/"
+        return "EU supply rejected at " + hatch
+            + ": buffer at capacity, "
             + attempted
-            + " EU accepted ("
-            + (attempted - accepted)
-            + " wasted)";
+            + " EU/t push dropped (further rejections for this job suppressed)";
     }
 }

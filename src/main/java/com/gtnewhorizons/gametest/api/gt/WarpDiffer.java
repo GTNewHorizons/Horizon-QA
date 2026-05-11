@@ -182,7 +182,7 @@ final class WarpDiffer {
                         recorder.clock()
                             .tick(),
                         pos,
-                        progressAtStop));
+                        maxProgress));
             } else {
                 String reason = now.checkRecipeResultId() == null || now.checkRecipeResultId()
                     .isEmpty() ? "unknown" : now.checkRecipeResultId();
