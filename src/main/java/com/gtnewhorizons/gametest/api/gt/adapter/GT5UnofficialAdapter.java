@@ -1,6 +1,5 @@
 package com.gtnewhorizons.gametest.api.gt.adapter;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -23,11 +22,9 @@ public final class GT5UnofficialAdapter implements GTAdapter {
     private static final String POLLUTION_CLASS = "gregtech.common.pollution.Pollution";
 
     private final Method pollutionMethod;
-    private final Field efficiencyField;
 
     public GT5UnofficialAdapter() {
         this.pollutionMethod = resolvePollutionMethod();
-        this.efficiencyField = resolveEfficiencyField();
     }
 
     private static Method resolvePollutionMethod() {
@@ -45,22 +42,6 @@ public final class GT5UnofficialAdapter implements GTAdapter {
                 "Expected " + POLLUTION_CLASS + " with static getPollution(Chunk) for GTNH GT5u",
                 e);
         }
-    }
-
-    private static Field resolveEfficiencyField() {
-        Class<?> probe = MTEMultiBlockBase.class;
-        while (probe != null && probe != Object.class) {
-            try {
-                Field f = probe.getDeclaredField("mEfficiency");
-                f.setAccessible(true);
-                return f;
-            } catch (NoSuchFieldException ignored) {
-                probe = probe.getSuperclass();
-            }
-        }
-        throw new GTVersionMismatchException(
-            "mEfficiency field not found on " + MTEMultiBlockBase.class.getName() + " or its superclasses",
-            null);
     }
 
     private static MTEMultiBlockBase asMultiBlock(IMetaTileEntity mte) {
@@ -131,19 +112,7 @@ public final class GT5UnofficialAdapter implements GTAdapter {
 
     @Override
     public int getEfficiency(IMetaTileEntity mte) {
-        try {
-            return efficiencyField.getInt(mte);
-        } catch (IllegalAccessException e) {
-            throw new IllegalStateException(
-                "Cannot read mEfficiency on " + mte.getClass()
-                    .getName(),
-                e);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalStateException(
-                "mEfficiency field is not compatible with " + mte.getClass()
-                    .getName(),
-                e);
-        }
+        return asMultiBlock(mte).mEfficiency;
     }
 
     @Override
@@ -175,26 +144,14 @@ public final class GT5UnofficialAdapter implements GTAdapter {
     @Override
     public RecipeStateSnapshot snapshotRecipeState(IMetaTileEntity mte) {
         MTEMultiBlockBase multi = asMultiBlock(mte);
-        int efficiency;
-        try {
-            efficiency = efficiencyField.getInt(multi);
-        } catch (IllegalAccessException | IllegalArgumentException e) {
-            efficiency = 0;
-        }
-        String resultId;
-        try {
-            resultId = multi.getCheckRecipeResult()
-                .getID();
-        } catch (RuntimeException e) {
-            resultId = "";
-        }
         return new RecipeStateSnapshot(
             multi.mMachine,
             multi.mProgresstime,
             multi.mMaxProgresstime,
             effectiveEUt(multi),
-            efficiency,
-            resultId);
+            multi.mEfficiency,
+            multi.getCheckRecipeResult()
+                .getID());
     }
 
     @Override
