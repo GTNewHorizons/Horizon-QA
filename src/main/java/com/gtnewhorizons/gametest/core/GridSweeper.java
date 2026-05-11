@@ -45,8 +45,6 @@ final class GridSweeper {
         int localMinZ = Math.max(0, minZ - chunkBaseZ);
         int localMaxZ = Math.min(15, maxZ - chunkBaseZ);
 
-        boolean fullXZ = localMinX == 0 && localMaxX == 15 && localMinZ == 0 && localMaxZ == 15;
-
         ExtendedBlockStorage[] sections = chunk.getBlockStorageArray();
         int sectionMin = minY >> 4;
         int sectionMax = maxY >> 4;
@@ -60,19 +58,16 @@ final class GridSweeper {
             int localMinY = Math.max(0, minY - sectionBaseY);
             int localMaxY = Math.min(15, maxY - sectionBaseY);
 
-            if (fullXZ && localMinY == 0 && localMaxY == 15) {
-                int length = section.getBlockLSBArray().length;
-                section.setBlockLSBArray(new byte[length]);
-                section.setBlockMetadataArray(new NibbleArray(length, 4));
-                section.setBlockMSBArray(null);
-                section.removeInvalidBlocks();
-            } else {
-                for (int lx = localMinX; lx <= localMaxX; lx++) {
-                    for (int lz = localMinZ; lz <= localMaxZ; lz++) {
-                        for (int ly = localMinY; ly <= localMaxY; ly++) {
-                            section.func_150818_a(lx, ly, lz, Blocks.air);
-                            section.setExtBlockMetadata(lx, ly, lz, 0);
-                        }
+            NibbleArray blockLight = section.getBlocklightArray();
+            NibbleArray skyLight = section.getSkylightArray();
+
+            for (int lx = localMinX; lx <= localMaxX; lx++) {
+                for (int lz = localMinZ; lz <= localMaxZ; lz++) {
+                    for (int ly = localMinY; ly <= localMaxY; ly++) {
+                        section.func_150818_a(lx, ly, lz, Blocks.air);
+                        section.setExtBlockMetadata(lx, ly, lz, 0);
+                        if (blockLight != null) blockLight.set(lx, ly, lz, 0);
+                        if (skyLight != null) skyLight.set(lx, ly, lz, 15);
                     }
                 }
             }
