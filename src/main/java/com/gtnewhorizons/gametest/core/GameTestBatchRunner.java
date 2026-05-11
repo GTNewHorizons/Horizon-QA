@@ -64,9 +64,47 @@ public class GameTestBatchRunner {
             return;
         }
 
-        List<GameTestInstance> batchInstances = new ArrayList<>();
+        List<PlannedTest> planned = new ArrayList<>(batch.tests.size());
         for (GameTestDefinition def : batch.tests) {
-            GameTestInstance inst = allocateAndSpawn(def, world);
+            planned.add(plan(def, world));
+        }
+
+        for (PlannedTest p : planned) {
+            TestCellScanner
+                .preClearWithMargin(world, p.cellMinX, p.cellMinY, p.cellMinZ, p.cellMaxX, p.cellMaxY, p.cellMaxZ);
+        }
+
+        for (PlannedTest p : planned) {
+            if (p.template != null) {
+                StructurePlacer.place(p.template, world, p.originX, p.originY, p.originZ);
+            }
+        }
+
+        List<GameTestInstance> batchInstances = new ArrayList<>(planned.size());
+        for (PlannedTest p : planned) {
+            GameTestInstance inst = new GameTestInstance(p.def, p.originX, p.originY, p.originZ);
+
+            int tmplMaxX = p.tmplSizeX > 0 ? p.originX + p.tmplSizeX - 1 : -1;
+            int tmplMaxY = p.tmplSizeY > 0 ? p.originY + p.tmplSizeY - 1 : -1;
+            int tmplMaxZ = p.tmplSizeZ > 0 ? p.originZ + p.tmplSizeZ - 1 : -1;
+            TestCellScanner.registerIsolationCheck(
+                inst,
+                world,
+                p.cellMinX,
+                p.cellMinY,
+                p.cellMinZ,
+                p.cellMaxX,
+                p.cellMaxY,
+                p.cellMaxZ,
+                p.originX,
+                p.originY,
+                p.originZ,
+                tmplMaxX,
+                tmplMaxY,
+                tmplMaxZ,
+                p.template != null);
+
+            inst.start(world);
             batchInstances.add(inst);
             allInstances.add(inst);
         }
@@ -133,7 +171,7 @@ public class GameTestBatchRunner {
         }
     }
 
-    private GameTestInstance allocateAndSpawn(GameTestDefinition def, WorldServer world) {
+    private PlannedTest plan(GameTestDefinition def, WorldServer world) {
         HybridStructureTemplate template = loadTemplate(def);
 
         int sizeX = template != null ? template.getSizeX() : 0;
@@ -154,36 +192,21 @@ public class GameTestBatchRunner {
 
         GameTestMod.CHUNK_LOADER.forceChunks(world, cellMinX, cellMinY, cellMinZ, cellMaxX, cellMaxY, cellMaxZ);
 
-        TestCellScanner.preClear(world, cellMinX, cellMinY, cellMinZ, cellMaxX, cellMaxY, cellMaxZ);
-
-        if (template != null) {
-            StructurePlacer.place(template, world, origin[0], origin[1], origin[2]);
-        }
-
-        GameTestInstance inst = new GameTestInstance(def, origin[0], origin[1], origin[2]);
-
-        int tmplMaxX = sizeX > 0 ? origin[0] + sizeX - 1 : -1;
-        int tmplMaxY = sizeY > 0 ? origin[1] + sizeY - 1 : -1;
-        int tmplMaxZ = sizeZ > 0 ? origin[2] + sizeZ - 1 : -1;
-        TestCellScanner.registerIsolationCheck(
-            inst,
-            world,
+        return new PlannedTest(
+            def,
+            template,
+            origin[0],
+            origin[1],
+            origin[2],
+            sizeX,
+            sizeY,
+            sizeZ,
             cellMinX,
             cellMinY,
             cellMinZ,
             cellMaxX,
             cellMaxY,
-            cellMaxZ,
-            origin[0],
-            origin[1],
-            origin[2],
-            tmplMaxX,
-            tmplMaxY,
-            tmplMaxZ,
-            template != null);
-
-        inst.start(world);
-        return inst;
+            cellMaxZ);
     }
 
     private static HybridStructureTemplate loadTemplate(GameTestDefinition def) {
@@ -232,6 +255,35 @@ public class GameTestBatchRunner {
             this.tests = tests;
             this.beforeMethods = before;
             this.afterMethods = after;
+        }
+    }
+
+    private static final class PlannedTest {
+
+        final GameTestDefinition def;
+        final HybridStructureTemplate template;
+        final int originX, originY, originZ;
+        final int tmplSizeX, tmplSizeY, tmplSizeZ;
+        final int cellMinX, cellMinY, cellMinZ;
+        final int cellMaxX, cellMaxY, cellMaxZ;
+
+        PlannedTest(GameTestDefinition def, HybridStructureTemplate template, int originX, int originY, int originZ,
+            int tmplSizeX, int tmplSizeY, int tmplSizeZ, int cellMinX, int cellMinY, int cellMinZ, int cellMaxX,
+            int cellMaxY, int cellMaxZ) {
+            this.def = def;
+            this.template = template;
+            this.originX = originX;
+            this.originY = originY;
+            this.originZ = originZ;
+            this.tmplSizeX = tmplSizeX;
+            this.tmplSizeY = tmplSizeY;
+            this.tmplSizeZ = tmplSizeZ;
+            this.cellMinX = cellMinX;
+            this.cellMinY = cellMinY;
+            this.cellMinZ = cellMinZ;
+            this.cellMaxX = cellMaxX;
+            this.cellMaxY = cellMaxY;
+            this.cellMaxZ = cellMaxZ;
         }
     }
 }
