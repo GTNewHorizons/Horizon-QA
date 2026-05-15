@@ -4,6 +4,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +63,7 @@ public final class GameTestRegistry {
             }
         }
 
+        ALL_TESTS.sort(Comparator.comparing(GameTestDefinition::getTestId));
         LOG.info(
             "Discovery complete: {} test(s) found across {} class(es).",
             ALL_TESTS.size(),

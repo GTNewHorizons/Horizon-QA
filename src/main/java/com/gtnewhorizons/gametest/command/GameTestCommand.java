@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -192,6 +193,7 @@ public class GameTestCommand extends CommandBase {
             GameTestDefinition def = findDefinition(id);
             if (def != null) defs.add(def);
         }
+        defs.sort(Comparator.comparing(GameTestDefinition::getTestId));
         if (defs.isEmpty()) {
             sender.addChatMessage(
                 new ChatComponentText(
