@@ -66,6 +66,7 @@ public final class FloatingText {
         GL11.glRotatef(RenderManager.instance.playerViewX, 1f, 0f, 0f);
         GL11.glScalef(-s, -s, s);
 
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT);
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -95,7 +96,7 @@ public final class FloatingText {
             fr.drawStringWithShadow(line, -tw / 2, i * (fr.FONT_HEIGHT + 1), 0xFFFFFF);
         }
 
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        GL11.glPopAttrib();
         GL11.glPopMatrix();
     }
 

@@ -19,6 +19,9 @@ public final class DebugBeacon {
     public static void render(double wx, double wy, double wz, float r, float g, float b, float partialTicks,
         long worldTime) {
 
+        GL11.glPushAttrib(
+            GL11.GL_ENABLE_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_TEXTURE_BIT);
+
         Minecraft.getMinecraft()
             .getTextureManager()
             .bindTexture(BEAM_TEX);
@@ -115,5 +118,6 @@ public final class DebugBeacon {
         tess.draw();
 
         GL11.glDepthMask(true);
+        GL11.glPopAttrib();
     }
 }

@@ -25,7 +25,8 @@ public final class HighlightBox {
         double dx = vx - nearX, dy = vy - nearY, dz = vz - nearZ;
         if (dx * dx + dy * dy + dz * dz > 32.0 * 32.0) return;
 
-        GL11.glPushAttrib(GL11.GL_DEPTH_BUFFER_BIT);
+        GL11.glPushAttrib(
+            GL11.GL_ENABLE_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_LINE_BIT | GL11.GL_COLOR_BUFFER_BIT);
         try {
             GL11.glEnable(GL11.GL_DEPTH_TEST);
             GL11.glDepthFunc(GL11.GL_LEQUAL);
