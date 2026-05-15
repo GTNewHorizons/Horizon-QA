@@ -60,6 +60,30 @@ public class GTNHExampleTests {
         helper.succeed();
     }
 
+    @GameTest(template = "ebf", timeoutTicks = 20, batch = "gtnh")
+    public static void maintenanceGatesRecipeEvenWithFullSupply(GameTestHelper helper) {
+        GTNHGameTestHelper gtnh = helper.gtnh();
+        Multiblock ebf = gtnh.multiblock(at(1, 0, 0));
+
+        ebf.assertFormed();
+        ebf.inputBus(0)
+            .insert(Materials.Nickel.getDust(1), Materials.Aluminium.getDust(3))
+            .programmedCircuit(0);
+        ebf.energyHatch(0)
+            .supply(TierEU.EV, 1, 20);
+
+        gtnh.assertMachineHasIssues(
+            at(1, 0, 0),
+            MaintenanceType.WRENCH,
+            MaintenanceType.SCREWDRIVER,
+            MaintenanceType.SOFT_MALLET,
+            MaintenanceType.HARD_HAMMER,
+            MaintenanceType.SOLDERING_TOOL,
+            MaintenanceType.CROWBAR);
+
+        helper.succeed();
+    }
+
     @GameTest(template = "ebf", timeoutTicks = 20, batch = "gtnh", required = false)
     public static void testMaintenanceIssueDetection(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
