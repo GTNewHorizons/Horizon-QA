@@ -69,9 +69,11 @@ public class GTNHExampleTests {
         ebf.inputBus(0)
             .insert(Materials.Nickel.getDust(1), Materials.Aluminium.getDust(3))
             .programmedCircuit(0);
-        ebf.energyHatch(0).supply(TierEU.EV, 1, 20);
+        ebf.energyHatch(0)
+            .supply(TierEU.EV, 1, 20);
 
-        gtnh.assertMachineHasIssues(at(1, 0, 0),
+        gtnh.assertMachineHasIssues(
+            at(1, 0, 0),
             MaintenanceType.WRENCH,
             MaintenanceType.SCREWDRIVER,
             MaintenanceType.SOFT_MALLET,
