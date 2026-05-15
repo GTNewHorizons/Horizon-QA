@@ -159,7 +159,7 @@ public class GameTestInstance {
         if (status != GameTestStatus.RUNNING) return;
         status = GameTestStatus.FAILED;
         failureCause = cause;
-        if (cause instanceof GameTestAssertException gae) {
+        if (cause instanceof GameTestAssertException gae && gae.hasPosition()) {
             failX = gae.getX();
             failY = gae.getY();
             failZ = gae.getZ();
