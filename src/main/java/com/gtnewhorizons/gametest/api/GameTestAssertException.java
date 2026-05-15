@@ -10,7 +10,6 @@ public class GameTestAssertException extends AssertionError {
     private final int z;
     private final boolean hasPosition;
 
-    /** Non-positional failure — no block location to highlight in the overlay. */
     public GameTestAssertException(String message, int x, int y, int z) {
         super(message);
         this.x = x;
@@ -19,7 +18,6 @@ public class GameTestAssertException extends AssertionError {
         this.hasPosition = false;
     }
 
-    /** Positional failure — highlights the given block in the overlay. */
     public GameTestAssertException(String message, TestPos pos) {
         super(message);
         this.x = pos.x();
