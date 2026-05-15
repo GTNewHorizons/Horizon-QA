@@ -31,6 +31,8 @@ public final class GhostBlockDiff {
         double y1 = y + 1.0 + INSET;
         double z1 = z + 1.0 + INSET;
 
+        GL11.glPushAttrib(
+            GL11.GL_ENABLE_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_POLYGON_BIT);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GL11.glDisable(GL11.GL_TEXTURE_2D);
@@ -48,11 +50,7 @@ public final class GhostBlockDiff {
         face(tess, x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1);
         face(tess, x1, y0, z0, x0, y0, z0, x0, y1, z0, x1, y1, z0);
         tess.draw();
-
-        GL11.glDepthMask(true);
-        GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL);
-        GL11.glPolygonOffset(0f, 0f);
-        GL11.glEnable(GL11.GL_CULL_FACE);
+        GL11.glPopAttrib();
 
         if (label != null && !label.isEmpty()) {
             FloatingText.render(x + 0.5, y + 1.25, z + 0.5, new String[] { label }, 0.5f, partialTicks);
