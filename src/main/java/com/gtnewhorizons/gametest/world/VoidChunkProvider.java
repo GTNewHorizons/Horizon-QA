@@ -14,6 +14,7 @@ import net.minecraft.world.chunk.IChunkProvider;
 public class VoidChunkProvider implements IChunkProvider {
 
     private final World worldObj;
+    private final Chunk[] chunkCache = new Chunk[256];
 
     public VoidChunkProvider(World world) {
         this.worldObj = world;
@@ -21,6 +22,12 @@ public class VoidChunkProvider implements IChunkProvider {
 
     @Override
     public Chunk provideChunk(int chunkX, int chunkZ) {
+        int index = cacheIndex(chunkX, chunkZ);
+        Chunk cached = chunkCache[index];
+        if (cached != null && cached.xPosition == chunkX && cached.zPosition == chunkZ) {
+            return cached;
+        }
+
         Chunk chunk = new Chunk(worldObj, chunkX, chunkZ);
         chunk.generateSkylightMap();
         BiomeGenBase[] biomes = worldObj.getWorldChunkManager()
@@ -30,6 +37,7 @@ public class VoidChunkProvider implements IChunkProvider {
             abyte[i] = (byte) biomes[i].biomeID;
         }
         chunk.generateSkylightMap();
+        chunkCache[index] = chunk;
         return chunk;
     }
 
@@ -86,4 +94,8 @@ public class VoidChunkProvider implements IChunkProvider {
 
     @Override
     public void saveExtraData() {}
+
+    private static int cacheIndex(int chunkX, int chunkZ) {
+        return (chunkX * 31 + chunkZ) & (256 - 1);
+    }
 }

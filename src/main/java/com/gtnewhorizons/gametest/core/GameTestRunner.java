@@ -11,6 +11,7 @@ public class GameTestRunner {
 
     private final List<GameTestInstance> instances = new ArrayList<>();
     private Runnable onAllDone;
+    private Runnable onFirstTick;
     private boolean running = false;
 
     public void run(List<GameTestInstance> batch, Runnable onComplete) {
@@ -30,9 +31,22 @@ public class GameTestRunner {
         running = true;
     }
 
+    public void scheduleOnFirstTick(Runnable action) {
+        onFirstTick = action;
+        running = true;
+    }
+
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || !running) return;
+        if (event.phase != TickEvent.Phase.START) return;
+
+        if (onFirstTick != null) {
+            Runnable action = onFirstTick;
+            onFirstTick = null;
+            action.run();
+        }
+
+        if (!running) return;
 
         for (GameTestInstance inst : instances) {
             if (!inst.isDone()) {

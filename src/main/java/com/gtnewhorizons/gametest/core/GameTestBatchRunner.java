@@ -50,7 +50,9 @@ public class GameTestBatchRunner {
             onAllBatchesDone();
             return;
         }
-        runBatch(0);
+        // Placement and getTileEntity are unreliable during FMLServerStartingEvent (before the first server
+        // tick). Defer until the world has ticked once, matching /gametest runAll during normal gameplay.
+        runner.scheduleOnFirstTick(() -> runBatch(0));
     }
 
     private void runBatch(int idx) {
