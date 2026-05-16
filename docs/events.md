@@ -66,7 +66,7 @@ Records live in `com.gtnewhorizons.gametest.api.event`. All are Java records, al
 | `RecipeFinished` | Progress reached max and then dropped |
 | `RecipeAborted` | Progress dropped before reaching max |
 | `RecipeNotFound` | `runUntilMachineIdle` exited and no recipe ever started |
-| `TestRecipeInjected` / `TestRecipeRemoved` | `withTestRecipe` scope enter / exit |
+| `TestRecipeInjected` / `TestRecipeRemoved` | `withTestRecipe` injection / end-of-test cleanup |
 
 `RecipeAborted.reason` is the raw `CheckRecipeResult` id from GT (`item_output_full`, `power_overflow`, `no_fuel_found`, …). That string is almost always enough to root-cause the abort.
 
