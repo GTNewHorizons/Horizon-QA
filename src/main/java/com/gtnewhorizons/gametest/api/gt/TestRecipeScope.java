@@ -9,7 +9,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.gtnewhorizons.gametest.api.TestPos;
-import com.gtnewhorizons.gametest.api.annotation.Experimental;
 import com.gtnewhorizons.gametest.api.event.TestRecipeInjected;
 import com.gtnewhorizons.gametest.api.event.TestRecipeRemoved;
 import com.gtnewhorizons.gametest.core.TestEventRecorder;
@@ -22,19 +21,14 @@ import gregtech.api.recipe.RecipeMapBackend;
 import gregtech.api.util.GTRecipe;
 
 /**
- * An active injection of a synthetic {@link GTRecipe} into a multiblock's recipemap.
- * Obtained from {@link GTNHGameTestHelper#withTestRecipe}.
- *
- * <p>
- * The recipe is removed (including backend caches) when this scope is closed. {@link #close()} is
- * idempotent — safe to call from both {@code try-with-resources} and the {@code afterTest} callback
- * that {@link GTNHGameTestHelper#withTestRecipe} registers automatically.
+ * Internal handle to an active injection of a synthetic {@link GTRecipe} into a multiblock's recipemap.
+ * Created by {@link GTNHGameTestHelper#withTestRecipe}, which registers {@link #cleanup()} to run at end
+ * of test. The recipe (and its backend caches) is removed when cleanup runs.
  *
  * @apiNote Only multis where {@code getRecipeMap() != null} are supported. Multis that override
  *          {@code checkProcessing()} directly bypass the recipemap and will not see the injected recipe.
  */
-@Experimental
-public final class TestRecipeScope implements AutoCloseable {
+final class TestRecipeScope {
 
     private static final Logger LOG = LogManager.getLogger("GameTest");
 
@@ -85,8 +79,7 @@ public final class TestRecipeScope implements AutoCloseable {
         }
     }
 
-    @Override
-    public void close() {
+    void cleanup() {
         if (closed) return;
         closed = true;
 

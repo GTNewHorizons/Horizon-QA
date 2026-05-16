@@ -9,7 +9,6 @@ import com.gtnewhorizons.gametest.api.annotation.GameTestHolder;
 import com.gtnewhorizons.gametest.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.gametest.api.gt.MaintenanceType;
 import com.gtnewhorizons.gametest.api.gt.Multiblock;
-import com.gtnewhorizons.gametest.api.gt.TestRecipeScope;
 
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.Materials;
@@ -131,15 +130,14 @@ public class GTNHExampleTests {
             .duration(200)
             .eut(TierEU.EV);
 
-        try (TestRecipeScope ignored = gtnh.withTestRecipe(ebf, synthetic)) {
-            ebf.inputBus(0)
-                .insert(Materials.Lead.getDust(1));
-            ebf.energyHatch(0)
-                .supply(TierEU.EV, 1, 300);
-            ebf.runRecipe();
-            ebf.outputs()
-                .assertContains(Materials.Gold.getIngots(1));
-        }
+        gtnh.withTestRecipe(ebf, synthetic);
+        ebf.inputBus(0)
+            .insert(Materials.Lead.getDust(1));
+        ebf.energyHatch(0)
+            .supply(TierEU.EV, 1, 300);
+        ebf.runRecipe();
+        ebf.outputs()
+            .assertContains(Materials.Gold.getIngots(1));
 
         helper.succeed();
     }

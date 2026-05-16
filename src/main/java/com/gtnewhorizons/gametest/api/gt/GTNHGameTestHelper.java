@@ -554,12 +554,12 @@ public class GTNHGameTestHelper {
     }
 
     /**
-     * Inject a synthetic {@link GTRecipe} into the multiblock's recipemap for the duration of the returned
-     * {@link TestRecipeScope}. The recipe (and its backend caches) is removed when the scope is closed.
+     * Inject a synthetic {@link GTRecipe} into the multiblock's recipemap for the rest of the test.
+     * The recipe (and its backend caches) is automatically removed when the test ends.
      *
      * @throws GameTestAssertException if the controller does not expose a RecipeMap
      */
-    public TestRecipeScope withTestRecipe(Multiblock multi, GTRecipe recipe) {
+    public void withTestRecipe(Multiblock multi, GTRecipe recipe) {
         RecipeMap<?> map = multi.resolveRecipeMap();
         TestRecipeScope scope = new TestRecipeScope(
             map,
@@ -567,23 +567,23 @@ public class GTNHGameTestHelper {
             multi.worldServer(),
             multi.controllerAbsPos(),
             recorder);
-        base.afterTest(scope::close);
-        return scope;
+        base.afterTest(scope::cleanup);
     }
 
     /**
-     * Builds {@code builder} and injects the result into the multiblock's recipemap for the duration of the returned
-     * {@link TestRecipeScope}. Fails the test immediately if the builder produces no recipe.
+     * Builds {@code builder} and injects the result into the multiblock's recipemap for the rest of the test.
+     * The recipe is automatically removed when the test ends. Fails the test immediately if the builder
+     * produces no recipe.
      *
      * @throws GameTestAssertException if the builder produces no recipe or the controller does not expose a RecipeMap
      */
-    public TestRecipeScope withTestRecipe(Multiblock multi, GTRecipeBuilder builder) {
+    public void withTestRecipe(Multiblock multi, GTRecipeBuilder builder) {
         GTRecipe recipe = builder.build()
             .orElseThrow(
                 () -> new GameTestAssertException(
                     "Recipe builder produced no recipe — verify itemInputs, itemOutputs, duration and eut are set",
                     multi.controllerAbsPos()));
-        return withTestRecipe(multi, recipe);
+        withTestRecipe(multi, recipe);
     }
 
     /** Registers a supply job using world-absolute coordinates. Used by {@link Hatch#supply}. */
