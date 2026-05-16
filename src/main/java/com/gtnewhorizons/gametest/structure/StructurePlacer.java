@@ -22,7 +22,10 @@ public final class StructurePlacer {
         int sizeY = template.getSizeY();
         int sizeZ = template.getSizeZ();
 
-        int notifyClientsOnly = 2;
+        // Flag 1 triggers onBlockAdded, which GT machine blocks need to bind the MetaTileEntity
+        // to the BaseMetaTileEntity wrapper — without it isInvalid() returns true and setTileEntity
+        // silently drops the TE, making getTileEntity return null in the NBT pass below.
+        int notifyAll = 3;
         for (int x = 0; x < sizeX; x++) {
             for (int y = 0; y < sizeY; y++) {
                 for (int z = 0; z < sizeZ; z++) {
@@ -38,7 +41,7 @@ public final class StructurePlacer {
                             originZ + z);
                         continue;
                     }
-                    world.setBlock(originX + x, originY + y, originZ + z, block, entry.meta, notifyClientsOnly);
+                    world.setBlock(originX + x, originY + y, originZ + z, block, entry.meta, notifyAll);
                 }
             }
         }
@@ -52,12 +55,6 @@ public final class StructurePlacer {
                     int wx = originX + x;
                     int wy = originY + y;
                     int wz = originZ + z;
-
-                    int idx = template.getPaletteIndex(x, y, z);
-                    HybridStructureTemplate.PaletteEntry entry = palette[idx];
-                    Block block = RegistryStringResolver.resolve(entry.name);
-                    if (block == null) continue;
-                    world.setBlock(wx, wy, wz, block, entry.meta, notifyClientsOnly);
 
                     TileEntity te = world.getTileEntity(wx, wy, wz);
                     if (te == null) {
