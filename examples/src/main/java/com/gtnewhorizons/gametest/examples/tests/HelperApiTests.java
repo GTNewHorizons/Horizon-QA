@@ -202,4 +202,14 @@ public class HelperApiTests {
     public static void succeedWhenTimesOutAsHardFail(GameTestHelper helper) {
         helper.succeedWhen(() -> false);
     }
+
+    @GameTest(required = false)
+    public static void testGhostBlockDiff(GameTestHelper helper) {
+        helper.assertBlockPresent(Blocks.stone, 0, 0, 0);
+    }
+
+    @GameTest(required = false)
+    public static void testNoGhostBlockDiff(GameTestHelper helper) {
+        helper.fail();
+    }
 }

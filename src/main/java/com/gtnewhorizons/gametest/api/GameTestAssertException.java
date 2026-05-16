@@ -8,16 +8,26 @@ public class GameTestAssertException extends AssertionError {
     private final int x;
     private final int y;
     private final int z;
+    private final boolean hasPosition;
 
     public GameTestAssertException(String message, int x, int y, int z) {
         super(message);
         this.x = x;
         this.y = y;
         this.z = z;
+        this.hasPosition = false;
     }
 
     public GameTestAssertException(String message, TestPos pos) {
-        this(message, pos.x(), pos.y(), pos.z());
+        super(message);
+        this.x = pos.x();
+        this.y = pos.y();
+        this.z = pos.z();
+        this.hasPosition = true;
+    }
+
+    public boolean hasPosition() {
+        return hasPosition;
     }
 
     public int getX() {
