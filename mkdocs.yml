@@ -1,13 +1,45 @@
-site_name: Horizon-QA Documentation
+# Horizon-QA documentation
+site_name: Horizon-QA
+site_description: End-to-end GameTest framework for GT New Horizons. Write, run, and debug multiblock tests on Minecraft 1.7.10.
+site_author: GTNewHorizons
 site_url: https://GTNewHorizons.github.io/Horizon-QA/
 repo_url: https://github.com/GTNewHorizons/Horizon-QA
 repo_name: GTNewHorizons/Horizon-QA
+edit_uri: edit/master/docs/
+
+copyright: Copyright &copy; GTNewHorizons (MIT License)
 
 theme:
   name: material
+  language: en
+  icon:
+    logo: material/flask-outline
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
   features:
-    - navigation.top
+    - announce.dismiss
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
     - content.code.copy
+    - content.tabs.link
+    - content.tooltips
+    - navigation.footer
+    - navigation.indexes
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.path
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
+    - toc.integrate
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -20,12 +52,54 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/GTNewHorizons/Horizon-QA
+    - icon: fontawesome/solid/book
+      link: https://GTNewHorizons.github.io/Horizon-QA/javadoc/
+  generator: false
+
+extra_css:
+  - stylesheets/extra.css
+
 markdown_extensions:
+  - abbr
   - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
   - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight:
       anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      repo_url_shorthand: true
+      user: GTNewHorizons
+      repo: Horizon-QA
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      auto_append:
+        - includes/abbreviations.md
+      base_path:
+        - .
+        - docs
+      check_paths: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -33,12 +107,48 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
-  - pymdownx.snippets
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
 
 plugins:
-  - search
+  - search:
+      lang: en
+      separator: '[\s\-]+'
+  - tags
+  - minify:
+      minify_html: true
 
 nav:
   - Home: index.md
-  - Test Events: events.md
+  - Getting started:
+    - getting-started/index.md
+    - Enable & run: getting-started/enable-and-run.md
+    - Your first test: getting-started/first-test.md
+    - Mod project setup: getting-started/mod-setup.md
+  - Guides:
+    - guide/index.md
+    - Writing tests: guide/writing-tests.md
+    - Structure templates: guide/structures.md
+    - GTNH multiblock API: guide/gtnh-api.md
+    - Negative assertions: guide/negative-tests.md
+    - Sequences & timing: guide/sequences.md
+    - CI & JUnit reports: guide/ci.md
+  - Reference:
+    - reference/index.md
+    - Annotations: reference/annotations.md
+    - Commands: reference/commands.md
+    - JVM & system properties: reference/jvm-flags.md
+    - Test event log: reference/events.md
+    - Package layout: reference/package-layout.md
+  - Contributing:
+    - contributing/index.md
+    - Design principles: contributing/principles.md
+    - Clean-room policy: contributing/legal.md
+    - Examples mod: contributing/examples-mod.md
   - Javadoc API: https://GTNewHorizons.github.io/Horizon-QA/javadoc/index.html
+
+strict: true
+
+not_in_nav: |
+  includes/*
