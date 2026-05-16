@@ -21,7 +21,13 @@ public final class StructurePlacer {
     public static void place(HybridStructureTemplate template, WorldServer world, int originX, int originY,
         int originZ) {
 
-        ensureChunksLoaded(world, originX, originY, originZ, template.getSizeX(), template.getSizeY(),
+        ensureChunksLoaded(
+            world,
+            originX,
+            originY,
+            originZ,
+            template.getSizeX(),
+            template.getSizeY(),
             template.getSizeZ());
 
         HybridStructureTemplate.PaletteEntry[] palette = template.getPalette();
