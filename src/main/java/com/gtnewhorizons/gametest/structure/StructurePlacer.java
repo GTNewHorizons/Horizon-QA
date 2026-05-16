@@ -29,9 +29,6 @@ public final class StructurePlacer {
         int sizeY = template.getSizeY();
         int sizeZ = template.getSizeZ();
 
-        // Flag 2 notifies clients. Flag 1 (notifyBlockChange) is omitted: it fans out onNeighborBlockChange to
-        // adjacent blocks and can cascade into neighbouring test cells at scale. Chunk.func_150807_a already calls
-        // onBlockAdded on the server when the block is placed.
         int notifyClients = 2;
         for (int x = 0; x < sizeX; x++) {
             for (int y = 0; y < sizeY; y++) {
