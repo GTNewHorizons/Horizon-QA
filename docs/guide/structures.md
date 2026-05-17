@@ -73,6 +73,79 @@ Set `rotation` on `@GameTest` (values `0–3`) to validate that role indices and
 
 Omit `template` (or use `template = ""`) for tests that only need void space: block-placement smoke tests, helper API checks, and the like.
 
+## Choosing between `setBlock` and an exported template
+
+Every test falls into one of two categories, and the right template strategy follows from which one you are writing.
+
+### Logic tests — empty template + `setBlock`
+
+A **logic test** verifies behaviour that does not depend on a specific world layout. The test builds exactly the state it needs via `setBlock`, runs the logic under test, and asserts the outcome. No template file exists on disk.
+
+```java
+@GameTest(timeoutTicks = 20)
+public static void chestInsertAndAssert(GameTestHelper helper) {
+    helper.setBlock(0, 0, 0, Blocks.chest);
+    helper.startSequence()
+        .thenIdle(1)
+        .thenExecute(() -> {
+            helper.insertItem(0, 0, 0, new ItemStack(Items.diamond, 5));
+            helper.assertInventoryContains(0, 0, 0, new ItemStack(Items.diamond, 5));
+        })
+        .thenSucceed();
+}
+```
+
+The test owns every block it places. When the system under test changes, the test changes with it — there is no template to re-export.
+
+Typical subjects:
+
+- Helper API correctness (`setBlock`, `destroyBlock`, `assertBlockPresent`).
+- Single-block tile-entity interactions (chest insertion, furnace smelting).
+- Redstone or signal propagation with a handful of blocks.
+- Any scenario where the interesting part is the *sequence of actions*, not the structure they act on.
+
+### Structure tests — exported template
+
+A **structure test** validates behaviour that emerges from a pre-built world layout: formed multiblocks, multi-tile wiring, spatial relationships between hatches. The template is exported once with `/gametest export` and loaded at test time.
+
+```java
+@GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
+public static void testTitaniumSmelting(GameTestHelper helper) {
+    Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0));
+    ebf.assertFormed();
+    ebf.fixMaintenance();
+    ebf.inputBus(0)
+        .insert(Materials.Nickel.getDust(1), Materials.Aluminium.getDust(3))
+        .programmedCircuit(0);
+    ebf.energyHatch(0).supply(TierEU.EV, 1, 900);
+    ebf.runRecipe();
+    ebf.outputs().assertContains(Materials.NickelAluminide.getIngots(4));
+    helper.succeed();
+}
+```
+
+The test assumes the structure is already correct and focuses on what happens *inside* it. Rebuilding an EBF block-by-block with `setBlock` would duplicate the template's information, couple the test to layout coordinates, and break whenever a block id or metadata changes.
+
+Typical subjects:
+
+- Multiblock formation and recipe processing.
+- Hatch roles, maintenance, and energy supply across a formed machine.
+- Negative-formation tests (e.g. `ebf_no_coils`) that assert a machine *does not* form.
+- Any scenario where the interesting part is the *structure itself* or how a machine behaves within it.
+
+### Decision guide
+
+| Signal                                       | Strategy              |
+|----------------------------------------------|-----------------------|
+| Fewer than ~5 blocks, simple arrangement     | `setBlock`            |
+| Testing API helpers, not world state         | `setBlock`            |
+| Multiblock or complex tile-entity wiring     | Exported template     |
+| Layout accuracy is *part of* the assertion   | Exported template     |
+| Test must survive cross-version block renames | `setBlock`            |
+| Rotation coverage is required                | Exported template     |
+
+When in doubt, ask: *"If the layout changed tomorrow, should this test break?"* If yes, the layout is load-bearing — export a template so the test guards it. If no, build the state inline so the test stays decoupled.
+
 ## Examples in this repo
 
 | Template                                | Purpose                       |
