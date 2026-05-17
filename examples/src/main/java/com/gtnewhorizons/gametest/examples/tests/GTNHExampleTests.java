@@ -185,4 +185,13 @@ public class GTNHExampleTests {
         helper.onEachTick(() -> helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
         helper.succeedAtTimeout();
     }
+
+    @GameTest(template = "cleanroom", timeoutTicks = 4600)
+    public static void cleanroomEfficiencyClimbs(GameTestHelper helper) {
+        Multiblock cleanroom = helper.gtnh()
+            .multiblock(at(2, 4, 2));
+
+        helper.succeedWhen(() -> cleanroom.getEfficiency() > 9000);
+        helper.gtnh().fastForwardTicks(4600);
+    }
 }

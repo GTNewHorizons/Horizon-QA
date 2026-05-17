@@ -343,6 +343,11 @@ public final class Multiblock {
         return resolveController().mMaxProgresstime > 0;
     }
 
+    /** @return Current cleanness of this cleanroom. Max at 10,000 */
+    public int getEfficiency() {
+        return resolveController().mEfficiency;
+    }
+
     RecipeMap<?> resolveRecipeMap() {
         MTEMultiBlockBase ctrl = resolveController();
         RecipeMap<?> map = ctrl.getRecipeMap();

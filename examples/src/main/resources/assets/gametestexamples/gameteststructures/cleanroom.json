@@ -1,0 +1,48 @@
+{
+  "format_version": 1,
+  "size": [5, 5, 5],
+  "palette": {
+    "A": {"name": "Railcraft:residual.heat", "meta": 0, "label": "Residual Heat"},
+    "B": {"name": "gregtech:gt.blockcasings3", "meta": 11, "label": "Filter Machine Casing"},
+    "C": {"name": "gregtech:gt.blockmachines", "meta": 2, "label": "Bricked Bronze Hull"},
+    "D": {"name": "gregtech:gt.blockmachines", "meta": 3, "label": "Steel Hull"},
+    "E": {"name": "gregtech:gt.blockreinforced", "meta": 2, "label": "Plascrete Block"}
+  },
+  "layers": [
+    [
+      "EEEEE",
+      "EEEEE",
+      "EEEEE",
+      "EEEEE",
+      "EEEEE"
+    ],
+    [
+      "EDECE",
+      "E...E",
+      "E...E",
+      "E...E",
+      "EEEEE"
+    ],
+    [
+      "EEEEE",
+      "E...E",
+      "E...E",
+      "E.A.E",
+      "EEEEE"
+    ],
+    [
+      "EEEEE",
+      "E...E",
+      "E...E",
+      "E...E",
+      "EEEEE"
+    ],
+    [
+      "EEEEE",
+      "EBBBE",
+      "EBCBE",
+      "EBBBE",
+      "EEEEE"
+    ]
+  ]
+}
