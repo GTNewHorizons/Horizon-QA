@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 /**
  * Marks a static test method with signature {@code void testName(GameTestHelper helper)}.
  */
-@Stable
+@Experimental
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface GameTest {

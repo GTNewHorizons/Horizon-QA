@@ -20,7 +20,7 @@ Marks a static test method with signature `void name(GameTestHelper helper)`.
 | `required`      | `boolean` | `true`  | If `false`, a failure may not fail the overall run                       |
 | `rotation`      | `int`     | `0`     | Structure rotation `0–3` (90° steps clockwise around Y)                  |
 
-Stability: `@Stable`.
+Stability: `@Experimental` (entire public API is experimental in 0.1.x).
 
 ## `@GameTestHolder`
 
@@ -31,7 +31,7 @@ Marks a class containing one or more `@GameTest` methods.
 | `value`           | `String` | *(required)* | Namespace for test ids and template lookups (typically the mod id)   |
 | `templatePrefix`  | `String` | `""`         | Prepended to relative template paths declared on `@GameTest`         |
 
-Stability: `@Stable`.
+Stability: `@Experimental`.
 
 ## `@BeforeBatch` / `@AfterBatch`
 
@@ -41,19 +41,19 @@ Static no-arg methods that run once before/after every test sharing a `batch` va
 |-----------|----------|--------------------------------------------------------|
 | `value`   | `String` | Batch name — must match `GameTest.batch()` to bind     |
 
-Stability: `@Stable`.
+Stability: `@Experimental`.
 
 ## `@Stable` / `@Experimental`
 
-API stability markers on public framework types and members.
-
-`@Stable`
-:   Safe for mod authors to depend on. Source and binary compatibility are preserved across minor versions.
+API stability markers on public framework types.
 
 `@Experimental`
-:   May change without a major version bump. Use behind feature flags or be prepared to update on framework upgrades.
+:   May change without a major version bump. **All mod-facing API is `@Experimental` in 0.x.x**, including `GameTestHelper`, `TestPos`, and the test annotations, even where signatures still expose `core.*` types or other experimental helpers.
 
-Prefer `@Stable` entry points when writing tests against Horizon-QA.
+`@Stable`
+:   Reserved for 1.0.0 onward: types whose public signatures no longer leak internal or experimental types, and whose contracts are committed across minor versions.
+
+Expect breaking API refinements in 0.x.x; pin versions and budget for updates until the first `@Stable` graduation in 1.0.0.
 
 ## Test id format
 

@@ -20,7 +20,7 @@ import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidHandler;
 
-import com.gtnewhorizons.gametest.api.annotation.Stable;
+import com.gtnewhorizons.gametest.api.annotation.Experimental;
 import com.gtnewhorizons.gametest.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.gametest.core.GameTestInstance;
 import com.gtnewhorizons.gametest.core.GameTestSequence;
@@ -33,7 +33,7 @@ import cpw.mods.fml.common.Loader;
  * Passed to every {@code @GameTest} method. Provides world interaction, assertions, and the fluent
  * sequence API.
  */
-@Stable
+@Experimental
 @SuppressWarnings("unused")
 public class GameTestHelper {
 
