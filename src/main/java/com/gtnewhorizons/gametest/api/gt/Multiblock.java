@@ -17,7 +17,6 @@ import gregtech.api.metatileentity.implementations.MTEHatchEnergy;
 import gregtech.api.metatileentity.implementations.MTEHatchInput;
 import gregtech.api.metatileentity.implementations.MTEHatchInputBus;
 import gregtech.api.metatileentity.implementations.MTEHatchInputDebug;
-import gregtech.api.metatileentity.implementations.MTEHatchOutput;
 import gregtech.api.metatileentity.implementations.MTEHatchOutputBus;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 import gregtech.api.recipe.RecipeMap;
@@ -246,40 +245,84 @@ public final class Multiblock {
     }
 
     /**
-     * Fluid output hatch by index in {@link MTEMultiBlockBase#mOutputHatches}.
+     * Fluid output hatch by index in the multiblock's canonical output-hatch ordering.
+     * For most multiblocks this is {@link MTEMultiBlockBase#mOutputHatches}; the Distillation Tower
+     * routes through its per-layer list instead (the {@code i}-th call returns a hatch on layer {@code i},
+     * matching recipe output slot order). Detection happens in the adapter.
      *
-     * @throws IndexOutOfBoundsException if {@code index} is not in range
+     * @throws GameTestAssertException if {@code index} is out of range or the hatch slot is empty
      */
     public Hatch outputHatch(int index) {
         MTEMultiBlockBase multi = resolveController();
-        MTEHatchOutput hatch = multi.mOutputHatches.get(index);
-        if (hatch == null) {
+        IGregTechTileEntity te = helper.adapter()
+            .getOutputHatchTE(multi, index);
+        if (te == null) {
             throw error(
-                "outputHatch[" + index + "] at " + absPos + " is null — hatch list may have been cleared by a re-form");
+                "outputHatch[" + index
+                    + "] at "
+                    + absPos
+                    + " is null or out of range — hatch list may have been cleared by a re-form");
         }
-        return new Hatch(
-            hatch.getBaseMetaTileEntity(),
-            "outputHatch[" + index + "] at " + absPos,
-            null,
-            helper.recorder());
+        return new Hatch(te, "outputHatch[" + index + "] at " + absPos, null, helper.recorder());
     }
 
     /**
-     * {@link MTEMultiBlockBase#enableWorking()} then {@link GTNHGameTestHelper#runUntilMachineIdle} with a default tick
-     * bound.
+     * {@link MTEMultiBlockBase#enableWorking()} then time-warps until the machine starts processing
+     * and becomes idle again, with a default tick bound.
      */
     public void runRecipe() {
         runRecipe(DEFAULT_RUN_TICKS);
     }
 
     /**
-     * {@link MTEMultiBlockBase#enableWorking()} then {@link GTNHGameTestHelper#runUntilMachineIdle} with the given tick
-     * bound.
+     * {@link MTEMultiBlockBase#enableWorking()} then time-warps until the machine starts processing
+     * and becomes idle again, or until {@code maxTicks} simulated ticks have elapsed.
+     *
+     * <p>
+     * Uses a two-phase stop condition: first waits for the machine to become active (recipe found
+     * and started), then waits for it to return to idle (recipe completed). This avoids the false-idle
+     * problem where the machine hasn't yet picked up a recipe on the first tick.
+     *
+     * @throws GameTestAssertException if the machine never starts processing within {@code maxTicks},
+     *                                 or if it is still active at timeout
      */
     public void runRecipe(int maxTicks) {
         MTEMultiBlockBase multi = resolveController();
         multi.enableWorking();
-        helper.runUntilMachineIdle(relPos(), maxTicks);
+        boolean[] sawActive = { false };
+        TestPos abs = absPos;
+        int simulated = TimeWarpHandler.fastForward(
+            world,
+            helper.originX(),
+            helper.originY(),
+            helper.originZ(),
+            helper.originX() + helper.warpRange(),
+            helper.originY() + helper.warpRange(),
+            helper.originZ() + helper.warpRange(),
+            maxTicks,
+            helper.dynamo(),
+            () -> {
+                TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
+                if (!(te instanceof IGregTechTileEntity igte)) return true;
+                if (igte.isActive()) {
+                    sawActive[0] = true;
+                    return false;
+                }
+                return sawActive[0];
+            },
+            helper.recorder(),
+            helper.adapter(),
+            java.util.Collections.singletonList(abs));
+
+        if (!sawActive[0]) {
+            throw error(
+                "Machine at " + absPos
+                    + " never started processing within "
+                    + simulated
+                    + " ticks (maxTicks="
+                    + maxTicks
+                    + "). Check: recipe inputs present? energy supplied? maintenance fixed?");
+        }
     }
 
     /** Fails if the controller block is no longer a GregTech tile entity. */

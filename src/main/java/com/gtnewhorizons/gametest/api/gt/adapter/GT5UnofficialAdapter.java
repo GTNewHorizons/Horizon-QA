@@ -1,8 +1,10 @@
 package com.gtnewhorizons.gametest.api.gt.adapter;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.List;
 
 import net.minecraft.world.chunk.Chunk;
 
@@ -12,7 +14,9 @@ import com.gtnewhorizons.gametest.api.event.state.MaintenanceSnapshot;
 import com.gtnewhorizons.gametest.api.event.state.RecipeStateSnapshot;
 
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
+import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
+import gregtech.api.metatileentity.implementations.MTEHatchOutput;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 
 /** {@link GTAdapter} targeting GTNH GT5-Unofficial; resolves all reflective lookups at construction time. */
@@ -174,8 +178,65 @@ public final class GT5UnofficialAdapter implements GTAdapter {
             sizeOf(multi.mInputBusses),
             sizeOf(multi.mOutputBusses),
             sizeOf(multi.mInputHatches),
-            sizeOf(multi.mOutputHatches),
+            countOutputHatches(multi),
             sizeOf(multi.mEnergyHatches));
+    }
+
+    /**
+     * Returns the N-th fluid output hatch tile entity. For multiblocks that store output hatches in a
+     * non-standard per-layer field (the Distillation Tower uses {@code mOutputHatchesByLayer}), this
+     * indexes layers and returns the first hatch in that layer. Falls back to the standard
+     * {@code mOutputHatches} list for all other multiblocks.
+     */
+    @Override
+    public IGregTechTileEntity getOutputHatchTE(IMetaTileEntity mte, int index) {
+        MTEMultiBlockBase multi = asMultiBlock(mte);
+        List<List<MTEHatchOutput>> byLayer = readOutputHatchesByLayer(multi);
+        if (byLayer != null) {
+            if (index < 0 || index >= byLayer.size()
+                || byLayer.get(index)
+                    .isEmpty())
+                return null;
+            return byLayer.get(index)
+                .get(0)
+                .getBaseMetaTileEntity();
+        }
+        if (index < 0 || index >= multi.mOutputHatches.size()) return null;
+        MTEHatchOutput h = multi.mOutputHatches.get(index);
+        return h != null ? h.getBaseMetaTileEntity() : null;
+    }
+
+    private static int countOutputHatches(MTEMultiBlockBase multi) {
+        List<List<MTEHatchOutput>> byLayer = readOutputHatchesByLayer(multi);
+        if (byLayer == null) return sizeOf(multi.mOutputHatches);
+        int total = 0;
+        for (List<MTEHatchOutput> layer : byLayer) total += sizeOf(layer);
+        return total;
+    }
+
+    private static List<List<MTEHatchOutput>> readOutputHatchesByLayer(MTEMultiBlockBase multi) {
+        Field f = findFieldInHierarchy(multi.getClass(), "mOutputHatchesByLayer");
+        if (f == null) return null;
+        try {
+            f.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            List<List<MTEHatchOutput>> byLayer = (List<List<MTEHatchOutput>>) f.get(multi);
+            return byLayer;
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException(
+                "Cannot access mOutputHatchesByLayer on " + multi.getClass()
+                    .getSimpleName(),
+                e);
+        }
+    }
+
+    private static Field findFieldInHierarchy(Class<?> cls, String name) {
+        for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
+            try {
+                return c.getDeclaredField(name);
+            } catch (NoSuchFieldException ignored) {}
+        }
+        return null;
     }
 
     private static int sizeOf(java.util.Collection<?> list) {
