@@ -142,6 +142,42 @@ public class GTNHExampleTests {
         helper.succeed();
     }
 
+    @GameTest(template = "distillation_tower_4", timeoutTicks = 1500, batch = "gtnh")
+    public static void testDistillationTowerOutputRouting(GameTestHelper helper) {
+        GTNHGameTestHelper gtnh = helper.gtnh();
+        Multiblock dt = gtnh.multiblock(at(1, 0, 2));
+        dt.assertFormed();
+        dt.fixMaintenance();
+
+        GTRecipeBuilder synthetic = GTValues.RA.stdBuilder()
+            .fluidInputs(Materials.Helium.getGas(120))
+            .fluidOutputs(
+                Materials.Oxygen.getGas(1000),
+                Materials.Hydrogen.getGas(2000),
+                Materials.Nitrogen.getGas(500),
+                Materials.Helium.getGas(500))
+            .duration(200)
+            .eut(TierEU.EV);
+
+        gtnh.withTestRecipe(dt, synthetic);
+        dt.inputHatch(0)
+            .fill(Materials.Helium.getGas(120));
+        dt.energyHatch(0)
+            .supply(TierEU.EV, 1, 300);
+        dt.runRecipe();
+
+        dt.outputHatch(0)
+            .assertContains(Materials.Oxygen.getGas(1000));
+        dt.outputHatch(1)
+            .assertContains(Materials.Hydrogen.getGas(2000));
+        dt.outputHatch(2)
+            .assertContains(Materials.Nitrogen.getGas(500));
+        dt.outputHatch(3)
+            .assertContains(Materials.Helium.getGas(500));
+
+        helper.succeed();
+    }
+
     @GameTest(template = "ebf_no_coils", timeoutTicks = 60)
     public static void doesNotFormWithoutCoils(GameTestHelper helper) {
         Multiblock ebf = helper.gtnh()

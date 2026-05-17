@@ -1,0 +1,37 @@
+{
+  "format_version": 1,
+  "size": [3, 5, 3],
+  "palette": {
+    "A": {"name": "gregtech:gt.blockcasings4", "meta": 1, "label": "Clean Stainless Steel Machine Casing"},
+    "B": {"name": "gregtech:gt.blockmachines", "meta": 1, "label": "Bronze Hull"},
+    "C": {"name": "gregtech:gt.blockmachines", "meta": 2, "label": "Bricked Bronze Hull"},
+    "D": {"name": "gregtech:gt.blockmachines", "meta": 3, "label": "Steel Hull"}
+  },
+  "layers": [
+    [
+      "CAA",
+      "BAA",
+      "DCB"
+    ],
+    [
+      "AAA",
+      "A.A",
+      "BAA"
+    ],
+    [
+      "AAA",
+      "A.A",
+      "BAA"
+    ],
+    [
+      "AAA",
+      "A.A",
+      "BAA"
+    ],
+    [
+      "AAA",
+      "AAA",
+      "BAA"
+    ]
+  ]
+}
