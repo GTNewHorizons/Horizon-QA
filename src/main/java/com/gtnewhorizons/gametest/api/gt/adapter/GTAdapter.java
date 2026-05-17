@@ -8,6 +8,7 @@ import com.gtnewhorizons.gametest.api.event.state.MaintenanceSnapshot;
 import com.gtnewhorizons.gametest.api.event.state.RecipeStateSnapshot;
 
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
+import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 
 /** GT-version-specific operations used by GTNH gametest helpers. */
 @Experimental
@@ -76,4 +77,7 @@ public interface GTAdapter {
 
     /** Sizes of the standard hatch lists. Used for {@code MachineFormed} event payloads. */
     HatchTopology snapshotHatches(IMetaTileEntity mte);
+
+    /** N-th fluid output hatch in canonical multiblock ordering; {@code null} if out of range or empty. */
+    IGregTechTileEntity getOutputHatchTE(IMetaTileEntity mte, int index);
 }

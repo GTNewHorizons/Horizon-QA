@@ -102,6 +102,14 @@ public class GTNHGameTestHelper {
         return originZ;
     }
 
+    int warpRange() {
+        return warpRange;
+    }
+
+    VirtualEUDynamo dynamo() {
+        return dynamo;
+    }
+
     /**
      * Override the default 32-block fast-forward region. Increase for very large multiblocks
      * (e.g. Fusion Reactors) whose hatches extend far from the controller.
