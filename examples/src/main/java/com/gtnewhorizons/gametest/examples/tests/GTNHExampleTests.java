@@ -192,6 +192,7 @@ public class GTNHExampleTests {
             .multiblock(at(2, 4, 2));
 
         helper.succeedWhen(() -> cleanroom.getEfficiency() > 9000);
-        helper.gtnh().fastForwardTicks(4600);
+        helper.gtnh()
+            .fastForwardTicks(4600);
     }
 }
