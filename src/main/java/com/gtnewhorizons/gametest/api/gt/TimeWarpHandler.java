@@ -1,6 +1,5 @@
 package com.gtnewhorizons.gametest.api.gt;
 
-import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.tileentity.TileEntity;
@@ -16,29 +15,11 @@ import com.gtnewhorizons.gametest.core.TestEventRecorder;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 
 @Experimental
-public class TimeWarpHandler {
+class TimeWarpHandler {
 
-    public static int fastForward(WorldServer world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
-        int maxTicks, VirtualEUDynamo dynamo, StopCondition stopCondition) {
-        return fastForward(
-            world,
-            minX,
-            minY,
-            minZ,
-            maxX,
-            maxY,
-            maxZ,
-            maxTicks,
-            dynamo,
-            stopCondition,
-            null,
-            null,
-            Collections.emptyList());
-    }
-
-    public static int fastForward(WorldServer world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
-        int maxTicks, VirtualEUDynamo dynamo, StopCondition stopCondition, TestEventRecorder recorder,
-        GTAdapter adapter, List<TestPos> watchedControllers) {
+    static int fastForward(WorldServer world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, int maxTicks,
+        VirtualEUDynamo dynamo, StopCondition stopCondition, TestEventRecorder recorder, GTAdapter adapter,
+        List<TestPos> watchedControllers) {
 
         WarpDiffer differ = null;
         if (recorder != null && adapter != null && watchedControllers != null && !watchedControllers.isEmpty()) {
@@ -100,7 +81,7 @@ public class TimeWarpHandler {
     }
 
     @FunctionalInterface
-    public interface StopCondition {
+    interface StopCondition {
 
         boolean shouldStop();
     }
