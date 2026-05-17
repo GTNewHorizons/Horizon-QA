@@ -15,21 +15,20 @@ import com.gtnewhorizons.gametest.core.TestEventRecorder;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 
 @Experimental
-public class VirtualEUDynamo {
+class VirtualEUDynamo {
 
     private final List<EUSupplyJob> jobs = new ArrayList<>();
     private final TestEventRecorder recorder;
 
-    public VirtualEUDynamo(TestEventRecorder recorder) {
+    VirtualEUDynamo(TestEventRecorder recorder) {
         this.recorder = recorder;
     }
 
-    public void addJob(WorldServer world, int absX, int absY, int absZ, long voltage, long amperage,
-        int durationTicks) {
+    void addJob(WorldServer world, int absX, int absY, int absZ, long voltage, long amperage, int durationTicks) {
         jobs.add(new EUSupplyJob(world, absX, absY, absZ, voltage, amperage, durationTicks));
     }
 
-    public void tick() {
+    void tick() {
         Iterator<EUSupplyJob> it = jobs.iterator();
         while (it.hasNext()) {
             EUSupplyJob job = it.next();
@@ -69,7 +68,7 @@ public class VirtualEUDynamo {
         }
     }
 
-    public boolean hasActiveJobs() {
+    boolean hasActiveJobs() {
         return !jobs.isEmpty();
     }
 
