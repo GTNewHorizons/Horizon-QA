@@ -20,7 +20,7 @@ Marks a static test method with signature `void name(GameTestHelper helper)`.
 | `required`      | `boolean` | `true`  | If `false`, a failure may not fail the overall run                       |
 | `rotation`      | `int`     | `0`     | Structure rotation `0–3` (90° steps clockwise around Y)                  |
 
-Stability: `@Experimental` (entire public API is experimental in 0.1.x).
+Stability: `@Experimental` (entire public API is experimental in 0.x.x).
 
 ## `@GameTestHolder`
 
