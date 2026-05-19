@@ -1,4 +1,4 @@
-﻿package com.gtnewhorizons.gametest;
+package com.gtnewhorizons.gametest;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

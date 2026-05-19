@@ -1,4 +1,4 @@
-﻿package com.gtnewhorizons.gametest;
+package com.gtnewhorizons.gametest;
 
 import net.minecraftforge.common.MinecraftForge;
 

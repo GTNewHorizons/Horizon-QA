@@ -1,4 +1,4 @@
-﻿package com.gtnewhorizons.gametest.internal;
+package com.gtnewhorizons.gametest.internal;
 
 public class GameTestGridLayout {
 

@@ -1,4 +1,4 @@
-﻿package com.gtnewhorizons.gametest.report;
+package com.gtnewhorizons.gametest.report;
 
 import java.util.List;
 

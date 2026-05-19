@@ -1,4 +1,4 @@
-﻿package com.gtnewhorizons.gametest.api.gt;
+package com.gtnewhorizons.gametest.api.gt;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;

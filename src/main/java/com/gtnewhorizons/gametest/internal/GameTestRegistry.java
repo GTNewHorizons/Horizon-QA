@@ -1,4 +1,4 @@
-﻿package com.gtnewhorizons.gametest.internal;
+package com.gtnewhorizons.gametest.internal;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;

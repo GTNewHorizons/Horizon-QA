@@ -1,4 +1,4 @@
-﻿package com.gtnewhorizons.gametest.command;
+package com.gtnewhorizons.gametest.command;
 
 import java.io.File;
 import java.io.IOException;

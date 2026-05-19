@@ -1,4 +1,4 @@
-﻿package com.gtnewhorizons.gametest.internal;
+package com.gtnewhorizons.gametest.internal;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;

@@ -1,4 +1,4 @@
-﻿package com.gtnewhorizons.gametest.api.gt;
+package com.gtnewhorizons.gametest.api.gt;
 
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidRegistry;

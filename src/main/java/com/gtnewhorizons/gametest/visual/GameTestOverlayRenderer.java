@@ -1,4 +1,4 @@
-﻿package com.gtnewhorizons.gametest.visual;
+package com.gtnewhorizons.gametest.visual;
 
 import java.util.Collection;
 

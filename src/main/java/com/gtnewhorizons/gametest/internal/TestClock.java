@@ -1,4 +1,4 @@
-﻿package com.gtnewhorizons.gametest.internal;
+package com.gtnewhorizons.gametest.internal;
 
 /**
  * Monotonic logical tick counter shared by a single {@link TestEventRecorder}. Advanced once per server
