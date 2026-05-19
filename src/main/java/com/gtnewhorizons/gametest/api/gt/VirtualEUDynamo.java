@@ -1,4 +1,4 @@
-package com.gtnewhorizons.gametest.api.gt;
+﻿package com.gtnewhorizons.gametest.api.gt;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -10,7 +10,7 @@ import net.minecraft.world.WorldServer;
 import com.gtnewhorizons.gametest.api.TestPos;
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
 import com.gtnewhorizons.gametest.api.event.EUBufferOverflow;
-import com.gtnewhorizons.gametest.core.TestEventRecorder;
+import com.gtnewhorizons.gametest.internal.TestEventRecorder;
 
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 

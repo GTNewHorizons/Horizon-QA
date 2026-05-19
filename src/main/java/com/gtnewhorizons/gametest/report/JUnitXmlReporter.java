@@ -1,4 +1,4 @@
-package com.gtnewhorizons.gametest.report;
+﻿package com.gtnewhorizons.gametest.report;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,8 +12,8 @@ import java.util.List;
 
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.gametest.api.event.TestEvent;
-import com.gtnewhorizons.gametest.core.GameTestInstance;
-import com.gtnewhorizons.gametest.core.GameTestStatus;
+import com.gtnewhorizons.gametest.internal.GameTestInstance;
+import com.gtnewhorizons.gametest.internal.GameTestStatus;
 
 public final class JUnitXmlReporter {
 

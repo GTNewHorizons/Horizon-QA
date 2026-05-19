@@ -1,4 +1,4 @@
-package com.gtnewhorizons.gametest.api.gt;
+﻿package com.gtnewhorizons.gametest.api.gt;
 
 import java.lang.reflect.Field;
 
@@ -11,7 +11,7 @@ import org.apache.logging.log4j.Logger;
 import com.gtnewhorizons.gametest.api.TestPos;
 import com.gtnewhorizons.gametest.api.event.TestRecipeInjected;
 import com.gtnewhorizons.gametest.api.event.TestRecipeRemoved;
-import com.gtnewhorizons.gametest.core.TestEventRecorder;
+import com.gtnewhorizons.gametest.internal.TestEventRecorder;
 
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.logic.ProcessingLogic;

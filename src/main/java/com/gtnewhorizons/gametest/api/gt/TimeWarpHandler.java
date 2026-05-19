@@ -1,4 +1,4 @@
-package com.gtnewhorizons.gametest.api.gt;
+﻿package com.gtnewhorizons.gametest.api.gt;
 
 import java.util.List;
 
@@ -10,7 +10,7 @@ import com.gtnewhorizons.gametest.api.annotation.Experimental;
 import com.gtnewhorizons.gametest.api.event.WarpFinished;
 import com.gtnewhorizons.gametest.api.event.WarpStarted;
 import com.gtnewhorizons.gametest.api.gt.adapter.GTAdapter;
-import com.gtnewhorizons.gametest.core.TestEventRecorder;
+import com.gtnewhorizons.gametest.internal.TestEventRecorder;
 
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 

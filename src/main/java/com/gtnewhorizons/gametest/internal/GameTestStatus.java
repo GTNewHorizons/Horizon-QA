@@ -1,4 +1,4 @@
-package com.gtnewhorizons.gametest.core;
+﻿package com.gtnewhorizons.gametest.internal;
 
 public enum GameTestStatus {
 

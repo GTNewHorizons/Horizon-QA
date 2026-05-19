@@ -1,4 +1,4 @@
-package com.gtnewhorizons.gametest.api.gt;
+﻿package com.gtnewhorizons.gametest.api.gt;
 
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.WorldServer;
@@ -10,7 +10,7 @@ import com.gtnewhorizons.gametest.api.event.MachineFormed;
 import com.gtnewhorizons.gametest.api.event.MaintenanceFixed;
 import com.gtnewhorizons.gametest.api.event.StructureCheckRan;
 import com.gtnewhorizons.gametest.api.event.state.FormedCause;
-import com.gtnewhorizons.gametest.core.TestEventRecorder;
+import com.gtnewhorizons.gametest.internal.TestEventRecorder;
 
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatchEnergy;

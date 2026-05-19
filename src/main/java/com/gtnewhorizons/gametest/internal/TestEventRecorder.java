@@ -1,10 +1,11 @@
-package com.gtnewhorizons.gametest.core;
+﻿package com.gtnewhorizons.gametest.internal;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.gtnewhorizons.gametest.api.event.EventLog;
 import com.gtnewhorizons.gametest.api.event.EventOverflow;
 import com.gtnewhorizons.gametest.api.event.TestEvent;
 
@@ -20,7 +21,7 @@ import com.gtnewhorizons.gametest.api.event.TestEvent;
  * Single-thread by construction: a test instance ticks on the server thread, and time-warp re-entry
  * happens on the same thread. No synchronization.
  */
-public final class TestEventRecorder {
+public final class TestEventRecorder implements EventLog {
 
     private static final boolean ENABLED = !"off".equalsIgnoreCase(System.getProperty("gametest.events", "on"));
     private static final int MAX_EVENTS = 10_000;

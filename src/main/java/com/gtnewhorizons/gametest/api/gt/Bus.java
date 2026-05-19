@@ -1,4 +1,4 @@
-package com.gtnewhorizons.gametest.api.gt;
+﻿package com.gtnewhorizons.gametest.api.gt;
 
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
@@ -9,7 +9,7 @@ import com.gtnewhorizons.gametest.api.TestPos;
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
 import com.gtnewhorizons.gametest.api.event.BusInserted;
 import com.gtnewhorizons.gametest.api.event.ProgrammedCircuitSet;
-import com.gtnewhorizons.gametest.core.TestEventRecorder;
+import com.gtnewhorizons.gametest.internal.TestEventRecorder;
 
 import gregtech.api.interfaces.IConfigurationCircuitSupport;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;

@@ -1,4 +1,4 @@
-package com.gtnewhorizons.gametest.api.gt;
+﻿package com.gtnewhorizons.gametest.api.gt;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,7 +25,7 @@ import com.gtnewhorizons.gametest.api.event.state.HatchTopology;
 import com.gtnewhorizons.gametest.api.event.state.MaintenanceSnapshot;
 import com.gtnewhorizons.gametest.api.event.state.RecipeStateSnapshot;
 import com.gtnewhorizons.gametest.api.gt.adapter.GTAdapter;
-import com.gtnewhorizons.gametest.core.TestEventRecorder;
+import com.gtnewhorizons.gametest.internal.TestEventRecorder;
 
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;

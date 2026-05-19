@@ -1,4 +1,4 @@
-package com.gtnewhorizons.gametest.command;
+﻿package com.gtnewhorizons.gametest.command;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,9 +23,9 @@ import net.minecraft.world.WorldServer;
 
 import com.gtnewhorizons.gametest.GameTestMod;
 import com.gtnewhorizons.gametest.command.GameTestCommandUtils.CellRecord;
-import com.gtnewhorizons.gametest.core.GameTestDefinition;
-import com.gtnewhorizons.gametest.core.GameTestRegistry;
-import com.gtnewhorizons.gametest.core.InteractiveTestSession;
+import com.gtnewhorizons.gametest.internal.GameTestDefinition;
+import com.gtnewhorizons.gametest.internal.GameTestRegistry;
+import com.gtnewhorizons.gametest.internal.InteractiveTestSession;
 import com.gtnewhorizons.gametest.item.ItemGameTestWand;
 import com.gtnewhorizons.gametest.structure.StructureExporter;
 
@@ -50,7 +50,7 @@ public class GameTestCommand extends CommandBase {
     }
 
     @Override
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public List getCommandAliases() {
         return Arrays.asList("gt");
     }

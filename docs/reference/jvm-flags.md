@@ -30,7 +30,7 @@ When `false`, the mod loads but its mixins and the test runner do not take over 
 |-------------------|-----------------------------------|---------|
 | `gametest.events` | `on` / `off` (case-insensitive)   | `on`    |
 
-Controls `TestEventRecorder`:
+Controls the event recorder behind `EventLog`:
 
 `on`
 :   Record typed events. Each `<testcase>` in the JUnit XML may include the event log under `<system-out>`.

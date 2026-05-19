@@ -1,9 +1,9 @@
-package com.gtnewhorizons.gametest;
+﻿package com.gtnewhorizons.gametest;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.gtnewhorizons.gametest.core.GameTestChunkLoader;
+import com.gtnewhorizons.gametest.internal.GameTestChunkLoader;
 
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;

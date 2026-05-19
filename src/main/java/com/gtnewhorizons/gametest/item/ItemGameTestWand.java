@@ -155,7 +155,7 @@ public class ItemGameTestWand extends Item {
 
     @Override
     @SideOnly(Side.CLIENT)
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public void addInformation(ItemStack stack, EntityPlayer player, List list, boolean advanced) {
         NBTTagCompound nbt = stack.getTagCompound();
 

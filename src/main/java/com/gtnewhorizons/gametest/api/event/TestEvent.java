@@ -3,7 +3,7 @@ package com.gtnewhorizons.gametest.api.event;
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
 
 /**
- * Ordered, typed entry in a {@link com.gtnewhorizons.gametest.core.TestEventRecorder TestEventRecorder} log.
+ * Ordered, typed entry in an {@link EventLog}.
  * Records exposing {@code TestEvent} carry the structured payload as their own record components; this
  * interface only contributes the fields that every reporter needs: a monotonic logical {@code tick}, a
  * coarse {@code category} for filtering, and a one-line {@code summary} suitable for direct inclusion in

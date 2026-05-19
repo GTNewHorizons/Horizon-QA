@@ -1,4 +1,4 @@
-package com.gtnewhorizons.gametest.visual;
+﻿package com.gtnewhorizons.gametest.visual;
 
 import java.util.Collection;
 
@@ -9,9 +9,9 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 import org.lwjgl.opengl.GL11;
 
 import com.gtnewhorizons.gametest.command.GameTestCommandUtils.CellRecord;
-import com.gtnewhorizons.gametest.core.GameTestInstance;
-import com.gtnewhorizons.gametest.core.GameTestStatus;
-import com.gtnewhorizons.gametest.core.InteractiveTestSession;
+import com.gtnewhorizons.gametest.internal.GameTestInstance;
+import com.gtnewhorizons.gametest.internal.GameTestStatus;
+import com.gtnewhorizons.gametest.internal.InteractiveTestSession;
 import com.gtnewhorizons.gametest.visual.drawables.DebugBeacon;
 import com.gtnewhorizons.gametest.visual.drawables.FloatingText;
 import com.gtnewhorizons.gametest.visual.drawables.GhostBlockDiff;

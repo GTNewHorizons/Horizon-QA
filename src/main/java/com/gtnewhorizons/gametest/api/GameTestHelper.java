@@ -21,10 +21,10 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidHandler;
 
 import com.gtnewhorizons.gametest.api.annotation.Experimental;
+import com.gtnewhorizons.gametest.api.event.EventLog;
 import com.gtnewhorizons.gametest.api.gt.GTNHGameTestHelper;
-import com.gtnewhorizons.gametest.core.GameTestInstance;
-import com.gtnewhorizons.gametest.core.GameTestSequence;
-import com.gtnewhorizons.gametest.core.TestEventRecorder;
+import com.gtnewhorizons.gametest.internal.GameTestInstance;
+import com.gtnewhorizons.gametest.internal.GameTestSequence;
 import com.mojang.authlib.GameProfile;
 
 import cpw.mods.fml.common.Loader;
@@ -470,10 +470,10 @@ public class GameTestHelper {
     }
 
     /**
-     * Event recorder for this test instance. Records of {@link com.gtnewhorizons.gametest.api.event.TestEvent} are
-     * appended in emit order; see {@link TestEventRecorder} for kill-switch semantics.
+     * Event log for this test instance. Events are appended in emit order; filter with
+     * {@code snapshot().stream()} to query specific event types.
      */
-    public TestEventRecorder getRecorder() {
+    public EventLog getRecorder() {
         return instance.getRecorder();
     }
 
