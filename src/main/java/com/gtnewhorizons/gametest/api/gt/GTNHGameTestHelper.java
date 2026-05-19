@@ -17,13 +17,9 @@ import com.gtnewhorizons.gametest.api.event.CleanroomEfficiencyChanged;
 import com.gtnewhorizons.gametest.api.event.EUSupplyJobRegistered;
 import com.gtnewhorizons.gametest.api.event.HatchFilled;
 import com.gtnewhorizons.gametest.api.event.MachineExploded;
-import com.gtnewhorizons.gametest.api.event.MachineFormed;
-import com.gtnewhorizons.gametest.api.event.MaintenanceFixed;
 import com.gtnewhorizons.gametest.api.event.PollutionEmitted;
 import com.gtnewhorizons.gametest.api.event.ProgrammedCircuitSet;
-import com.gtnewhorizons.gametest.api.event.StructureCheckRan;
 import com.gtnewhorizons.gametest.api.event.state.ExplodedCause;
-import com.gtnewhorizons.gametest.api.event.state.FormedCause;
 import com.gtnewhorizons.gametest.api.gt.adapter.GT5UnofficialAdapter;
 import com.gtnewhorizons.gametest.api.gt.adapter.GTAdapter;
 import com.gtnewhorizons.gametest.internal.TestEventRecorder;
@@ -123,69 +119,22 @@ public class GTNHGameTestHelper {
      * ({@code mMachine == true}). If the flag is {@code false}, {@link MTEMultiBlockBase#checkStructure}
      * is called with {@code forceReset=true} before failing, to handle cases where the
      * structure placer did not trigger a block-update chain.
+     *
+     * @see Multiblock#assertFormed()
      */
     public void assertMachineFormed(TestPos relPos) {
-        IGregTechTileEntity igte = requireGTTE(relPos);
-        IMetaTileEntity mte = igte.getMetaTileEntity();
-        if (!(mte instanceof MTEMultiBlockBase multi)) {
-            throw error(
-                "TE at " + relPos
-                    + " is not an MTEMultiBlockBase (found: "
-                    + mte.getClass()
-                        .getSimpleName()
-                    + ")",
-                relPos);
-        }
-        boolean wasFormed = multi.mMachine;
-        boolean ranCheck = false;
-        if (!multi.mMachine) {
-            multi.checkStructure(true);
-            ranCheck = true;
-            final boolean nowFormed = multi.mMachine;
-            recorder.record(
-                () -> new StructureCheckRan(
-                    recorder.clock()
-                        .tick(),
-                    relPos,
-                    true,
-                    nowFormed));
-        }
-        if (!multi.mMachine) {
-            throw error(
-                "Multiblock at " + relPos
-                    + " structure is not formed (mMachine=false). Verify the template is placed correctly.",
-                relPos);
-        }
-        multi.mStartUpCheck = -1;
-        FormedCause cause = ranCheck ? FormedCause.FORCED_BY_ASSERTION
-            : (wasFormed ? FormedCause.OBSERVED_ON_FIRST_POLL : FormedCause.FORMED_DURING_WARP);
-        String mteClass = mte.getClass()
-            .getSimpleName();
-        recorder.record(
-            () -> new MachineFormed(
-                recorder.clock()
-                    .tick(),
-                relPos,
-                mteClass,
-                cause,
-                GT.snapshotHatches(mte)));
+        multiblock(relPos).assertFormed();
     }
 
     /**
      * Fix all maintenance issues on the multiblock at {@code relPos} by calling
      * {@link MTEMultiBlockBase#fixAllIssues()}. Equivalent to using every maintenance
      * tool on the machine, setting all six flags to {@code true}.
+     *
+     * @see Multiblock#fixMaintenance()
      */
     public void fixAllMaintenanceIssues(TestPos relPos) {
-        MTEMultiBlockBase multi = requireMultiBlock(relPos);
-        multi.fixAllIssues();
-        multi.enableWorking();
-        recorder.record(
-            () -> new MaintenanceFixed(
-                recorder.clock()
-                    .tick(),
-                relPos,
-                "ALL"));
+        multiblock(relPos).fixMaintenance();
     }
 
     /**

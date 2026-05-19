@@ -137,6 +137,7 @@ nav:
   - Reference:
     - reference/index.md
     - Annotations: reference/annotations.md
+    - Versioning: reference/versioning.md
     - Commands: reference/commands.md
     - JVM & system properties: reference/jvm-flags.md
     - Test event log: reference/events.md

@@ -45,7 +45,7 @@ Stability: `@Experimental`.
 
 ## `@Stable` / `@Experimental`
 
-API stability markers on public framework types.
+API stability markers on public framework types. See [Versioning](versioning.md) for what each annotation commits to across releases.
 
 `@Experimental`
 :   May change without a major version bump. **All mod-facing API is `@Experimental` in 0.x.x**, including `GameTestHelper`, `TestPos`, and the test annotations, even where signatures still expose internal types or other experimental helpers.
@@ -53,7 +53,7 @@ API stability markers on public framework types.
 `@Stable`
 :   Reserved for 1.0.0 onward: types whose public signatures no longer leak internal or experimental types, and whose contracts are committed across minor versions.
 
-Expect breaking API refinements in 0.x.x; pin versions and budget for updates until the first `@Stable` graduation in 1.0.0.
+Expect breaking API refinements in 0.x.x; pin versions and budget for updates until the first `@Stable` graduation in 1.0.0. The deprecation cycle that applies from 1.0.0 onward is described in [Versioning -- Deprecation policy](versioning.md#deprecation-policy).
 
 ## Test id format
 
