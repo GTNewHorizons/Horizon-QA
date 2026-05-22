@@ -51,6 +51,11 @@ public final class Multiblock {
      * Asserts the controller is fully formed. Runs {@link MTEMultiBlockBase#checkStructure(boolean)} with
      * {@code forceReset = true} once if the structure is not yet valid, then fails if still unformed.
      *
+     * <p>
+     * Sets {@code mStartUpCheck = -1} on success, disabling the controller's periodic structure-re-check loop for
+     * the remainder of the test. This is intentional: a mid-test re-check could silently un-form the structure and
+     * invalidate subsequent assertions.
+     *
      * @apiNote On TecTech multiblocks the {@code checkStructure(true)} fallback triggers the standard GT
      *          structure-check path, which does <em>not</em> call {@code clearHatches_EM()} (TecTech's method
      *          is not an {@code @Override}). This may leave stale TecTech-specific hatch state if the structure
