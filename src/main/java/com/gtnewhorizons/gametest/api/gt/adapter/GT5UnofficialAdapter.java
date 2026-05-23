@@ -55,9 +55,7 @@ public final class GT5UnofficialAdapter implements GTAdapter {
     private static Field resolveProcessingLogicField() {
         Field f = findFieldInHierarchy(MTEMultiBlockBase.class, "processingLogic");
         if (f == null) {
-            throw new GTVersionMismatchException(
-                "Expected MTEMultiBlockBase to have a processingLogic field",
-                null);
+            throw new GTVersionMismatchException("Expected MTEMultiBlockBase to have a processingLogic field", null);
         }
         f.setAccessible(true);
         return f;
@@ -68,9 +66,7 @@ public final class GT5UnofficialAdapter implements GTAdapter {
             return processingLogicField.getType()
                 .getMethod("getCurrentParallels");
         } catch (NoSuchMethodException e) {
-            throw new GTVersionMismatchException(
-                "Expected ProcessingLogic to have getCurrentParallels()",
-                e);
+            throw new GTVersionMismatchException("Expected ProcessingLogic to have getCurrentParallels()", e);
         }
     }
 
