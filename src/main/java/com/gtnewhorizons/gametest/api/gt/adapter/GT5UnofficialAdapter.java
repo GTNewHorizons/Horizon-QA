@@ -26,9 +26,13 @@ public final class GT5UnofficialAdapter implements GTAdapter {
     private static final String POLLUTION_CLASS = "gregtech.common.pollution.Pollution";
 
     private final Method pollutionMethod;
+    private final Field processingLogicField;
+    private final Method getCurrentParallelsMethod;
 
     public GT5UnofficialAdapter() {
         this.pollutionMethod = resolvePollutionMethod();
+        this.processingLogicField = resolveProcessingLogicField();
+        this.getCurrentParallelsMethod = resolveGetCurrentParallelsMethod(processingLogicField);
     }
 
     private static Method resolvePollutionMethod() {
@@ -45,6 +49,34 @@ public final class GT5UnofficialAdapter implements GTAdapter {
             throw new GTVersionMismatchException(
                 "Expected " + POLLUTION_CLASS + " with static getPollution(Chunk) for GTNH GT5u",
                 e);
+        }
+    }
+
+    private static Field resolveProcessingLogicField() {
+        Field f = findFieldInHierarchy(MTEMultiBlockBase.class, "processingLogic");
+        if (f == null) {
+            throw new GTVersionMismatchException("Expected MTEMultiBlockBase to have a processingLogic field", null);
+        }
+        f.setAccessible(true);
+        return f;
+    }
+
+    private static Method resolveGetCurrentParallelsMethod(Field processingLogicField) {
+        try {
+            return processingLogicField.getType()
+                .getMethod("getCurrentParallels");
+        } catch (NoSuchMethodException e) {
+            throw new GTVersionMismatchException("Expected ProcessingLogic to have getCurrentParallels()", e);
+        }
+    }
+
+    private int currentParallels(MTEMultiBlockBase multi) {
+        try {
+            Object logic = processingLogicField.get(multi);
+            if (logic == null) return 0;
+            return (int) getCurrentParallelsMethod.invoke(logic);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            return 0;
         }
     }
 
@@ -155,7 +187,8 @@ public final class GT5UnofficialAdapter implements GTAdapter {
             effectiveEUt(multi),
             multi.mEfficiency,
             multi.getCheckRecipeResult()
-                .getID());
+                .getID(),
+            Math.max(currentParallels(multi), multi.lastParallel));
     }
 
     @Override
