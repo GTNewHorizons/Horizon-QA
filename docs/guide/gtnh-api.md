@@ -13,21 +13,44 @@ tags:
 ## Multiblock roles
 
 ```java
-import static com.gtnewhorizons.gametest.api.TestPos.at;
+import static com.gtnewhorizons.horizonqa.api.TestPos.at;
 
-Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0)); // (1)!
-ebf.assertFormed();
-ebf.fixMaintenance(); // (2)!
+Multiblock ebf = helper.gtnh()
+    .multiblock(at(1, 0, 0)); // (1)!
+ebf.
 
-ebf.inputBus(0)
-    .insert(Materials.Nickel.getDust(1), Materials.Aluminium.getDust(3))
-    .programmedCircuit(0);
+assertFormed();
+ebf.
 
-ebf.energyHatch(0).supply(TierEU.EV, 1, 900); // (3)!
+fixMaintenance(); // (2)!
 
-ebf.runRecipe(); // (4)!
+ebf.
 
-ebf.outputs().assertContains(Materials.NickelAluminide.getIngots(4));
+inputBus(0)
+    .
+
+insert(Materials.Nickel.getDust(1),Materials.Aluminium.
+
+getDust(3))
+    .
+
+programmedCircuit(0);
+
+ebf.
+
+energyHatch(0).
+
+supply(TierEU.EV, 1,900); // (3)!
+
+ebf.
+
+runRecipe(); // (4)!
+
+ebf.
+
+outputs().
+
+assertContains(Materials.NickelAluminide.getIngots(4));
 ```
 
 1.  Controller position, test-relative. The `Multiblock` façade resolves hatch roles from the template's tile entity table.

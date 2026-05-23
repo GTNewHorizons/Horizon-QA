@@ -28,9 +28,9 @@ public static void doesNotFormWithoutCoils(GameTestHelper helper) {
 ## Usage
 
 1. Build your test structure in-game.
-2. Select the area with the **Horizon Wand** and use `/gametest export <name>` to create a template.
+2. Select the area with the **Horizon Wand** and use `/qa export <name>` to create a template.
 3. Write a Java test class using `@GameTest` to define the logic and assertions.
-4. Run tests using the `/gametest runall` command and view results in-game or in the build logs.
+4. Run tests using the `/qa runall` command and view results in-game or in the build logs.
 
 ## Legal Disclaimer & Clean-Room Implementation
 
