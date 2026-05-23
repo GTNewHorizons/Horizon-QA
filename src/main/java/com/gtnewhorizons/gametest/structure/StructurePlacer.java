@@ -10,6 +10,8 @@ import net.minecraft.world.gen.ChunkProviderServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import cpw.mods.fml.common.Loader;
+import cpw.mods.fml.common.Optional;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 
 public final class StructurePlacer {
@@ -80,10 +82,7 @@ public final class StructurePlacer {
                         patchedNbt.setInteger("y", wy);
                         patchedNbt.setInteger("z", wz);
 
-                        if (te instanceof IGregTechTileEntity igte) {
-                            short mId = (short) patchedNbt.getInteger("mID");
-                            igte.setInitialValuesAsNBT(patchedNbt, mId);
-                        } else {
+                        if (!Loader.isModLoaded("gregtech_nh") || !readGregTechTileEntityFromNBT(te, patchedNbt)) {
                             te.readFromNBT(patchedNbt);
                         }
                         world.markBlockForUpdate(wx, wy, wz);
@@ -91,6 +90,16 @@ public final class StructurePlacer {
                 }
             }
         }
+    }
+
+    @Optional.Method(modid = "gregtech_nh")
+    private static boolean readGregTechTileEntityFromNBT(TileEntity te, NBTTagCompound patchedNbt) {
+        if (te instanceof IGregTechTileEntity igte) {
+            short mId = (short) patchedNbt.getInteger("mID");
+            igte.setInitialValuesAsNBT(patchedNbt, mId);
+            return true;
+        }
+        return false;
     }
 
     private static void ensureChunksLoaded(WorldServer world, int originX, int originY, int originZ, int sizeX,

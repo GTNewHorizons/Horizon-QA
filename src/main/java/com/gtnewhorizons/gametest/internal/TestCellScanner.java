@@ -8,6 +8,8 @@ import net.minecraft.world.WorldServer;
 
 import com.gtnewhorizons.gametest.api.TestIsolationViolation;
 
+import cpw.mods.fml.common.Loader;
+import cpw.mods.fml.common.Optional;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 
 final class TestCellScanner {
@@ -56,22 +58,24 @@ final class TestCellScanner {
                 }
             }
 
-            List<String> leaked = scanOuterMarginForIGTE(
-                world,
-                cellMinX,
-                cellMinY,
-                cellMinZ,
-                cellMaxX,
-                cellMaxY,
-                cellMaxZ);
-            if (!leaked.isEmpty()) {
-                throw new TestIsolationViolation(
-                    inst.getDefinition()
-                        .getTestId(),
-                    leaked,
+            if (Loader.isModLoaded("gregtech_nh")) {
+                List<String> leaked = scanOuterMarginForIGTE(
+                    world,
                     cellMinX,
                     cellMinY,
-                    cellMinZ);
+                    cellMinZ,
+                    cellMaxX,
+                    cellMaxY,
+                    cellMaxZ);
+                if (!leaked.isEmpty()) {
+                    throw new TestIsolationViolation(
+                        inst.getDefinition()
+                            .getTestId(),
+                        leaked,
+                        cellMinX,
+                        cellMinY,
+                        cellMinZ);
+                }
             }
         });
     }
@@ -98,6 +102,7 @@ final class TestCellScanner {
         return result;
     }
 
+    @Optional.Method(modid = "gregtech_nh")
     private static List<String> scanOuterMarginForIGTE(WorldServer world, int cellMinX, int cellMinY, int cellMinZ,
         int cellMaxX, int cellMaxY, int cellMaxZ) {
 
