@@ -14,6 +14,7 @@ import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.WorldServer;
+import net.minecraft.world.storage.WorldInfo;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -956,26 +957,52 @@ public class GameTestHelper {
 
     /**
      * Disable random block ticks in this world (e.g. crop growth, leaf decay) for deterministic tests.
+     * The original {@code randomTickSpeed} value is automatically restored after the test.
      */
     public void disableRandomTicks() {
+        String original = world.getGameRules()
+            .getGameRuleStringValue("randomTickSpeed");
         world.getGameRules()
             .setOrCreateGameRule("randomTickSpeed", "0");
+        afterTest(() -> world.getGameRules()
+            .setOrCreateGameRule("randomTickSpeed", original));
     }
 
     /**
      * Fix the world time to a specific value and disable the daylight cycle.
+     * The original time and {@code doDaylightCycle} value are automatically restored after the test.
      */
     public void fixWorldTime(long ticks) {
+        String originalCycle = world.getGameRules()
+            .getGameRuleStringValue("doDaylightCycle");
+        long originalTime = world.getWorldTime();
         world.setWorldTime(ticks);
         world.getGameRules()
             .setOrCreateGameRule("doDaylightCycle", "false");
+        afterTest(() -> {
+            world.setWorldTime(originalTime);
+            world.getGameRules()
+                .setOrCreateGameRule("doDaylightCycle", originalCycle);
+        });
     }
 
     /**
      * Apply a weather preset and lock it for the duration of the test.
+     * The original weather state is automatically restored after the test.
      */
     public void setWeather(Weather weather) {
+        WorldInfo info = world.getWorldInfo();
+        boolean wasRaining = info.isRaining();
+        boolean wasThundering = info.isThundering();
+        int rainTime = info.getRainTime();
+        int thunderTime = info.getThunderTime();
         weather.applyTo(world);
+        afterTest(() -> {
+            info.setRaining(wasRaining);
+            info.setThundering(wasThundering);
+            info.setRainTime(rainTime);
+            info.setThunderTime(thunderTime);
+        });
     }
 
     /**
