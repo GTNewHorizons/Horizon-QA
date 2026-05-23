@@ -15,42 +15,19 @@ tags:
 ```java
 import static com.gtnewhorizons.horizonqa.api.TestPos.at;
 
-Multiblock ebf = helper.gtnh()
-    .multiblock(at(1, 0, 0)); // (1)!
-ebf.
+Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0)); // (1)!
+ebf.assertFormed();
+ebf.fixMaintenance(); // (2)!
 
-assertFormed();
-ebf.
+ebf.inputBus(0)
+    .insert(Materials.Nickel.getDust(1), Materials.Aluminium.getDust(3))
+    .programmedCircuit(0);
 
-fixMaintenance(); // (2)!
+ebf.energyHatch(0).supply(TierEU.EV, 1, 900); // (3)!
 
-ebf.
+ebf.runRecipe(); // (4)!
 
-inputBus(0)
-    .
-
-insert(Materials.Nickel.getDust(1),Materials.Aluminium.
-
-getDust(3))
-    .
-
-programmedCircuit(0);
-
-ebf.
-
-energyHatch(0).
-
-supply(TierEU.EV, 1,900); // (3)!
-
-ebf.
-
-runRecipe(); // (4)!
-
-ebf.
-
-outputs().
-
-assertContains(Materials.NickelAluminide.getIngots(4));
+ebf.outputs().assertContains(Materials.NickelAluminide.getIngots(4));
 ```
 
 1.  Controller position, test-relative. The `Multiblock` façade resolves hatch roles from the template's tile entity table.
