@@ -5,6 +5,7 @@ import java.util.List;
 
 import net.minecraft.world.ChunkCoordIntPair;
 import net.minecraft.world.World;
+import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.ForgeChunkManager.Ticket;
 
@@ -40,8 +41,15 @@ public final class GameTestChunkLoader implements ForgeChunkManager.OrderedLoadi
         int chunkX2 = x2 >> 4;
         int chunkZ2 = z2 >> 4;
 
+        ChunkProviderServer cps = world.getChunkProvider() instanceof ChunkProviderServer
+            ? (ChunkProviderServer) world.getChunkProvider()
+            : null;
+
         for (int cx = chunkX1; cx <= chunkX2; cx++) {
             for (int cz = chunkZ1; cz <= chunkZ2; cz++) {
+                if (cps != null) {
+                    cps.loadChunk(cx, cz);
+                }
                 ForgeChunkManager.forceChunk(ticket, new ChunkCoordIntPair(cx, cz));
             }
         }
