@@ -37,16 +37,27 @@ final class TestRecipeScope {
     private static final Field LAST_RECIPE_FIELD;
 
     static {
+        Field cacheMap;
+        Field processingLogic;
+        Field lastRecipe;
         try {
-            CACHE_MAP_FIELD = RecipeMapBackend.class.getDeclaredField("cacheMap");
-            CACHE_MAP_FIELD.setAccessible(true);
-            PROCESSING_LOGIC_FIELD = MTEMultiBlockBase.class.getDeclaredField("processingLogic");
-            PROCESSING_LOGIC_FIELD.setAccessible(true);
-            LAST_RECIPE_FIELD = ProcessingLogic.class.getDeclaredField("lastRecipe");
-            LAST_RECIPE_FIELD.setAccessible(true);
+            cacheMap = RecipeMapBackend.class.getDeclaredField("cacheMap");
+            cacheMap.setAccessible(true);
+            processingLogic = MTEMultiBlockBase.class.getDeclaredField("processingLogic");
+            processingLogic.setAccessible(true);
+            lastRecipe = ProcessingLogic.class.getDeclaredField("lastRecipe");
+            lastRecipe.setAccessible(true);
         } catch (NoSuchFieldException e) {
-            throw new ExceptionInInitializerError(e);
+            LOG.warn(
+                "TestRecipeScope: GT field(s) not found — synthetic recipe cache/lastRecipe cleanup disabled: {}",
+                e.getMessage());
+            cacheMap = null;
+            processingLogic = null;
+            lastRecipe = null;
         }
+        CACHE_MAP_FIELD = cacheMap;
+        PROCESSING_LOGIC_FIELD = processingLogic;
+        LAST_RECIPE_FIELD = lastRecipe;
     }
 
     private final RecipeMap<?> recipeMap;
@@ -95,7 +106,7 @@ final class TestRecipeScope {
                     mapName));
         }
 
-        try {
+        if (CACHE_MAP_FIELD != null) try {
             GTRecipe[] cache = (GTRecipe[]) CACHE_MAP_FIELD.get(backend);
             for (int i = 0; i < cache.length; i++) {
                 if (cache[i] == recipe) cache[i] = null;
@@ -108,7 +119,7 @@ final class TestRecipeScope {
         if (!(te instanceof IGregTechTileEntity igte)) return;
         if (!(igte.getMetaTileEntity() instanceof MTEMultiBlockBase multi)) return;
 
-        try {
+        if (PROCESSING_LOGIC_FIELD != null && LAST_RECIPE_FIELD != null) try {
             ProcessingLogic pl = (ProcessingLogic) PROCESSING_LOGIC_FIELD.get(multi);
             if (pl == null) return;
             GTRecipe last = (GTRecipe) LAST_RECIPE_FIELD.get(pl);
