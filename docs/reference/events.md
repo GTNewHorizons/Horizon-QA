@@ -11,7 +11,7 @@ tags:
 
 Every test appends an ordered log of typed events. The same log is written to JUnit `<system-out>` for each `<testcase>` and to the server console (last 20 lines on failure). The goal is plain: **a CI failure must be diagnosable from the XML alone, without starting the client**.
 
-Set `-Dgametest.events=off` on the server JVM to disable recording. Emit sites use `Supplier`; when recording is off those suppliers are not called and payload work is skipped. See [JVM & system properties](jvm-flags.md).
+Set `-Dhorizonqa.events=off` on the server JVM to disable recording. Emit sites use `Supplier`; when recording is off those suppliers are not called and payload work is skipped. See [JVM & system properties](jvm-flags.md).
 
 ## Format
 
@@ -146,7 +146,7 @@ public static void exactlyOneRecipeFinished(GameTestHelper helper) {
 
 ## Cost
 
-With `-Dgametest.events=off`, emit sites are `Supplier` instances that are never invoked: no payload work and no allocations.
+With `-Dhorizonqa.events=off`, emit sites are `Supplier` instances that are never invoked: no payload work and no allocations.
 
 With recording enabled, each simulated tick during a warp performs one adapter read per watched controller — six `int` fields and a comparison. An event record is allocated only when the diff detects a change. Typical counts: about five events for a 200-tick recipe, about ten for a 20 000-tick fusion run.
 

@@ -33,7 +33,7 @@ public final class JUnitXmlReporter {
         try (var pw = new PrintWriter(Files.newBufferedWriter(path, StandardCharsets.UTF_8))) {
             pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
             pw.printf(
-                "<testsuite name=\"gametest\" tests=\"%d\" failures=\"%d\" errors=\"%d\" skipped=\"%d\""
+                "<testsuite name=\"horizonqa\" tests=\"%d\" failures=\"%d\" errors=\"%d\" skipped=\"%d\""
                     + " time=\"%.3f\" timestamp=\"%s\" hostname=\"localhost\">%n",
                 instances.size(),
                 rollup.failures(),
@@ -57,7 +57,7 @@ public final class JUnitXmlReporter {
             .getTestId();
         int sep = Math.max(testId.lastIndexOf('.'), testId.lastIndexOf('#'));
 
-        var classname = sep > 0 ? testId.substring(0, sep) : "gametest";
+        var classname = sep > 0 ? testId.substring(0, sep) : "horizonqa";
         var name = sep > 0 ? testId.substring(sep + 1) : testId;
         double time = inst.getTickCount() / TICKS_PER_SECOND;
 

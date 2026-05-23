@@ -15,7 +15,7 @@ Convention for **consumer mods** adding GameTests. This page is not about classe
 Mirror the **system under test**, not the implementing Java class:
 
 ```text
-src/main/java/<base>/gametest/
+src/main/java/<base>/tests/
   multiblock/<machine-name>/     ← single-mod multiblock tests
   compatibility/<modA>_<modB>/   ← cross-mod scenarios
 ```
@@ -29,7 +29,7 @@ The `examples/` directory in **this repository** is reserved for framework demon
 ## Structure assets
 
 ```text
-src/main/resources/assets/<modid>/gameteststructures/
+src/main/resources/assets/<modid>/horizonqastructures/
   <path>.json
   <path>_tiles.nbt
 ```
@@ -40,8 +40,8 @@ Template reference: `@GameTest(template = "path")` with `@GameTestHolder("<modid
 
 Test ids appear in:
 
-- `/gametest run <id>`
-- `TEST-gametest.xml`
+- `/horizonqa run <id>`
+- `TEST-horizonqa.xml`
 - Console batch summaries
 
 Keep the holder `value` equal to your mod id unless you have a strong reason to namespace tests separately — diverging makes results harder to trace back from CI.
@@ -54,7 +54,7 @@ Keep the holder `value` equal to your mod id unless you have a strong reason to 
 | `api.gt`     | GTNH helpers, warp, `Multiblock` façade                           |
 | `core`       | Runner, registry, grid, recorder                                  |
 | `structure`  | Template load / place / export                                    |
-| `command`    | `/gametest` command tree                                          |
+| `command`    | `/horizonqa` command tree                                         |
 | `report`     | JUnit XML and console reporting                                   |
 | `visual`     | Client overlays and wand                                          |
 | `mixin`      | Server and world hooks                                            |

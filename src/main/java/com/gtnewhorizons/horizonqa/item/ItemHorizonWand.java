@@ -34,7 +34,7 @@ public class ItemHorizonWand extends Item {
 
     public ItemHorizonWand() {
         super();
-        setUnlocalizedName("gametest.wand");
+        setUnlocalizedName("horizonqa.wand");
         setTextureName("minecraft:blaze_rod");
         setMaxStackSize(1);
         setCreativeTab(CreativeTabs.tabTools);

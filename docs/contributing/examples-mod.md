@@ -27,7 +27,7 @@ examples/
     HelperApiTests.java
     StructureTests.java
     GTNHExampleTests.java
-  src/main/resources/assets/horizonqaexamples/gameteststructures/
+  src/main/resources/assets/horizonqaexamples/horizonqastructures/
 ```
 
 Holder namespace: `horizonqaexamples` (`@GameTestHolder("horizonqaexamples")`).
@@ -41,13 +41,13 @@ Holder namespace: `horizonqaexamples` (`@GameTestHolder("horizonqaexamples")`).
 Make sure the JVM picks up:
 
 ```text
--Dgtnh.gametest=true
+-Dgtnh.horizonqa=true
 ```
 
 Then, in-game:
 
 ```text
-/gametest runall horizonqaexamples
+/horizonqa runall horizonqaexamples
 ```
 
 ## What each test class covers

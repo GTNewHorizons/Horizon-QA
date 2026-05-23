@@ -13,8 +13,8 @@ import com.gtnewhorizons.horizonqa.api.event.TestEvent;
  * Per-test ordered log of {@link TestEvent}s. One instance lives on every {@link GameTestInstance}.
  *
  * <p>
- * Recording is globally toggled by the {@code gametest.events} system property: passing
- * {@code -Dgametest.events=off} makes {@link #record} an unconditional no-op that does not even invoke
+ * Recording is globally toggled by the {@code horizonqa.events} system property: passing
+ * {@code -Dhorizonqa.events=off} makes {@link #record} an unconditional no-op that does not even invoke
  * the supplier — no record allocation, no payload computation.
  *
  * <p>
@@ -23,7 +23,7 @@ import com.gtnewhorizons.horizonqa.api.event.TestEvent;
  */
 public final class TestEventRecorder implements EventLog {
 
-    private static final boolean ENABLED = !"off".equalsIgnoreCase(System.getProperty("gametest.events", "on"));
+    private static final boolean ENABLED = !"off".equalsIgnoreCase(System.getProperty("horizonqa.events", "on"));
     private static final int MAX_EVENTS = 10_000;
 
     private final List<TestEvent> events;

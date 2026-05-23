@@ -15,7 +15,7 @@ Structures are compact JSON layouts plus optional NBT for tile entities. They ar
 After export or hand-authoring:
 
 ```text
-src/main/resources/assets/<namespace>/gameteststructures/
+src/main/resources/assets/<namespace>/horizonqastructures/
   my_cell.json
   my_cell_tiles.nbt    (optional; tile entity data)
 ```
@@ -23,7 +23,7 @@ src/main/resources/assets/<namespace>/gameteststructures/
 Runtime resolution is by classpath:
 
 ```text
-/assets/<namespace>/gameteststructures/<path>.json
+/assets/<namespace>/horizonqastructures/<path>.json
 ```
 
 Reference from tests:
@@ -40,22 +40,22 @@ public class MyTests {
 ```mermaid
 flowchart LR
     A[Build the structure<br/>in a dev world] --> B[Wand: left-click pos1,<br/>right-click pos2]
-    B --> C["/gametest export name"]
-    C --> D[Server writes JSON + NBT<br/>under serverDir/gameteststructures/]
-    D --> E[Move into<br/>assets/modid/gameteststructures/]
+    B --> C["/horizonqa export name"]
+    C --> D[Server writes JSON + NBT<br/>under serverDir/horizonqastructures/]
+    D --> E[Move into<br/>assets/modid/horizonqastructures/]
 ```
 
 1. Build the structure in a dev world with Horizon-QA enabled.
 2. Select bounds with the **Horizon Wand** — ++left-button++ for pos1, ++right-button++ for pos2.
-3. Run `/gametest export <name>`. Allowed characters: letters, digits, `_`, `-`.
-4. The server writes to `<serverDir>/gameteststructures/`:
+3. Run `/horizonqa export <name>`. Allowed characters: letters, digits, `_`, `-`.
+4. The server writes to `<serverDir>/horizonqastructures/`:
    - `<name>.json` — block palette and layers.
    - `<name>_tiles.nbt` — tile entities, if any.
-5. Move both files into your mod's `assets/<modid>/gameteststructures/`.
+5. Move both files into your mod's `assets/<modid>/horizonqastructures/`.
 
-!!! tip "Use `/gametest pos` while authoring"
+!!! tip "Use `/horizonqa pos` while authoring"
 
-    Stand inside the structure and run `/gametest pos`. The output gives you click-to-copy `helper.absolute(x, y, z)` snippets for controllers and hatch roles — much faster than translating world coordinates by hand.
+    Stand inside the structure and run `/horizonqa pos`. The output gives you click-to-copy `helper.absolute(x, y, z)` snippets for controllers and hatch roles — much faster than translating world coordinates by hand.
 
 ## Format
 
@@ -106,7 +106,7 @@ Typical subjects:
 
 ### Structure tests — exported template
 
-A **structure test** validates behaviour that emerges from a pre-built world layout: formed multiblocks, multi-tile wiring, spatial relationships between hatches. The template is exported once with `/gametest export` and loaded at test time.
+A **structure test** validates behaviour that emerges from a pre-built world layout: formed multiblocks, multi-tile wiring, spatial relationships between hatches. The template is exported once with `/horizonqa export` and loaded at test time.
 
 ```java
 @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
@@ -155,4 +155,4 @@ When in doubt, ask: *"If the layout changed tomorrow, should this test break?"* 
 | `horizonqaexamples:ebf`                  | Formed EBF with hatches       |
 | `horizonqaexamples:ebf_no_coils`         | Intentionally invalid EBF     |
 
-Source: `examples/src/main/resources/assets/horizonqaexamples/gameteststructures/`.
+Source: `examples/src/main/resources/assets/horizonqaexamples/horizonqastructures/`.

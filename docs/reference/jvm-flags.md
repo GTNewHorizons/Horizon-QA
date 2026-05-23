@@ -10,25 +10,25 @@ tags:
 
 Horizon-QA reads two system properties at startup. Both are defined in `GameTestJvmFlags`.
 
-## `gtnh.gametest`
+## `gtnh.horizonqa`
 
-| Property         | Values            | Default |
-|------------------|-------------------|---------|
-| `gtnh.gametest`  | `true` / `false`  | `false` |
+| Property          | Values            | Default |
+|-------------------|-------------------|---------|
+| `gtnh.horizonqa`  | `true` / `false`  | `false` |
 
 **Required** to activate Horizon-QA on the server:
 
 ```text
--Dgtnh.gametest=true
+-Dgtnh.horizonqa=true
 ```
 
 When `false`, the mod loads but its mixins and the test runner do not take over the dedicated world flow — there is no measurable cost.
 
-## `gametest.events`
+## `horizonqa.events`
 
-| Property          | Values                            | Default |
-|-------------------|-----------------------------------|---------|
-| `gametest.events` | `on` / `off` (case-insensitive)   | `on`    |
+| Property           | Values                            | Default |
+|--------------------|-----------------------------------|---------|
+| `horizonqa.events` | `on` / `off` (case-insensitive)   | `on`    |
 
 Controls the event recorder behind `EventLog`:
 
@@ -39,7 +39,7 @@ Controls the event recorder behind `EventLog`:
 :   Recording is a no-op. Emit sites use `Supplier` instances that are never invoked — no payload allocation work.
 
 ```text
--Dgametest.events=off
+-Dhorizonqa.events=off
 ```
 
 !!! warning "`off` removes your main failure diagnostic"
@@ -51,8 +51,8 @@ Controls the event recorder behind `EventLog`:
 ```kotlin
 tasks.named<JavaExec>("runServer") {
     jvmArgs(
-        "-Dgtnh.gametest=true",
-        // "-Dgametest.events=off",  // micro-benchmarks only
+        "-Dgtnh.horizonqa=true",
+        // "-Dhorizonqa.events=off",  // micro-benchmarks only
     )
 }
 ```
@@ -62,7 +62,7 @@ tasks.named<JavaExec>("runServer") {
 JUnit output path is fixed, relative to the server process working directory:
 
 ```text
-TEST-gametest.xml
+TEST-horizonqa.xml
 ```
 
 No system property overrides this path today; archive the file directly in CI after the batch completes.

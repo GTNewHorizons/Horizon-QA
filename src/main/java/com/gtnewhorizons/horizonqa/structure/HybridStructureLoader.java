@@ -22,7 +22,7 @@ import com.google.gson.JsonObject;
 
 public final class HybridStructureLoader {
 
-    private static final Logger LOG = LogManager.getLogger("GameTest");
+    private static final Logger LOG = LogManager.getLogger("HorizonQA");
     private static final Gson GSON = new Gson();
 
     private HybridStructureLoader() {}
@@ -35,8 +35,8 @@ public final class HybridStructureLoader {
         String namespace = parts[0];
         String path = parts[1];
 
-        String jsonResource = "/assets/" + namespace + "/gameteststructures/" + path + ".json";
-        String nbtResource = "/assets/" + namespace + "/gameteststructures/" + path + "_tiles.nbt";
+        String jsonResource = "/assets/" + namespace + "/horizonqastructures/" + path + ".json";
+        String nbtResource = "/assets/" + namespace + "/horizonqastructures/" + path + "_tiles.nbt";
 
         InputStream jsonStream = HybridStructureLoader.class.getResourceAsStream(jsonResource);
         if (jsonStream == null) {

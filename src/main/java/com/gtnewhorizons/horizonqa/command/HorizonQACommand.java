@@ -41,7 +41,7 @@ public class HorizonQACommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/gametest <run|runall|runfailed|runthis|runthat|pos|clearall|export>";
+        return "/horizonqa <run|runall|runfailed|runthis|runthat|pos|clearall|export>";
     }
 
     @Override
@@ -123,7 +123,7 @@ public class HorizonQACommand extends CommandBase {
 
     private void handleRun(ICommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Usage: /gametest run <testId>"));
+            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Usage: /horizonqa run <testId>"));
             return;
         }
         String testId = args[1];
@@ -135,7 +135,7 @@ public class HorizonQACommand extends CommandBase {
                         + EnumChatFormatting.YELLOW
                         + testId
                         + EnumChatFormatting.RED
-                        + "'. Use /gametest runall to list available tests."));
+                        + "'. Use /horizonqa runall to list available tests."));
             return;
         }
         InteractiveTestSession.get()
@@ -230,7 +230,7 @@ public class HorizonQACommand extends CommandBase {
             sender.addChatMessage(
                 new ChatComponentText(
                     EnumChatFormatting.RED + "You are not inside any known test cell. "
-                        + "Run /gametest runall first to place cells."));
+                        + "Run /horizonqa runall first to place cells."));
             return;
         }
         relaunchCell(sender, cell);
@@ -248,7 +248,7 @@ public class HorizonQACommand extends CommandBase {
             sender.addChatMessage(
                 new ChatComponentText(
                     EnumChatFormatting.RED + "No test cell in your line of sight (within 64 blocks). "
-                        + "Run /gametest runall first."));
+                        + "Run /horizonqa runall first."));
             return;
         }
         relaunchCell(sender, cell);
@@ -292,7 +292,7 @@ public class HorizonQACommand extends CommandBase {
         }
         if (cell == null) {
             sender.addChatMessage(
-                new ChatComponentText(EnumChatFormatting.RED + "No test cells found. Run /gametest runall first."));
+                new ChatComponentText(EnumChatFormatting.RED + "No test cells found. Run /horizonqa runall first."));
             return;
         }
 
@@ -338,7 +338,7 @@ public class HorizonQACommand extends CommandBase {
 
     private void handleExport(ICommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Usage: /gametest export <name>"));
+            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Usage: /horizonqa export <name>"));
             return;
         }
 
@@ -387,7 +387,7 @@ public class HorizonQACommand extends CommandBase {
 
         WorldServer world = (WorldServer) player.worldObj;
         File outputDir = MinecraftServer.getServer()
-            .getFile("gameteststructures");
+            .getFile("horizonqastructures");
 
         try {
             StructureExporter.export(world, minX, minY, minZ, maxX, maxY, maxZ, outputDir, name);

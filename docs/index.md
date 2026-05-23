@@ -19,10 +19,10 @@ tags:
 
 !!! abstract "At a glance"
 
-    - Forge **1.7.10**, Java **8** bytecode, opt-in via `-Dgtnh.gametest=true`.
+    - Forge **1.7.10**, Java **8** bytecode, opt-in via `-Dgtnh.horizonqa=true`.
     - Tests are plain `@GameTest` static methods on `@GameTestHolder` classes — discovered by ASM at server start.
     - Each test runs in an isolated cell on a dedicated void world; failures stay placed for in-game triage.
-    - Output is a single `TEST-gametest.xml` suitable for any JUnit-aware CI.
+    - Output is a single `TEST-horizonqa.xml` suitable for any JUnit-aware CI.
 
 ## What it is for
 
@@ -86,7 +86,7 @@ See [Negative assertions](guide/negative-tests.md) for the rest of the pattern.
 
     ---
 
-    Single `TEST-gametest.xml` with failures, warnings, and optional event traces per case.
+    Single `TEST-horizonqa.xml` with failures, warnings, and optional event traces per case.
 
 </div>
 
