@@ -6,10 +6,8 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 /**
  * Immutable snapshot of a multiblock controller's recipe state at a single tick. Produced by
  * {@link com.gtnewhorizons.horizonqa.api.gt.adapter.GTAdapter#snapshotRecipeState GTAdapter.snapshotRecipeState} so
- * that
- * the warp differ in {@link com.gtnewhorizons.horizonqa.api.gt.TimeWarpHandler TimeWarpHandler} can compare across
- * ticks
- * without referencing GT types.
+ * that the warp differ in {@link com.gtnewhorizons.horizonqa.api.gt.TimeWarpHandler TimeWarpHandler} can compare across
+ * ticks without referencing GT types.
  */
 @Experimental
 @Desugar

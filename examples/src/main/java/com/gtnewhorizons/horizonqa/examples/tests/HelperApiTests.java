@@ -1,6 +1,5 @@
 package com.gtnewhorizons.horizonqa.examples.tests;
 
-import com.gtnewhorizons.horizonqa.examples.ExamplesMod;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.IInventory;
@@ -14,6 +13,7 @@ import com.gtnewhorizons.horizonqa.api.Weather;
 import com.gtnewhorizons.horizonqa.api.annotation.BeforeBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
+import com.gtnewhorizons.horizonqa.examples.ExamplesMod;
 
 @GameTestHolder(ExamplesMod.MODID)
 public class HelperApiTests {

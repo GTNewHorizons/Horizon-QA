@@ -9,8 +9,8 @@ import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
 import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.horizonqa.api.gt.MaintenanceType;
 import com.gtnewhorizons.horizonqa.api.gt.Multiblock;
-
 import com.gtnewhorizons.horizonqa.examples.ExamplesMod;
+
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.TierEU;
