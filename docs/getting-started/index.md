@@ -7,11 +7,11 @@ tags:
 
 # Getting started
 
-Horizon-QA ships as a Forge mod (`gametest`) that other mods depend on at **development and CI time**. Tests are plain Java classes discovered at runtime via `@GameTestHolder` / `@GameTest` — there is no separate registration step.
+Horizon-QA ships as a Forge mod (`horizonqa`) that other mods depend on at **development and CI time**. Tests are plain Java classes discovered at runtime via `@GameTestHolder` / `@GameTest` — there is no separate registration step.
 
 !!! abstract "What you will have at the end"
 
-    A `runServer` task that launches Minecraft with `-Dgtnh.gametest=true`, runs every test in your mod, leaves failed cells in the world for inspection, and writes a JUnit XML report next to the server directory.
+    A `runServer` task that launches Minecraft with `-Dgtnh.horizonqa=true`, runs every test in your mod, leaves failed cells in the world for inspection, and writes a JUnit XML report next to the server directory.
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ Horizon-QA ships as a Forge mod (`gametest`) that other mods depend on at **deve
 
 The three pages below are sequenced; skim them in order if you are new to the framework.
 
-1. [Enable & run](enable-and-run.md) — JVM flag, dedicated world, `/gametest` commands, examples mod.
+1. [Enable & run](enable-and-run.md) — JVM flag, dedicated world, `/horizonqa` commands, examples mod.
 2. [Your first test](first-test.md) — minimal `@GameTest`, assertions, success conditions.
 3. [Mod project setup](mod-setup.md) — Gradle dependency, classpath assets, package layout.
 
@@ -33,7 +33,7 @@ The repository includes `examples/`, a Gradle subproject that depends on Horizon
 
 ```text
 examples/src/main/java/.../tests/                       # @GameTest classes
-examples/src/main/resources/assets/<namespace>/gameteststructures/
+examples/src/main/resources/assets/<namespace>/horizonqastructures/
 ```
 
 See [Examples mod](../contributing/examples-mod.md) for the Gradle wiring.

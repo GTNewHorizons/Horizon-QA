@@ -26,14 +26,14 @@ Pin the version to the same Horizon-QA build your pack or meta-repo uses. The `e
 **Server** runs that execute tests must include:
 
 ```text
--Dgtnh.gametest=true
+-Dgtnh.horizonqa=true
 ```
 
 === "Gradle (Kotlin DSL)"
 
     ```kotlin
     tasks.named<JavaExec>("runServer") {
-        jvmArgs("-Dgtnh.gametest=true")
+        jvmArgs("-Dgtnh.horizonqa=true")
     }
     ```
 
@@ -41,7 +41,7 @@ Pin the version to the same Horizon-QA build your pack or meta-repo uses. The `e
 
     ```groovy
     runServer {
-        jvmArgs '-Dgtnh.gametest=true'
+        jvmArgs '-Dgtnh.horizonqa=true'
     }
     ```
 
@@ -52,10 +52,10 @@ Client runs only need the flag if you are exercising client-only visuals. Batch 
 Recommended layout for a mod named `mymod`:
 
 ```text
-src/main/java/.../gametest/
+src/main/java/.../tests/
   multiblock/<machine>/             ← single-mod multiblock tests
   compatibility/<modA>_<modB>/      ← cross-mod scenarios
-src/main/resources/assets/mymod/gameteststructures/
+src/main/resources/assets/mymod/horizonqastructures/
   ebf.json
   ebf_tiles.nbt
 ```
@@ -79,8 +79,8 @@ There is no manual registration list and no service-file step.
 Templates load from the classpath:
 
 ```text
-/assets/<namespace>/gameteststructures/<path>.json
-/assets/<namespace>/gameteststructures/<path>_tiles.nbt   (optional)
+/assets/<namespace>/horizonqastructures/<path>.json
+/assets/<namespace>/horizonqastructures/<path>_tiles.nbt   (optional)
 ```
 
 `@GameTest(template = "ebf")` declared on a class with `@GameTestHolder("mymod")` resolves to `mymod:ebf`. Use `template = "othermod:shared/cell"` to reference a fully qualified template from another mod, or `templatePrefix` on the holder to share a prefix across a class.
@@ -93,7 +93,7 @@ The `examples` subproject is the canonical reference:
 - `GTNHExampleTests` — EBF formation, EU supply, maintenance gating, synthetic recipes.
 - `StructureTests` — template placement and block-level assertions.
 
-Run `./gradlew :examples:runServer -Dgtnh.gametest=true` to iterate against them.
+Run `./gradlew :examples:runServer -Dgtnh.horizonqa=true` to iterate against them.
 
 ## Publishing
 

@@ -13,7 +13,7 @@ tags:
 ## Multiblock roles
 
 ```java
-import static com.gtnewhorizons.gametest.api.TestPos.at;
+import static com.gtnewhorizons.horizonqa.api.TestPos.at;
 
 Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0)); // (1)!
 ebf.assertFormed();

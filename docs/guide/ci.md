@@ -1,6 +1,6 @@
 ---
 title: CI & JUnit reports
-description: TEST-gametest.xml format, event traces in CI, and a sketch of Gradle / GitHub Actions wiring.
+description: TEST-horizonqa.xml format, event traces in CI, and a sketch of Gradle / GitHub Actions wiring.
 tags:
   - guides
   - ci
@@ -8,12 +8,12 @@ tags:
 
 # CI & JUnit reports
 
-Batch execution writes **`TEST-gametest.xml`** in the server working directory when `/gametest runall` (or a headless batch entrypoint) completes. The format is the standard JUnit XML schema, so any JUnit-aware result publisher will pick it up unchanged.
+Batch execution writes **`TEST-horizonqa.xml`** in the server working directory when `/horizonqa runall` (or a headless batch entrypoint) completes. The format is the standard JUnit XML schema, so any JUnit-aware result publisher will pick it up unchanged.
 
 ## Report contents
 
 ```xml
-<testsuite name="gametest" tests="…" failures="…" errors="…" skipped="…" …>
+<testsuite name="horizonqa" tests="…" failures="…" errors="…" skipped="…" …>
   <testcase name="methodName" classname="namespace:ClassName" time="…">
     <!-- failure / error / system-out elements as appropriate -->
   </testcase>
@@ -35,7 +35,7 @@ When event recording is enabled (default), each `<testcase>` can include the ord
 Disable for perf-sensitive jobs only — you lose the main failure diagnostic:
 
 ```text
--Dgametest.events=off
+-Dhorizonqa.events=off
 ```
 
 Full catalog: [Test event log](../reference/events.md).
@@ -44,17 +44,17 @@ Full catalog: [Test event log](../reference/events.md).
 
 ```mermaid
 flowchart LR
-    A[Start dedicated server<br/>with -Dgtnh.gametest=true] --> B[Trigger batch<br/>command block / RCON / entrypoint]
-    B --> C[Server writes<br/>TEST-gametest.xml]
+    A[Start dedicated server<br/>with -Dgtnh.horizonqa=true] --> B[Trigger batch<br/>command block / RCON / entrypoint]
+    B --> C[Server writes<br/>TEST-horizonqa.xml]
     C --> D[Archive as<br/>build artifact]
     D --> E[Publish via JUnit-aware<br/>action / plugin]
 ```
 
 In words:
 
-1. Start a dedicated server with `-Dgtnh.gametest=true`.
-2. Trigger a batch — typically via a command block, RCON, or a mod-specific CI entrypoint that calls `/gametest runall` once the world is ready.
-3. Archive `TEST-gametest.xml` as a build artifact.
+1. Start a dedicated server with `-Dgtnh.horizonqa=true`.
+2. Trigger a batch — typically via a command block, RCON, or a mod-specific CI entrypoint that calls `/horizonqa runall` once the world is ready.
+3. Archive `TEST-horizonqa.xml` as a build artifact.
 4. Point Jenkins / GitHub Actions `publish-unit-test-result` (or your equivalent) at the XML.
 
 This repository's docs site build ([`.github/workflows/publish.yml`](https://github.com/GTNewHorizons/Horizon-QA/blob/master/.github/workflows/publish.yml)) runs `mkdocs build` and `./gradlew :javadoc` on push to `master`. Consumer mods wire their own game-test CI on top of the same shape.
@@ -66,8 +66,8 @@ Optional tests that fail may be reported without failing the suite aggregate. Re
 ## Local iteration loop
 
 ```text
-edit test → runServer → /gametest run <id>   → inspect overlay + XML
-         → /gametest runfailed              → re-run only the failures
+edit test → runServer → /horizonqa run <id>   → inspect overlay + XML
+         → /horizonqa runfailed              → re-run only the failures
 ```
 
 ## Publishing these docs
