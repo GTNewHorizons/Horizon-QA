@@ -964,8 +964,9 @@ public class GameTestHelper {
             .getGameRuleStringValue("randomTickSpeed");
         world.getGameRules()
             .setOrCreateGameRule("randomTickSpeed", "0");
-        afterTest(() -> world.getGameRules()
-            .setOrCreateGameRule("randomTickSpeed", original));
+        afterTest(
+            () -> world.getGameRules()
+                .setOrCreateGameRule("randomTickSpeed", original));
     }
 
     /**
