@@ -10,12 +10,13 @@ import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.horizonqa.api.gt.MaintenanceType;
 import com.gtnewhorizons.horizonqa.api.gt.Multiblock;
 
+import com.gtnewhorizons.horizonqa.examples.ExamplesMod;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.TierEU;
 import gregtech.api.util.GTRecipeBuilder;
 
-@GameTestHolder(value = "gametestexamples")
+@GameTestHolder(ExamplesMod.MODID)
 public class GTNHExampleTests {
 
     @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")

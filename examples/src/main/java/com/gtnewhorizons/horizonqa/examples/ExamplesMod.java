@@ -13,7 +13,7 @@ import cpw.mods.fml.common.event.FMLServerStartingEvent;
 @Mod(
     modid = ExamplesMod.MODID,
     version = Tags.VERSION,
-    name = "GTNH GameTest Examples",
+    name = "Horizon QA Examples",
     acceptedMinecraftVersions = "[1.7.10]")
 public class ExamplesMod {
 
@@ -21,8 +21,8 @@ public class ExamplesMod {
     public static final Logger LOG = LogManager.getLogger(MODID);
 
     @SidedProxy(
-        clientSide = "com.gtnewhorizons.gametest.examples.ClientProxy",
-        serverSide = "com.gtnewhorizons.gametest.examples.CommonProxy")
+        clientSide = "com.gtnewhorizons.horizonqa.examples.ClientProxy",
+        serverSide = "com.gtnewhorizons.horizonqa.examples.CommonProxy")
     public static CommonProxy proxy;
 
     @Mod.EventHandler

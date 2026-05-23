@@ -1,12 +1,13 @@
 package com.gtnewhorizons.horizonqa.examples.tests;
 
+import com.gtnewhorizons.horizonqa.examples.ExamplesMod;
 import net.minecraft.init.Blocks;
 
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
 
-@GameTestHolder("gametestexamples")
+@GameTestHolder(ExamplesMod.MODID)
 public class StructureTests {
 
     @GameTest(template = "single_stone", timeoutTicks = 20)

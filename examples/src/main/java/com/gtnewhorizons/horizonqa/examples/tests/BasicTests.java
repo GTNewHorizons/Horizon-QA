@@ -5,8 +5,9 @@ import com.gtnewhorizons.horizonqa.api.annotation.AfterBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.BeforeBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
+import com.gtnewhorizons.horizonqa.examples.ExamplesMod;
 
-@GameTestHolder("gametestexamples")
+@GameTestHolder(ExamplesMod.MODID)
 public class BasicTests {
 
     @BeforeBatch("")

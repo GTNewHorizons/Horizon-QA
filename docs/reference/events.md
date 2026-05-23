@@ -44,7 +44,7 @@ Three sources, in roughly the order they appear in a typical trace:
 
 ## Catalog
 
-Records live in `com.gtnewhorizons.gametest.api.event`. All are Java records, all carry a `tick` and a one-line `summary()`.
+Records live in `com.gtnewhorizons.horizonqa.api.event`. All are Java records, all carry a `tick` and a one-line `summary()`.
 
 ### Lifecycle
 

@@ -46,7 +46,7 @@ In-game (operator permission level **2**):
 |----------------------------------|----------------------------------------------------------------------|
 | `/gametest runall`               | Run every discovered test                                            |
 | `/gametest runall <namespace>`   | Run tests whose id starts with `<namespace>:`                        |
-| `/gametest run <testId>`         | Run one test by id, e.g. `gametestexamples:BasicTests.passImmediately` |
+| `/gametest run <testId>`         | Run one test by id, e.g. `horizonqaexamples:BasicTests.passImmediately` |
 | `/gametest runfailed`            | Re-run only the tests that failed in the last batch                  |
 | `/gt`                            | Alias for `/gametest`                                                |
 

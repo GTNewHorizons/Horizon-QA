@@ -12,7 +12,11 @@ import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 
-@Mod(modid = HorizonQAMod.MODID, version = Tags.VERSION, name = HorizonQAMod.NAME, acceptedMinecraftVersions = "[1.7.10]")
+@Mod(
+    modid = HorizonQAMod.MODID,
+    version = Tags.VERSION,
+    name = HorizonQAMod.NAME,
+    acceptedMinecraftVersions = "[1.7.10]")
 public class HorizonQAMod {
 
     public static final String MODID = "horizonqa";

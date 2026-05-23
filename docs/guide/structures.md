@@ -150,9 +150,9 @@ When in doubt, ask: *"If the layout changed tomorrow, should this test break?"* 
 
 | Template                                | Purpose                       |
 |-----------------------------------------|-------------------------------|
-| `gametestexamples:single_stone`         | Single block                  |
-| `gametestexamples:stone_platform`       | Small platform                |
-| `gametestexamples:ebf`                  | Formed EBF with hatches       |
-| `gametestexamples:ebf_no_coils`         | Intentionally invalid EBF     |
+| `horizonqaexamples:single_stone`         | Single block                  |
+| `horizonqaexamples:stone_platform`       | Small platform                |
+| `horizonqaexamples:ebf`                  | Formed EBF with hatches       |
+| `horizonqaexamples:ebf_no_coils`         | Intentionally invalid EBF     |
 
-Source: `examples/src/main/resources/assets/gametestexamples/gameteststructures/`.
+Source: `examples/src/main/resources/assets/horizonqaexamples/gameteststructures/`.

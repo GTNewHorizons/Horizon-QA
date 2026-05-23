@@ -39,7 +39,7 @@ Output directory: `<serverDir>/gameteststructures/`.
 === "Single test debug"
 
     ```text
-    /gametest run gametestexamples:GTNHExampleTests.testTitaniumSmelting
+    /gametest run horizonqaexamples:GTNHExampleTests.testTitaniumSmelting
     ```
 
 === "Full mod suite"
