@@ -148,7 +148,7 @@ final class WarpDiffer {
                     pos,
                     now.eut(),
                     now.maxProgressTime(),
-                    1));
+                    now.parallels()));
             lastProgressMilestone.put(pos, 0);
         }
 

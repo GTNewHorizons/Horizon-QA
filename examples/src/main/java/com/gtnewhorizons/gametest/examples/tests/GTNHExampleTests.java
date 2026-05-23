@@ -142,6 +142,31 @@ public class GTNHExampleTests {
         helper.succeed();
     }
 
+    @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
+    public static void testParallelHelper(GameTestHelper helper) {
+        GTNHGameTestHelper gtnh = helper.gtnh();
+        Multiblock ebf = gtnh.multiblock(at(1, 0, 0));
+        ebf.assertFormed();
+        ebf.fixMaintenance();
+
+        GTRecipeBuilder synthetic = GTValues.RA.stdBuilder()
+            .itemInputs(Materials.Lead.getDust(1))
+            .itemOutputs(Materials.Gold.getIngots(1))
+            .duration(10)
+            .eut(TierEU.LV);
+
+        gtnh.withTestRecipe(ebf, synthetic);
+        ebf.inputBus(0)
+            .insert(Materials.Lead.getDust(8));
+        ebf.energyHatch(0)
+            .supply(TierEU.EV, 1, 300);
+        ebf.runRecipe();
+        ebf.outputs()
+            .assertContains(Materials.Gold.getIngots(1));
+
+        helper.succeed();
+    }
+
     @GameTest(template = "distillation_tower_4", timeoutTicks = 1500, batch = "gtnh")
     public static void testDistillationTowerOutputRouting(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();

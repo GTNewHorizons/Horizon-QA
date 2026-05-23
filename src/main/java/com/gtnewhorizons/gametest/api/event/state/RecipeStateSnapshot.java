@@ -12,9 +12,9 @@ import com.gtnewhorizons.gametest.api.annotation.Experimental;
 @Experimental
 @Desugar
 public record RecipeStateSnapshot(boolean formed, int progressTime, int maxProgressTime, long eut, int efficiency,
-    String checkRecipeResultId) {
+    String checkRecipeResultId, int parallels) {
 
-    public static final RecipeStateSnapshot EMPTY = new RecipeStateSnapshot(false, 0, 0, 0L, 0, "");
+    public static final RecipeStateSnapshot EMPTY = new RecipeStateSnapshot(false, 0, 0, 0L, 0, "", 0);
 
     public boolean isActive() {
         return maxProgressTime > 0;
