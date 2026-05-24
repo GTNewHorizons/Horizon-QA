@@ -19,6 +19,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatStyle;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraft.world.WorldServer;
 
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
@@ -418,7 +419,9 @@ public class HorizonQACommand extends CommandBase {
         if (player == null) return;
         ItemStack wand = findWand(player);
         if (wand == null) {
-            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Hold a Horizon Wand first."));
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + StatCollector.translateToLocal("horizonqa.command.clear.no_wand")));
             return;
         }
         NBTTagCompound nbt = wand.getTagCompound();
@@ -433,7 +436,9 @@ public class HorizonQACommand extends CommandBase {
             nbt.removeTag(ItemHorizonWand.TAG_POS2_SET);
             nbt.removeTag(ItemHorizonWand.TAG_PENDING);
         }
-        sender.addChatMessage(new ChatComponentText(EnumChatFormatting.GREEN + "Wand selection cleared."));
+        sender.addChatMessage(
+            new ChatComponentText(
+                EnumChatFormatting.GREEN + StatCollector.translateToLocal("horizonqa.command.clear.success")));
     }
 
     private static GameTestDefinition findDefinition(String testId) {

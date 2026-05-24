@@ -1,1 +1,24 @@
 item.horizonqa.wand.name=Horizon Wand
+
+horizonqa.command.clear.no_wand=Hold a Horizon Wand first.
+horizonqa.command.clear.success=Wand selection cleared.
+
+horizonqa.wand.pos1.set=Pos1 set to (%d, %d, %d)
+horizonqa.wand.pos2.set=Pos2 set to (%d, %d, %d)
+
+horizonqa.wand.hud.mode=§7Mode: %s
+horizonqa.wand.hud.mode.surface=§eSURFACE
+horizonqa.wand.hud.mode.block=§7BLOCK
+horizonqa.wand.hud.pos1=§aPos1: §f%s
+horizonqa.wand.hud.pos1.unset=§7Pos1: §8—
+horizonqa.wand.hud.pos2=§bPos2: §f%s
+horizonqa.wand.hud.pos2.pending=§bPos2: §eaim & right-click
+horizonqa.wand.hud.pos2.unset=§7Pos2: §8—
+horizonqa.wand.hud.size=§eSize: §f%s×%s×%s §7(%s)
+
+horizonqa.wand.tooltip.pos1.unset=§7Pos1: §8Not set (left-click or right-click)
+horizonqa.wand.tooltip.pos1=§aPos1: §f(%d, %d, %d)
+horizonqa.wand.tooltip.pos2.unset=§7Pos2: §8Not set
+horizonqa.wand.tooltip.pos2.pending=§7Pos2: §eAim and right-click to confirm
+horizonqa.wand.tooltip.pos2=§bPos2: §f(%d, %d, %d)
+horizonqa.wand.tooltip.size=§eSize: §f%d×%d×%d

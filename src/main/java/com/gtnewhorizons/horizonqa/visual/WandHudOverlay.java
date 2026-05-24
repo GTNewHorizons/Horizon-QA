@@ -5,6 +5,7 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.MovingObjectPosition;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
@@ -36,8 +37,13 @@ public final class WandHudOverlay {
         int lineH = fr.FONT_HEIGHT + 2;
         int x = 4, y = 4;
 
-        String modeStr = surfaceMode ? "§eSURFACE" : "§7BLOCK";
-        fr.drawStringWithShadow("§7Mode: " + modeStr, x, y, 0xFFFFFF);
+        String modeStr = surfaceMode ? StatCollector.translateToLocal("horizonqa.wand.hud.mode.surface")
+            : StatCollector.translateToLocal("horizonqa.wand.hud.mode.block");
+        fr.drawStringWithShadow(
+            String.format(StatCollector.translateToLocal("horizonqa.wand.hud.mode"), modeStr),
+            x,
+            y,
+            0xFFFFFF);
         y += lineH;
 
         if (pos1Set) {
@@ -45,9 +51,13 @@ public final class WandHudOverlay {
                 + nbt.getInteger(ItemHorizonWand.TAG_POS1_Y)
                 + ", "
                 + nbt.getInteger(ItemHorizonWand.TAG_POS1_Z);
-            fr.drawStringWithShadow("§aPos1: §f" + coords, x, y, 0xFFFFFF);
+            fr.drawStringWithShadow(
+                String.format(StatCollector.translateToLocal("horizonqa.wand.hud.pos1"), coords),
+                x,
+                y,
+                0xFFFFFF);
         } else {
-            fr.drawStringWithShadow("§7Pos1: §8—", x, y, 0xFFFFFF);
+            fr.drawStringWithShadow(StatCollector.translateToLocal("horizonqa.wand.hud.pos1.unset"), x, y, 0xFFFFFF);
         }
         y += lineH;
 
@@ -56,11 +66,15 @@ public final class WandHudOverlay {
                 + nbt.getInteger(ItemHorizonWand.TAG_POS2_Y)
                 + ", "
                 + nbt.getInteger(ItemHorizonWand.TAG_POS2_Z);
-            fr.drawStringWithShadow("§bPos2: §f" + coords, x, y, 0xFFFFFF);
+            fr.drawStringWithShadow(
+                String.format(StatCollector.translateToLocal("horizonqa.wand.hud.pos2"), coords),
+                x,
+                y,
+                0xFFFFFF);
         } else if (pending) {
-            fr.drawStringWithShadow("§bPos2: §eaim & right-click", x, y, 0xFFFFFF);
+            fr.drawStringWithShadow(StatCollector.translateToLocal("horizonqa.wand.hud.pos2.pending"), x, y, 0xFFFFFF);
         } else {
-            fr.drawStringWithShadow("§7Pos2: §8—", x, y, 0xFFFFFF);
+            fr.drawStringWithShadow(StatCollector.translateToLocal("horizonqa.wand.hud.pos2.unset"), x, y, 0xFFFFFF);
         }
         y += lineH;
 
@@ -72,7 +86,12 @@ public final class WandHudOverlay {
             int dz = Math.abs(nbt.getInteger(ItemHorizonWand.TAG_POS2_Z) - nbt.getInteger(ItemHorizonWand.TAG_POS1_Z))
                 + 1;
             fr.drawStringWithShadow(
-                "§eSize: §f" + dx + "×" + dy + "×" + dz + " §7(" + (dx * dy * dz) + ")",
+                String.format(
+                    StatCollector.translateToLocal("horizonqa.wand.hud.size"),
+                    dx,
+                    dy,
+                    dz,
+                    dx * dy * dz),
                 x,
                 y,
                 0xFFFFFF);

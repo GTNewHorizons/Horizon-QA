@@ -13,6 +13,7 @@ import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.MovingObjectPosition;
+import net.minecraft.util.StatCollector;
 import net.minecraft.util.Vec3;
 import net.minecraft.world.World;
 
@@ -140,15 +141,8 @@ public class ItemHorizonWand extends Item {
         nbt.setBoolean(TAG_PENDING, true);
         player.addChatMessage(
             new ChatComponentText(
-                EnumChatFormatting.GREEN + "Pos1"
-                    + EnumChatFormatting.RESET
-                    + " set to ("
-                    + x
-                    + ", "
-                    + y
-                    + ", "
-                    + z
-                    + ")"));
+                EnumChatFormatting.GREEN
+                    + String.format(StatCollector.translateToLocal("horizonqa.wand.pos1.set"), x, y, z)));
     }
 
     public static void setPos2(ItemStack stack, EntityPlayer player, int x, int y, int z) {
@@ -160,15 +154,8 @@ public class ItemHorizonWand extends Item {
         nbt.setBoolean(TAG_PENDING, false);
         player.addChatMessage(
             new ChatComponentText(
-                EnumChatFormatting.AQUA + "Pos2"
-                    + EnumChatFormatting.RESET
-                    + " set to ("
-                    + x
-                    + ", "
-                    + y
-                    + ", "
-                    + z
-                    + ")"));
+                EnumChatFormatting.AQUA
+                    + String.format(StatCollector.translateToLocal("horizonqa.wand.pos2.set"), x, y, z)));
     }
 
     @Override
@@ -178,47 +165,35 @@ public class ItemHorizonWand extends Item {
         NBTTagCompound nbt = stack.getTagCompound();
 
         if (nbt == null || !nbt.getBoolean(TAG_POS1_SET)) {
-            list.add(
-                EnumChatFormatting.GRAY + "Pos1: "
-                    + EnumChatFormatting.DARK_GRAY
-                    + "Not set (left-click or right-click)");
+            list.add(StatCollector.translateToLocal("horizonqa.wand.tooltip.pos1.unset"));
         } else {
             list.add(
-                EnumChatFormatting.GREEN + "Pos1: "
-                    + EnumChatFormatting.WHITE
-                    + "("
-                    + nbt.getInteger(TAG_POS1_X)
-                    + ", "
-                    + nbt.getInteger(TAG_POS1_Y)
-                    + ", "
-                    + nbt.getInteger(TAG_POS1_Z)
-                    + ")");
+                String.format(
+                    StatCollector.translateToLocal("horizonqa.wand.tooltip.pos1"),
+                    nbt.getInteger(TAG_POS1_X),
+                    nbt.getInteger(TAG_POS1_Y),
+                    nbt.getInteger(TAG_POS1_Z)));
         }
 
         boolean pending = nbt != null && nbt.getBoolean(TAG_PENDING);
         if (nbt == null || !nbt.getBoolean(TAG_POS2_SET)) {
             list.add(
-                EnumChatFormatting.GRAY + "Pos2: "
-                    + (pending ? EnumChatFormatting.YELLOW + "Aim and right-click to confirm"
-                        : EnumChatFormatting.DARK_GRAY + "Not set"));
+                StatCollector.translateToLocal(
+                    pending ? "horizonqa.wand.tooltip.pos2.pending" : "horizonqa.wand.tooltip.pos2.unset"));
         } else {
             list.add(
-                EnumChatFormatting.AQUA + "Pos2: "
-                    + EnumChatFormatting.WHITE
-                    + "("
-                    + nbt.getInteger(TAG_POS2_X)
-                    + ", "
-                    + nbt.getInteger(TAG_POS2_Y)
-                    + ", "
-                    + nbt.getInteger(TAG_POS2_Z)
-                    + ")");
+                String.format(
+                    StatCollector.translateToLocal("horizonqa.wand.tooltip.pos2"),
+                    nbt.getInteger(TAG_POS2_X),
+                    nbt.getInteger(TAG_POS2_Y),
+                    nbt.getInteger(TAG_POS2_Z)));
         }
 
         if (nbt != null && nbt.getBoolean(TAG_POS1_SET) && nbt.getBoolean(TAG_POS2_SET)) {
             int dx = Math.abs(nbt.getInteger(TAG_POS2_X) - nbt.getInteger(TAG_POS1_X)) + 1;
             int dy = Math.abs(nbt.getInteger(TAG_POS2_Y) - nbt.getInteger(TAG_POS1_Y)) + 1;
             int dz = Math.abs(nbt.getInteger(TAG_POS2_Z) - nbt.getInteger(TAG_POS1_Z)) + 1;
-            list.add(EnumChatFormatting.YELLOW + "Size: " + dx + "×" + dy + "×" + dz);
+            list.add(String.format(StatCollector.translateToLocal("horizonqa.wand.tooltip.size"), dx, dy, dz));
         }
     }
 
