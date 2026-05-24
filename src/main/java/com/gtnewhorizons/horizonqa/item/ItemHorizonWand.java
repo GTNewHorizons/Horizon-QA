@@ -195,6 +195,8 @@ public class ItemHorizonWand extends Item {
             int dz = Math.abs(nbt.getInteger(TAG_POS2_Z) - nbt.getInteger(TAG_POS1_Z)) + 1;
             list.add(String.format(StatCollector.translateToLocal("horizonqa.wand.tooltip.size"), dx, dy, dz));
         }
+
+        list.add(StatCollector.translateToLocal("horizonqa.wand.tooltip.surface_mode"));
     }
 
     public static NBTTagCompound getOrCreateNBT(ItemStack stack) {

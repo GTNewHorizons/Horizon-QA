@@ -22,3 +22,4 @@ horizonqa.wand.tooltip.pos2.unset=§7Pos2: §8Not set
 horizonqa.wand.tooltip.pos2.pending=§7Pos2: §eAim and right-click to confirm
 horizonqa.wand.tooltip.pos2=§bPos2: §f(%d, %d, %d)
 horizonqa.wand.tooltip.size=§eSize: §f%d×%d×%d
+horizonqa.wand.tooltip.surface_mode=§8Hold Shift while selecting for §esurface mode
