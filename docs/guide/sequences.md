@@ -78,9 +78,47 @@ helper.startSequence()
     .thenExecuteAtStart(nextStimulus);
 ```
 
+## Setup code and startSequence
+
+The test body itself runs during tick START. Code placed before `startSequence()` executes
+in the same tick and phase as a leading `thenExecuteAtStart`, so both patterns are equivalent:
+
+=== "Setup before `startSequence`"
+
+    ```java
+    @GameTest(template = "stone_platform")
+    public static void example(GameTestHelper helper) {
+        helper.setBlock(0, 1, 0, Blocks.chest);          // runs at tick START
+        helper.startSequence()
+            .thenWaitUntil(() -> helper.assertBlockPresent(helper.absolute(0, 1, 0), Blocks.chest))
+            .thenSucceed();
+    }
+    ```
+
+=== "Setup inside `thenExecuteAtStart`"
+
+    ```java
+    @GameTest(template = "stone_platform")
+    public static void example(GameTestHelper helper) {
+        helper.startSequence()
+            .thenExecuteAtStart(() -> helper.setBlock(0, 1, 0, Blocks.chest))  // also tick START
+            .thenWaitUntil(() -> helper.assertBlockPresent(helper.absolute(0, 1, 0), Blocks.chest))
+            .thenSucceed();
+    }
+    ```
+
+The only difference is that `thenExecuteAtStart` defers the action to the **next** tick, while
+inline code runs immediately during test setup. In practice this has no observable effect because
+no world update happens between them. Use whichever reads better for the test at hand.
+
+!!! tip
+    Keep structural setup (placing blocks, configuring machines) before `startSequence()` and
+    reserve the sequence itself for the stimulus/response steps. This keeps the sequence focused
+    on what the test is actually verifying.
+
 ## thenIdle counts ticks, not gaps
 
-`thenIdle(1)` means exactly one full tick separates the event before it from the event after. Previously (before the phase model), idle created a gap of `N-1` ticks due to 1-based tick indexing. Tests will run one tick longer than before, which rarely matters since most use generous timeouts.
+`thenIdle(1)` means exactly one full tick separates the event before it from the event after.
 
 ## Assertions inside thenExecute
 
