@@ -5,6 +5,7 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.MovingObjectPosition;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 
 import org.lwjgl.opengl.GL11;
@@ -77,7 +78,7 @@ public final class SelectionOutlineClientRenderer {
         boolean pending = nbt != null && nbt.getBoolean(ItemHorizonWand.TAG_PENDING);
         boolean pos2Set = nbt != null && nbt.getBoolean(ItemHorizonWand.TAG_POS2_SET);
 
-        int[] wandTarget = ItemHorizonWand.getTargetedPosition(mc.thePlayer);
+        int[] wandTarget = resolveWandTarget(mc);
 
         float pt = event.partialTicks;
         double vx = viewer.lastTickPosX + (viewer.posX - viewer.lastTickPosX) * pt;
@@ -421,5 +422,14 @@ public final class SelectionOutlineClientRenderer {
         tess.addVertex(bx, by, bz);
         tess.addVertex(cx, cy, cz);
         tess.addVertex(dx, dy, dz);
+    }
+
+    private static int[] resolveWandTarget(Minecraft mc) {
+        MovingObjectPosition mop = mc.objectMouseOver;
+        if (mop != null && mop.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
+            return ItemHorizonWand
+                .getTargetedPositionFromHit(mop.blockX, mop.blockY, mop.blockZ, mop.sideHit, mc.thePlayer.isSneaking());
+        }
+        return ItemHorizonWand.getTargetedPosition(mc.thePlayer);
     }
 }

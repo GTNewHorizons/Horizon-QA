@@ -84,6 +84,13 @@ public class ItemHorizonWand extends Item {
         return getTargetedPosition(player, true);
     }
 
+    public static int[] getTargetedPositionFromHit(int x, int y, int z, int side, boolean sneaking) {
+        if (sneaking && side >= 0 && side < 6) {
+            return new int[] { x + FACE_NORMALS[side][0], y + FACE_NORMALS[side][1], z + FACE_NORMALS[side][2] };
+        }
+        return new int[] { x, y, z };
+    }
+
     private static int[] getTargetedPosition(EntityPlayer player, boolean includeSurfaceOffset) {
         double dist = getBlockReachDistance(player);
 
