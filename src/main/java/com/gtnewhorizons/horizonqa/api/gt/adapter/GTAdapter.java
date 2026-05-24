@@ -55,6 +55,9 @@ public interface GTAdapter {
      */
     void fixAllMaintenanceIssues(IMetaTileEntity mte);
 
+    /** EU currently stored in the machine's internal energy buffer. */
+    long getStoredEU(IMetaTileEntity mte);
+
     /** Total number of recipes completed since the machine was placed. */
     long getRecipesDone(IMetaTileEntity mte);
 

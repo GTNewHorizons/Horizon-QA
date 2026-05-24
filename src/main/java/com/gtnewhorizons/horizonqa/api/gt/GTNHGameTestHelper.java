@@ -248,7 +248,7 @@ public class GTNHGameTestHelper {
      */
     public void assertEUStored(TestPos relPos, long expectedEU) {
         IGregTechTileEntity igte = requireGTTE(relPos);
-        long stored = igte.getStoredEU();
+        long stored = GT.getStoredEU(igte.getMetaTileEntity());
         if (stored < expectedEU) {
             throw error("Expected >= " + expectedEU + " EU stored at " + relPos + " but found " + stored, relPos);
         }

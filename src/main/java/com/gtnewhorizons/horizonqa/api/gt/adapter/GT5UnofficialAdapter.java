@@ -38,8 +38,7 @@ public final class GT5UnofficialAdapter implements GTAdapter {
     private static Method resolvePollutionMethod() {
         try {
             Class<?> cls = Class.forName(POLLUTION_CLASS);
-            Method m = cls.getMethod("getPollution", Chunk.class);
-            if (!Modifier.isStatic(m.getModifiers())) {
+            Method m = cls.getMethod("getPollution", Chunk.class);if (!Modifier.isStatic(m.getModifiers())) {
                 throw new GTVersionMismatchException(
                     POLLUTION_CLASS + "#getPollution(Chunk) must be static for GT5UnofficialAdapter",
                     null);
@@ -149,6 +148,11 @@ public final class GT5UnofficialAdapter implements GTAdapter {
     @Override
     public int getEfficiency(IMetaTileEntity mte) {
         return asMultiBlock(mte).mEfficiency;
+    }
+
+    @Override
+    public long getStoredEU(IMetaTileEntity mte) {
+        return mte.getBaseMetaTileEntity().getStoredEU();
     }
 
     @Override
