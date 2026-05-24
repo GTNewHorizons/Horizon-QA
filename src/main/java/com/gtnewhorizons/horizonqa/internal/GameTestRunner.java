@@ -3,11 +3,9 @@ package com.gtnewhorizons.horizonqa.internal;
 import java.util.ArrayList;
 import java.util.List;
 
-import cpw.mods.fml.common.FMLCommonHandler;
-import cpw.mods.fml.common.eventhandler.SubscribeEvent;
-import cpw.mods.fml.common.gameevent.TickEvent;
-
 public class GameTestRunner {
+
+    private static GameTestRunner activeRunner;
 
     private final List<GameTestInstance> instances = new ArrayList<>();
     private Runnable onAllDone;
@@ -36,10 +34,21 @@ public class GameTestRunner {
         running = true;
     }
 
-    @SubscribeEvent
-    public void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.START) return;
+    public static void handleTickStart() {
+        GameTestRunner runner = activeRunner;
+        if (runner != null) {
+            runner.doTickStart();
+        }
+    }
 
+    public static void handleTickEnd() {
+        GameTestRunner runner = activeRunner;
+        if (runner != null) {
+            runner.doTickEnd();
+        }
+    }
+
+    private void doTickStart() {
         if (onFirstTick != null) {
             Runnable action = onFirstTick;
             onFirstTick = null;
@@ -50,7 +59,17 @@ public class GameTestRunner {
 
         for (GameTestInstance inst : instances) {
             if (!inst.isDone()) {
-                inst.tick();
+                inst.tickStart();
+            }
+        }
+    }
+
+    private void doTickEnd() {
+        if (!running) return;
+
+        for (GameTestInstance inst : instances) {
+            if (!inst.isDone()) {
+                inst.tickEnd();
             }
         }
 
@@ -74,14 +93,12 @@ public class GameTestRunner {
     }
 
     public void register() {
-        FMLCommonHandler.instance()
-            .bus()
-            .register(this);
+        activeRunner = this;
     }
 
     public void unregister() {
-        FMLCommonHandler.instance()
-            .bus()
-            .unregister(this);
+        if (activeRunner == this) {
+            activeRunner = null;
+        }
     }
 }

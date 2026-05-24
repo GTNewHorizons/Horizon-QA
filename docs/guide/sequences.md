@@ -8,9 +8,9 @@ tags:
 
 # Sequences & timing
 
-`GameTestSequence` schedules actions on future **test ticks**. Use it for multi-step setup without resorting to real-time sleeps.
+`GameTestSequence` schedules actions on future test ticks. Use it when a test needs to do something, wait a bit, then check the result.
 
-## Basic sequence
+## Basic usage
 
 ```java
 @GameTest(template = "stone_platform", timeoutTicks = 60)
@@ -22,44 +22,124 @@ public static void delayedAssert(GameTestHelper helper) {
 }
 ```
 
-| Method                                | Effect                                                            |
-|---------------------------------------|-------------------------------------------------------------------|
-| `thenIdle(n)`                         | Advance the schedule by `n` ticks (no-op)                         |
-| `thenExecute(Runnable)`               | Run once at the scheduled tick                                    |
-| `thenExecuteFor(n, Runnable)`         | Run every tick for `n` ticks                                      |
-| `thenWaitUntil(Runnable)`             | Poll each tick until the runnable returns without throwing        |
-| `thenWaitUntil(maxTicks, Runnable)`   | Same, but caps the wait by advancing the schedule by `maxTicks`   |
-| `thenSucceed()`                       | Pass at the scheduled tick                                        |
-| `thenFail(msg)`                       | Fail at the scheduled tick                                        |
+One sequence per test. For an immediate pass use `helper.succeed()` directly.
 
-!!! info "One sequence per test"
+## Methods
 
-    `startSequence()` may only be called once per test. For an immediate pass that needs no delay, use `helper.succeed()` rather than building a sequence that ends with `thenSucceed()`.
+| Method                                     | Phase | What it does                                    |
+|--------------------------------------------|-------|-------------------------------------------------|
+| `thenIdle(n)`                              |       | Skip `n` ticks                                  |
+| `thenExecute(Runnable)`                    | END   | Run once at scheduled tick                      |
+| `thenExecuteAtStart(Runnable)`             | START | Run once at scheduled tick, before world tick   |
+| `thenExecuteAtEnd(Runnable)`               | END   | Alias of `thenExecute`                          |
+| `thenExecuteFor(n, Runnable)`              | END   | Run every tick for `n` ticks                    |
+| `thenExecuteForAtStart(n, Runnable)`       | START | Same, before world tick                         |
+| `thenExecuteForAtEnd(n, Runnable)`         | END   | Alias of `thenExecuteFor`                       |
+| `thenWaitUntil(Runnable)`                  | END   | Retry each tick until runnable does not throw   |
+| `thenWaitUntilAtStart(Runnable)`           | START | Same, before world tick                         |
+| `thenWaitUntil(maxTicks, Runnable)`        | END   | Same, advance schedule by `maxTicks` on success |
+| `thenWaitUntilAtStart(maxTicks, Runnable)` | START | Same, before world tick                         |
+| `thenSucceed()`                            | END   | Pass the test                                   |
+| `thenFail(msg)`                            | END   | Fail the test                                   |
 
-## Assertions inside `thenExecute`
+## Tick phases
 
-Failures throw `GameTestAssertException`, which propagates through the sequence runner and fails the test with positional context — no extra wiring required.
+Every server tick has a START phase and an END phase. World logic (tile entity updates, hopper transfers, machine processing) runs between them.
 
-## Waiting on machine state
+Default sequence methods run at END, so assertions see the world after it has ticked. Use the `AtStart` variants to deliver input before the world ticks, which is what you want when testing machines that consume their input during the tick.
 
-Prefer GTNH helpers that poll **machine state** inside `thenWaitUntil`:
+```java
+// insert at START so the machine sees it during the tick, assert at END
+helper.startSequence()
+    .thenExecuteAtStart(() -> ioport.setInventorySlotContents(0, cell.copy()))
+    .thenExecute(() -> {
+        helper.assertNull(ioport.getStackInSlot(0));
+        helper.assertTrue(ItemStack.areItemStacksEqual(ioport.getStackInSlot(6), cell));
+    })
+    .thenSucceed();
+```
+
+### Phase ordering
+
+Within one scheduled tick, START must come before END. The builder throws `IllegalStateException` if you try to go the other way:
+
+```java
+helper.startSequence()
+    .thenExecute(assertion)
+    .thenExecuteAtStart(stimulus);  // throws -- can't go back to START
+```
+
+Use `thenIdle(1)` to push the START event to the next tick:
+
+```java
+helper.startSequence()
+    .thenExecute(assertion)
+    .thenIdle(1)
+    .thenExecuteAtStart(nextStimulus);
+```
+
+## Setup code and startSequence
+
+The test body itself runs during tick START. Code placed before `startSequence()` executes
+in the same tick and phase as a leading `thenExecuteAtStart`, so both patterns are equivalent:
+
+=== "Setup before `startSequence`"
+
+    ```java
+    @GameTest(template = "stone_platform")
+    public static void example(GameTestHelper helper) {
+        helper.setBlock(0, 1, 0, Blocks.chest);          // runs at tick START
+        helper.startSequence()
+            .thenWaitUntil(() -> helper.assertBlockPresent(helper.absolute(0, 1, 0), Blocks.chest))
+            .thenSucceed();
+    }
+    ```
+
+=== "Setup inside `thenExecuteAtStart`"
+
+    ```java
+    @GameTest(template = "stone_platform")
+    public static void example(GameTestHelper helper) {
+        helper.startSequence()
+            .thenExecuteAtStart(() -> helper.setBlock(0, 1, 0, Blocks.chest))  // also tick START
+            .thenWaitUntil(() -> helper.assertBlockPresent(helper.absolute(0, 1, 0), Blocks.chest))
+            .thenSucceed();
+    }
+    ```
+
+The only difference is that `thenExecuteAtStart` defers the action to the **next** tick, while
+inline code runs immediately during test setup. In practice this has no observable effect because
+no world update happens between them. Use whichever reads better for the test at hand.
+
+!!! tip
+    Keep structural setup (placing blocks, configuring machines) before `startSequence()` and
+    reserve the sequence itself for the stimulus/response steps. This keeps the sequence focused
+    on what the test is actually verifying.
+
+## thenIdle counts ticks, not gaps
+
+`thenIdle(1)` means exactly one full tick separates the event before it from the event after.
+
+## Assertions inside thenExecute
+
+Throw any `AssertionError` subclass. It propagates through the sequence and fails the test with the usual position context.
+
+## Prefer state polling over fixed delays
 
 ```java
 .thenWaitUntil(500, () -> gtnh.assertMachineFormed(controller))
 ```
 
-rather than `thenIdle(fixedRecipeLength)`. See [Design principle 4 — Wait on state, not ticks](../contributing/principles.md).
+is more reliable than `thenIdle(fixedRecipeLength)`. See [Design principle 4](../contributing/principles.md).
 
 ## Interaction with warp
 
-Warped ticks advance the **event recorder clock** inside `runRecipe` / `fastForwardTicks`. Sequence scheduling uses the **outer test tick** of the runner.
+`runRecipe` and `fastForwardTicks` advance the event recorder clock, not the sequence scheduler. The two clocks are independent. When reading timing logs, check which clock an event came from before drawing conclusions.
 
-Mixing the two in a single test is supported and occasionally necessary, but the two clocks make timing logs harder to read. When debugging, identify which clock each event came from before drawing conclusions.
+## Choosing the right tool
 
-## Choosing the right primitive
-
-| Mechanism            | Best for                                                       |
-|----------------------|----------------------------------------------------------------|
-| `onEachTick`         | An invariant that must hold **every** tick until timeout       |
-| `GameTestSequence`   | Ordered steps, delayed actions, bounded waits                  |
-| `succeedWhen`        | A single predicate that becomes true once                      |
+|                    | Use when                                                   |
+|--------------------|------------------------------------------------------------|
+| `onEachTick`       | Something must hold true on every tick until the test ends |
+| `GameTestSequence` | Steps need to happen in order with delays between them     |
+| `succeedWhen`      | Waiting for a single condition to become true              |
