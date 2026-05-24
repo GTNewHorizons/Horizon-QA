@@ -103,13 +103,15 @@ public final class Multiblock {
 
     /** Whether the controller reports a formed structure. */
     public boolean isFormed() {
-        return helper.adapter().isStructureFormed(resolveController());
+        return helper.adapter()
+            .isStructureFormed(resolveController());
     }
 
     /** {@link MTEMultiBlockBase#fixAllIssues()} then {@link MTEMultiBlockBase#enableWorking()}. */
     public void fixMaintenance() {
         MTEMultiBlockBase multi = resolveController();
-        helper.adapter().fixAllMaintenanceIssues(multi);
+        helper.adapter()
+            .fixAllMaintenanceIssues(multi);
         multi.enableWorking();
         TestEventRecorder rec = helper.recorder();
         rec.record(
@@ -309,7 +311,8 @@ public final class Multiblock {
             () -> {
                 TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
                 if (!(te instanceof IGregTechTileEntity igte)) return true;
-                if (helper.adapter().isActive(igte.getMetaTileEntity())) {
+                if (helper.adapter()
+                    .isActive(igte.getMetaTileEntity())) {
                     sawActive[0] = true;
                     return false;
                 }
@@ -340,17 +343,20 @@ public final class Multiblock {
 
     /** Current progress ticks for the active recipe, or zero when idle. */
     public int progress() {
-        return helper.adapter().getProgressTime(resolveController());
+        return helper.adapter()
+            .getProgressTime(resolveController());
     }
 
     /** Whether the controller is in the middle of a recipe cycle. */
     public boolean isProcessing() {
-        return helper.adapter().isActive(resolveController());
+        return helper.adapter()
+            .isActive(resolveController());
     }
 
     /** @return Current cleanness of this cleanroom. Max at 10,000 */
     public int getEfficiency() {
-        return helper.adapter().getEfficiency(resolveController());
+        return helper.adapter()
+            .getEfficiency(resolveController());
     }
 
     RecipeMap<?> resolveRecipeMap() {
