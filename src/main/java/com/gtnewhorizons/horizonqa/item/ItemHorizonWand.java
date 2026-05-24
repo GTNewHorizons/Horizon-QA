@@ -80,10 +80,6 @@ public class ItemHorizonWand extends Item {
         return stack;
     }
 
-    public static int[] getLookingAtBlock(EntityPlayer player) {
-        return getTargetedPosition(player, false);
-    }
-
     public static int[] getTargetedPosition(EntityPlayer player) {
         return getTargetedPosition(player, true);
     }
