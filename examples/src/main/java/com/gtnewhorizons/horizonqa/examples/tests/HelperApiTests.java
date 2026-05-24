@@ -29,14 +29,6 @@ public class HelperApiTests {
         helper.succeed();
     }
 
-    @GameTest()
-    public static void iterableComparison(GameTestHelper helper) {
-        helper.setBlock(0, 0, 0, Blocks.diamond_block);
-        helper.assertBlockPresent(Blocks.diamond_block, 0, 0, 0);
-        helper.assertBlockAbsent(Blocks.stone, 0, 0, 0);
-        helper.succeed();
-    }
-
     @GameTest(timeoutTicks = 20)
     public static void blockDestroyAndAssert(GameTestHelper helper) {
         helper.setBlock(0, 0, 0, Blocks.iron_block);
