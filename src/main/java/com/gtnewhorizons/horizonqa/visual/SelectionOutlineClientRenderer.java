@@ -1,7 +1,5 @@
 package com.gtnewhorizons.horizonqa.visual;
 
-import java.util.Arrays;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.entity.EntityLivingBase;
@@ -11,6 +9,7 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 
 import org.lwjgl.opengl.GL11;
 
+import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
@@ -63,11 +62,6 @@ public final class SelectionOutlineClientRenderer {
 
     private static final float TARGET_ALPHA_NEAR = 0.35f;
     private static final float TARGET_ALPHA_GHOST = 0.15f;
-    private static final double TARGET_GLYPH_LEN = 0.3;
-
-    // corner pulse state
-    private int[] lastPos1 = null;
-    private int[] lastPos2 = null;
 
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
@@ -82,26 +76,6 @@ public final class SelectionOutlineClientRenderer {
         boolean pos1Set = nbt != null && nbt.getBoolean(ItemHorizonWand.TAG_POS1_SET);
         boolean pending = nbt != null && nbt.getBoolean(ItemHorizonWand.TAG_PENDING);
         boolean pos2Set = nbt != null && nbt.getBoolean(ItemHorizonWand.TAG_POS2_SET);
-
-        // Update corner pulse state
-        if (pos1Set) {
-            int[] p1 = { nbt.getInteger(ItemHorizonWand.TAG_POS1_X), nbt.getInteger(ItemHorizonWand.TAG_POS1_Y),
-                nbt.getInteger(ItemHorizonWand.TAG_POS1_Z) };
-            if (lastPos1 == null || !Arrays.equals(lastPos1, p1)) {
-                lastPos1 = p1;
-            }
-        } else {
-            lastPos1 = null;
-        }
-        if (pos2Set) {
-            int[] p2 = { nbt.getInteger(ItemHorizonWand.TAG_POS2_X), nbt.getInteger(ItemHorizonWand.TAG_POS2_Y),
-                nbt.getInteger(ItemHorizonWand.TAG_POS2_Z) };
-            if (lastPos2 == null || !Arrays.equals(lastPos2, p2)) {
-                lastPos2 = p2;
-            }
-        } else {
-            lastPos2 = null;
-        }
 
         int[] wandTarget = ItemHorizonWand.getTargetedPosition(mc.thePlayer);
 
@@ -266,8 +240,6 @@ public final class SelectionOutlineClientRenderer {
         tess.addVertex(bx, by, bz);
     }
 
-    // ---- Target indicator ----
-
     private static void renderTargetIndicator(int[] target, boolean pending) {
         double tx = target[0], ty = target[1], tz = target[2];
         double x0 = tx - OUT, y0 = ty - OUT, z0 = tz - OUT;
@@ -302,8 +274,6 @@ public final class SelectionOutlineClientRenderer {
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_LINE);
         GL11.glPolygonOffset(0f, 0f);
     }
-
-    // ---- Selection box rendering ----
 
     private static void renderGhostWireframe(SelectionBounds b) {
         GL11.glDisable(GL11.GL_DEPTH_TEST);
@@ -366,26 +336,9 @@ public final class SelectionOutlineClientRenderer {
 
     // ---- Geometry helpers ----
 
-    private static final class SelectionBounds {
-
-        final double x0, y0, z0, x1, y1, z1;
-        final double fx0, fy0, fz0, fx1, fy1, fz1;
-
-        SelectionBounds(double x0, double y0, double z0, double x1, double y1, double z1, double fx0, double fy0,
-            double fz0, double fx1, double fy1, double fz1) {
-            this.x0 = x0;
-            this.y0 = y0;
-            this.z0 = z0;
-            this.x1 = x1;
-            this.y1 = y1;
-            this.z1 = z1;
-            this.fx0 = fx0;
-            this.fy0 = fy0;
-            this.fz0 = fz0;
-            this.fx1 = fx1;
-            this.fy1 = fy1;
-            this.fz1 = fz1;
-        }
+    @Desugar
+    private record SelectionBounds(double x0, double y0, double z0, double x1, double y1, double z1, double fx0,
+        double fy0, double fz0, double fx1, double fy1, double fz1) {
 
         static SelectionBounds fromCoords(int bx1, int by1, int bz1, int bx2, int by2, int bz2) {
             double minX = Math.min(bx1, bx2);
