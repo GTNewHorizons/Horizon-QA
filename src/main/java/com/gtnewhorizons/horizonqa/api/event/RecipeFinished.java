@@ -6,7 +6,7 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
 @Experimental
 @Desugar
-public record RecipeFinished(int tick, TestPos controller, int actualTicks) implements TestEvent {
+public record RecipeFinished(int tick, TestPos controller, int durationTicks) implements TestEvent {
 
     @Override
     public String category() {
@@ -15,6 +15,6 @@ public record RecipeFinished(int tick, TestPos controller, int actualTicks) impl
 
     @Override
     public String summary() {
-        return "Recipe finished at " + controller + " (took " + actualTicks + "t)";
+        return "Recipe finished at " + controller + " (took " + durationTicks + "t)";
     }
 }
