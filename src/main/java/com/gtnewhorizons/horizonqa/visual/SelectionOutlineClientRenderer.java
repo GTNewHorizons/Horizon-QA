@@ -105,7 +105,7 @@ public final class SelectionOutlineClientRenderer {
             renderWandAxis(wandTarget[0] + 0.5, wandTarget[1] + 0.5, wandTarget[2] + 0.5);
         }
 
-        renderTargetIndicator(wandTarget, pending);
+        renderTargetIndicator(wandTarget);
 
         if (pos1Set && (pending || pos2Set)) {
             int bx1 = nbt.getInteger(ItemHorizonWand.TAG_POS1_X);
@@ -236,7 +236,7 @@ public final class SelectionOutlineClientRenderer {
         tess.addVertex(bx, by, bz);
     }
 
-    private static void renderTargetIndicator(int[] target, boolean pending) {
+    private static void renderTargetIndicator(int[] target) {
         double tx = target[0], ty = target[1], tz = target[2];
         double x0 = tx - OUT, y0 = ty - OUT, z0 = tz - OUT;
         double x1 = tx + 1 + OUT, y1 = ty + 1 + OUT, z1 = tz + 1 + OUT;
