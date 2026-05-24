@@ -152,6 +152,12 @@ public final class GT5UnofficialAdapter implements GTAdapter {
     }
 
     @Override
+    public long getStoredEU(IMetaTileEntity mte) {
+        return mte.getBaseMetaTileEntity()
+            .getStoredEU();
+    }
+
+    @Override
     public int getRepairStatus(IMetaTileEntity mte) {
         return asMultiBlock(mte).getRepairStatus();
     }

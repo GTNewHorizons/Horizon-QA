@@ -200,14 +200,14 @@ public class GTNHGameTestHelper {
             dynamo,
             () -> {
                 TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
-                return !(te instanceof IGregTechTileEntity igte) || !igte.isActive();
+                return !(te instanceof IGregTechTileEntity igte) || !GT.isActive(igte.getMetaTileEntity());
             },
             recorder,
             GT,
             java.util.Collections.singletonList(abs));
 
         TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
-        if (te instanceof IGregTechTileEntity igte && igte.isActive()) {
+        if (te instanceof IGregTechTileEntity igte && GT.isActive(igte.getMetaTileEntity())) {
             throw error(
                 "Machine at " + relPos
                     + " is still active after "
@@ -248,7 +248,7 @@ public class GTNHGameTestHelper {
      */
     public void assertEUStored(TestPos relPos, long expectedEU) {
         IGregTechTileEntity igte = requireGTTE(relPos);
-        long stored = igte.getStoredEU();
+        long stored = GT.getStoredEU(igte.getMetaTileEntity());
         if (stored < expectedEU) {
             throw error("Expected >= " + expectedEU + " EU stored at " + relPos + " but found " + stored, relPos);
         }
