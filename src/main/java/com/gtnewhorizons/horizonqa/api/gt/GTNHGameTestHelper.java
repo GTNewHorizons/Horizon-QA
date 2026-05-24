@@ -200,14 +200,14 @@ public class GTNHGameTestHelper {
             dynamo,
             () -> {
                 TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
-                return !(te instanceof IGregTechTileEntity igte) || !igte.isActive();
+                return !(te instanceof IGregTechTileEntity igte) || !GT.isActive(igte.getMetaTileEntity());
             },
             recorder,
             GT,
             java.util.Collections.singletonList(abs));
 
         TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
-        if (te instanceof IGregTechTileEntity igte && igte.isActive()) {
+        if (te instanceof IGregTechTileEntity igte && GT.isActive(igte.getMetaTileEntity())) {
             throw error(
                 "Machine at " + relPos
                     + " is still active after "
