@@ -57,6 +57,9 @@ public final class SelectionOutlineClientRenderer {
     private static final double AXIS_EXTENT = 32.0;
     private static final double AXIS_FADE_LENGTH = 8.0;
     private static final float AXIS_ALPHA_NEAR = 0.25f;
+    private static final float AXIS_RED = 1f;
+    private static final float AXIS_GREEN = 1f;
+    private static final float AXIS_BLUE = 1f;
 
     private static final float TARGET_ALPHA_NEAR = 0.35f;
     private static final float TARGET_ALPHA_GHOST = 0.15f;
@@ -188,9 +191,6 @@ public final class SelectionOutlineClientRenderer {
             cz,
             AXIS_EXTENT,
             AXIS_FADE_LENGTH,
-            EDGE_DEEP_R,
-            EDGE_DEEP_G,
-            EDGE_DEEP_B,
             EDGE_ALPHA_THROUGH);
         tess.draw();
     }
@@ -215,9 +215,6 @@ public final class SelectionOutlineClientRenderer {
             cz,
             AXIS_EXTENT,
             AXIS_FADE_LENGTH,
-            EDGE_WHITE_R,
-            EDGE_WHITE_G,
-            EDGE_WHITE_B,
             AXIS_ALPHA_NEAR);
         tess.draw();
 
@@ -226,23 +223,23 @@ public final class SelectionOutlineClientRenderer {
     }
 
     private static void addAxisLinesWithFade(Tessellator tess, double cx, double cy, double cz, double extent,
-        double fade, float r, float g, float b, float alpha) {
+        double fade, float alpha) {
         double solid = extent - fade;
         // X axis
-        addGradientLine(tess, cx, cy, cz, cx - solid, cy, cz, r, g, b, alpha, r, g, b, alpha);
-        addGradientLine(tess, cx - solid, cy, cz, cx - extent, cy, cz, r, g, b, alpha, r, g, b, 0f);
-        addGradientLine(tess, cx, cy, cz, cx + solid, cy, cz, r, g, b, alpha, r, g, b, alpha);
-        addGradientLine(tess, cx + solid, cy, cz, cx + extent, cy, cz, r, g, b, alpha, r, g, b, 0f);
+        addGradientLine(tess, cx, cy, cz, cx - solid, cy, cz, AXIS_RED, 0f, 0f, alpha, AXIS_RED, 0f, 0f, alpha);
+        addGradientLine(tess, cx - solid, cy, cz, cx - extent, cy, cz, AXIS_RED, 0f, 0f, alpha, AXIS_RED, 0f, 0f, 0f);
+        addGradientLine(tess, cx, cy, cz, cx + solid, cy, cz, AXIS_RED, 0f, 0f, alpha, AXIS_RED, 0f, 0f, alpha);
+        addGradientLine(tess, cx + solid, cy, cz, cx + extent, cy, cz, AXIS_RED, 0f, 0f, alpha, AXIS_RED, 0f, 0f, 0f);
         // Y axis
-        addGradientLine(tess, cx, cy, cz, cx, cy - solid, cz, r, g, b, alpha, r, g, b, alpha);
-        addGradientLine(tess, cx, cy - solid, cz, cx, cy - extent, cz, r, g, b, alpha, r, g, b, 0f);
-        addGradientLine(tess, cx, cy, cz, cx, cy + solid, cz, r, g, b, alpha, r, g, b, alpha);
-        addGradientLine(tess, cx, cy + solid, cz, cx, cy + extent, cz, r, g, b, alpha, r, g, b, 0f);
+        addGradientLine(tess, cx, cy, cz, cx, cy - solid, cz, 0f, AXIS_GREEN, 0f, alpha, 0f, AXIS_GREEN, 0f, alpha);
+        addGradientLine(tess, cx, cy - solid, cz, cx, cy - extent, cz, 0f, AXIS_GREEN, 0f, alpha, 0f, AXIS_GREEN, 0f, 0f);
+        addGradientLine(tess, cx, cy, cz, cx, cy + solid, cz, 0f, AXIS_GREEN, 0f, alpha, 0f, AXIS_GREEN, 0f, alpha);
+        addGradientLine(tess, cx, cy + solid, cz, cx, cy + extent, cz, 0f, AXIS_GREEN, 0f, alpha, 0f, AXIS_GREEN, 0f, 0f);
         // Z axis
-        addGradientLine(tess, cx, cy, cz - solid, cx, cy, cz, r, g, b, alpha, r, g, b, alpha);
-        addGradientLine(tess, cx, cy, cz - extent, cx, cy, cz - solid, r, g, b, 0f, r, g, b, alpha);
-        addGradientLine(tess, cx, cy, cz, cx, cy, cz + solid, r, g, b, alpha, r, g, b, alpha);
-        addGradientLine(tess, cx, cy, cz + solid, cx, cy, cz + extent, r, g, b, alpha, r, g, b, 0f);
+        addGradientLine(tess, cx, cy, cz - solid, cx, cy, cz, 0f, 0f, AXIS_BLUE, alpha, 0f, 0f, AXIS_BLUE, alpha);
+        addGradientLine(tess, cx, cy, cz - extent, cx, cy, cz - solid, 0f, 0f, AXIS_BLUE, 0f, 0f, 0f, AXIS_BLUE, alpha);
+        addGradientLine(tess, cx, cy, cz, cx, cy, cz + solid, 0f, 0f, AXIS_BLUE, alpha, 0f, 0f, AXIS_BLUE, alpha);
+        addGradientLine(tess, cx, cy, cz + solid, cx, cy, cz + extent, 0f, 0f, AXIS_BLUE, alpha, 0f, 0f, AXIS_BLUE, 0f);
     }
 
     private static void addGradientLine(Tessellator tess, double ax, double ay, double az, double bx, double by,
@@ -284,30 +281,6 @@ public final class SelectionOutlineClientRenderer {
         tess.startDrawing(GL11.GL_LINES);
         tess.setColorRGBA_F(1f, 1f, 1f, TARGET_ALPHA_NEAR);
         addTrueWireframeEdges(tess, x0, y0, z0, x1, y1, z1);
-        tess.draw();
-
-        // Corner glyph: 3 arms from min corner, coloured by which pos is next
-        float gr, gg, gb;
-        if (pending) {
-            // next click sets pos2 → aqua
-            gr = 0.33f;
-            gg = 1f;
-            gb = 1f;
-        } else {
-            // next click sets pos1 → green
-            gr = 0.33f;
-            gg = 1f;
-            gb = 0.33f;
-        }
-
-        tess.startDrawing(GL11.GL_LINES);
-        tess.setColorRGBA_F(gr, gg, gb, 0.9f);
-        tess.addVertex(tx, ty, tz);
-        tess.addVertex(tx + TARGET_GLYPH_LEN, ty, tz);
-        tess.addVertex(tx, ty, tz);
-        tess.addVertex(tx, ty + TARGET_GLYPH_LEN, tz);
-        tess.addVertex(tx, ty, tz);
-        tess.addVertex(tx, ty, tz + TARGET_GLYPH_LEN);
         tess.draw();
 
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_LINE);
