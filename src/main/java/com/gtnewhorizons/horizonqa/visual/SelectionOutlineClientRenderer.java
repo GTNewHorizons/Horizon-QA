@@ -101,12 +101,10 @@ public final class SelectionOutlineClientRenderer {
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        // Axis cross: hide once both corners are confirmed
         if (!(pos1Set && pos2Set)) {
             renderWandAxis(wandTarget[0] + 0.5, wandTarget[1] + 0.5, wandTarget[2] + 0.5);
         }
 
-        // Target indicator: always shown while holding wand
         renderTargetIndicator(wandTarget, pending);
 
         if (pos1Set && (pending || pos2Set)) {
@@ -139,8 +137,6 @@ public final class SelectionOutlineClientRenderer {
         GL11.glPopAttrib();
         GL11.glPopMatrix();
     }
-
-    // ---- Wand axis cross ----
 
     private static void renderWandAxis(double cx, double cy, double cz) {
         renderWandAxisGhost(cx, cy, cz);
@@ -333,8 +329,6 @@ public final class SelectionOutlineClientRenderer {
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_LINE);
         GL11.glPolygonOffset(0f, 0f);
     }
-
-    // ---- Geometry helpers ----
 
     @Desugar
     private record SelectionBounds(double x0, double y0, double z0, double x1, double y1, double z1, double fx0,
