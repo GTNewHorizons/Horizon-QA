@@ -2,6 +2,7 @@ package com.gtnewhorizons.horizonqa.item;
 
 import java.util.List;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -32,6 +33,10 @@ public class ItemHorizonWand extends Item {
     public static final String TAG_POS2_SET = "pos2Set";
     public static final String TAG_PENDING = "pending";
 
+    // dx/dy/dz offsets indexed by face side (0=down,1=up,2=north,3=south,4=west,5=east)
+    private static final int[][] FACE_NORMALS = { { 0, -1, 0 }, { 0, 1, 0 }, { 0, 0, -1 }, { 0, 0, 1 },
+        { -1, 0, 0 }, { 1, 0, 0 } };
+
     public ItemHorizonWand() {
         super();
         setUnlocalizedName("horizonqa.wand");
@@ -44,11 +49,17 @@ public class ItemHorizonWand extends Item {
     public boolean onItemUse(ItemStack stack, EntityPlayer player, World world, int x, int y, int z, int side,
         float hitX, float hitY, float hitZ) {
         if (!world.isRemote) {
+            int tx = x, ty = y, tz = z;
+            if (player.isSneaking() && side >= 0 && side < 6) {
+                tx += FACE_NORMALS[side][0];
+                ty += FACE_NORMALS[side][1];
+                tz += FACE_NORMALS[side][2];
+            }
             NBTTagCompound nbt = getOrCreateNBT(stack);
             if (nbt.getBoolean(TAG_PENDING)) {
-                setPos2(stack, player, x, y, z);
+                setPos2(stack, player, tx, ty, tz);
             } else {
-                setPos1(stack, player, x, y, z);
+                setPos1(stack, player, tx, ty, tz);
             }
         }
         return true;
@@ -69,9 +80,7 @@ public class ItemHorizonWand extends Item {
     }
 
     public static int[] getLookingAtBlock(EntityPlayer player) {
-        double dist = player instanceof EntityPlayerMP
-            ? ((EntityPlayerMP) player).theItemInWorldManager.getBlockReachDistance()
-            : 5.0;
+        double dist = getBlockReachDistance(player);
 
         Vec3 start = Vec3.createVectorHelper(player.posX, player.posY + player.getEyeHeight(), player.posZ);
         Vec3 look = player.getLookVec();
@@ -88,6 +97,21 @@ public class ItemHorizonWand extends Item {
             return new int[] { MathHelper.floor_double(end.xCoord), MathHelper.floor_double(end.yCoord),
                 MathHelper.floor_double(end.zCoord) };
         }
+    }
+
+    private static double getBlockReachDistance(EntityPlayer player) {
+        if (player.worldObj.isRemote) {
+            return getClientBlockReachDistance();
+        }
+        if (player instanceof EntityPlayerMP) {
+            return ((EntityPlayerMP) player).theItemInWorldManager.getBlockReachDistance();
+        }
+        return 5.0;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static double getClientBlockReachDistance() {
+        return Minecraft.getMinecraft().playerController.getBlockReachDistance();
     }
 
     public static void setPos1(ItemStack stack, EntityPlayer player, int x, int y, int z) {
@@ -108,9 +132,7 @@ public class ItemHorizonWand extends Item {
                     + y
                     + ", "
                     + z
-                    + ") — right-click to set "
-                    + EnumChatFormatting.AQUA
-                    + "Pos2"));
+                    + ")"));
     }
 
     public static void setPos2(ItemStack stack, EntityPlayer player, int x, int y, int z) {
@@ -131,26 +153,6 @@ public class ItemHorizonWand extends Item {
                     + ", "
                     + z
                     + ")"));
-        printDimensions(player, nbt);
-    }
-
-    private static void printDimensions(EntityPlayer player, NBTTagCompound nbt) {
-        if (nbt.getBoolean(TAG_POS1_SET) && nbt.getBoolean(TAG_POS2_SET)) {
-            int dx = Math.abs(nbt.getInteger(TAG_POS2_X) - nbt.getInteger(TAG_POS1_X)) + 1;
-            int dy = Math.abs(nbt.getInteger(TAG_POS2_Y) - nbt.getInteger(TAG_POS1_Y)) + 1;
-            int dz = Math.abs(nbt.getInteger(TAG_POS2_Z) - nbt.getInteger(TAG_POS1_Z)) + 1;
-            player.addChatMessage(
-                new ChatComponentText(
-                    EnumChatFormatting.YELLOW + "Selection: "
-                        + dx
-                        + "×"
-                        + dy
-                        + "×"
-                        + dz
-                        + " ("
-                        + (dx * dy * dz)
-                        + " blocks)"));
-        }
     }
 
     @Override

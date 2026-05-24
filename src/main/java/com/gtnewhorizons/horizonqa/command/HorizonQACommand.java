@@ -32,7 +32,7 @@ import com.gtnewhorizons.horizonqa.structure.StructureExporter;
 public class HorizonQACommand extends CommandBase {
 
     private static final String[] SUBCOMMANDS = { "run", "runall", "runfailed", "runthis", "runthat", "pos", "clearall",
-        "export" };
+        "export", "clear" };
 
     @Override
     public String getCommandName() {
@@ -41,7 +41,7 @@ public class HorizonQACommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/horizonqa <run|runall|runfailed|runthis|runthat|pos|clearall|export>";
+        return "/horizonqa <run|runall|runfailed|runthis|runthat|pos|clearall|export|clear>";
     }
 
     @Override
@@ -86,6 +86,9 @@ public class HorizonQACommand extends CommandBase {
                 break;
             case "export":
                 handleExport(sender, args);
+                break;
+            case "clear":
+                handleClear(sender, args);
                 break;
             default:
                 sender.addChatMessage(
@@ -408,6 +411,29 @@ public class HorizonQACommand extends CommandBase {
             sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Export failed: " + e.getMessage()));
             HorizonQAMod.LOG.error("StructureExporter failed for '{}'", name, e);
         }
+    }
+
+    private void handleClear(ICommandSender sender, String[] args) {
+        EntityPlayer player = requirePlayer(sender);
+        if (player == null) return;
+        ItemStack wand = findWand(player);
+        if (wand == null) {
+            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Hold a Horizon Wand first."));
+            return;
+        }
+        NBTTagCompound nbt = wand.getTagCompound();
+        if (nbt != null) {
+            nbt.removeTag(ItemHorizonWand.TAG_POS1_X);
+            nbt.removeTag(ItemHorizonWand.TAG_POS1_Y);
+            nbt.removeTag(ItemHorizonWand.TAG_POS1_Z);
+            nbt.removeTag(ItemHorizonWand.TAG_POS1_SET);
+            nbt.removeTag(ItemHorizonWand.TAG_POS2_X);
+            nbt.removeTag(ItemHorizonWand.TAG_POS2_Y);
+            nbt.removeTag(ItemHorizonWand.TAG_POS2_Z);
+            nbt.removeTag(ItemHorizonWand.TAG_POS2_SET);
+            nbt.removeTag(ItemHorizonWand.TAG_PENDING);
+        }
+        sender.addChatMessage(new ChatComponentText(EnumChatFormatting.GREEN + "Wand selection cleared."));
     }
 
     private static GameTestDefinition findDefinition(String testId) {
