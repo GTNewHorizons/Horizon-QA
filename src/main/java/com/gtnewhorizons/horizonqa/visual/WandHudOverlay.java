@@ -42,7 +42,8 @@ public final class WandHudOverlay {
 
         if (pos1Set) {
             String coords = nbt.getInteger(ItemHorizonWand.TAG_POS1_X) + ", "
-                + nbt.getInteger(ItemHorizonWand.TAG_POS1_Y) + ", "
+                + nbt.getInteger(ItemHorizonWand.TAG_POS1_Y)
+                + ", "
                 + nbt.getInteger(ItemHorizonWand.TAG_POS1_Z);
             fr.drawStringWithShadow("§aPos1: §f" + coords, x, y, 0xFFFFFF);
         } else {
@@ -52,7 +53,8 @@ public final class WandHudOverlay {
 
         if (pos2Set) {
             String coords = nbt.getInteger(ItemHorizonWand.TAG_POS2_X) + ", "
-                + nbt.getInteger(ItemHorizonWand.TAG_POS2_Y) + ", "
+                + nbt.getInteger(ItemHorizonWand.TAG_POS2_Y)
+                + ", "
                 + nbt.getInteger(ItemHorizonWand.TAG_POS2_Z);
             fr.drawStringWithShadow("§bPos2: §f" + coords, x, y, 0xFFFFFF);
         } else if (pending) {

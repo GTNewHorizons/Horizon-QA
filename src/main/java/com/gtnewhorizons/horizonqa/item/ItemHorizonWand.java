@@ -34,8 +34,8 @@ public class ItemHorizonWand extends Item {
     public static final String TAG_PENDING = "pending";
 
     // dx/dy/dz offsets indexed by face side (0=down,1=up,2=north,3=south,4=west,5=east)
-    private static final int[][] FACE_NORMALS = { { 0, -1, 0 }, { 0, 1, 0 }, { 0, 0, -1 }, { 0, 0, 1 },
-        { -1, 0, 0 }, { 1, 0, 0 } };
+    private static final int[][] FACE_NORMALS = { { 0, -1, 0 }, { 0, 1, 0 }, { 0, 0, -1 }, { 0, 0, 1 }, { -1, 0, 0 },
+        { 1, 0, 0 } };
 
     public ItemHorizonWand() {
         super();
@@ -68,7 +68,7 @@ public class ItemHorizonWand extends Item {
     @Override
     public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
         if (!world.isRemote) {
-            int[] pos = getLookingAtBlock(player);
+            int[] pos = getTargetedPosition(player);
             NBTTagCompound nbt = getOrCreateNBT(stack);
             if (nbt.getBoolean(TAG_PENDING)) {
                 setPos2(stack, player, pos[0], pos[1], pos[2]);
@@ -80,6 +80,14 @@ public class ItemHorizonWand extends Item {
     }
 
     public static int[] getLookingAtBlock(EntityPlayer player) {
+        return getTargetedPosition(player, false);
+    }
+
+    public static int[] getTargetedPosition(EntityPlayer player) {
+        return getTargetedPosition(player, true);
+    }
+
+    private static int[] getTargetedPosition(EntityPlayer player, boolean includeSurfaceOffset) {
         double dist = getBlockReachDistance(player);
 
         Vec3 start = Vec3.createVectorHelper(player.posX, player.posY + player.getEyeHeight(), player.posZ);
@@ -92,7 +100,15 @@ public class ItemHorizonWand extends Item {
         MovingObjectPosition hit = player.worldObj.rayTraceBlocks(start, end);
 
         if (hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
-            return new int[] { hit.blockX, hit.blockY, hit.blockZ };
+            int tx = hit.blockX;
+            int ty = hit.blockY;
+            int tz = hit.blockZ;
+            if (includeSurfaceOffset && player.isSneaking() && hit.sideHit >= 0 && hit.sideHit < 6) {
+                tx += FACE_NORMALS[hit.sideHit][0];
+                ty += FACE_NORMALS[hit.sideHit][1];
+                tz += FACE_NORMALS[hit.sideHit][2];
+            }
+            return new int[] { tx, ty, tz };
         } else {
             return new int[] { MathHelper.floor_double(end.xCoord), MathHelper.floor_double(end.yCoord),
                 MathHelper.floor_double(end.zCoord) };

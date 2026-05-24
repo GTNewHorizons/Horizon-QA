@@ -112,7 +112,7 @@ public final class SelectionOutlineClientRenderer {
         float pulse1 = cornerPulseAlpha(pos1PulseEnd);
         float pulse2 = cornerPulseAlpha(pos2PulseEnd);
 
-        int[] wandTarget = ItemHorizonWand.getLookingAtBlock(mc.thePlayer);
+        int[] wandTarget = ItemHorizonWand.getTargetedPosition(mc.thePlayer);
 
         float pt = event.partialTicks;
         double vx = viewer.lastTickPosX + (viewer.posX - viewer.lastTickPosX) * pt;
@@ -196,7 +196,16 @@ public final class SelectionOutlineClientRenderer {
 
         Tessellator tess = Tessellator.instance;
         tess.startDrawing(GL11.GL_LINES);
-        addAxisLinesWithFade(tess, cx, cy, cz, AXIS_EXTENT, AXIS_FADE_LENGTH, EDGE_DEEP_R, EDGE_DEEP_G, EDGE_DEEP_B,
+        addAxisLinesWithFade(
+            tess,
+            cx,
+            cy,
+            cz,
+            AXIS_EXTENT,
+            AXIS_FADE_LENGTH,
+            EDGE_DEEP_R,
+            EDGE_DEEP_G,
+            EDGE_DEEP_B,
             EDGE_ALPHA_THROUGH);
         tess.draw();
     }
@@ -214,7 +223,16 @@ public final class SelectionOutlineClientRenderer {
 
         Tessellator tess = Tessellator.instance;
         tess.startDrawing(GL11.GL_LINES);
-        addAxisLinesWithFade(tess, cx, cy, cz, AXIS_EXTENT, AXIS_FADE_LENGTH, EDGE_WHITE_R, EDGE_WHITE_G, EDGE_WHITE_B,
+        addAxisLinesWithFade(
+            tess,
+            cx,
+            cy,
+            cz,
+            AXIS_EXTENT,
+            AXIS_FADE_LENGTH,
+            EDGE_WHITE_R,
+            EDGE_WHITE_G,
+            EDGE_WHITE_B,
             AXIS_ALPHA_NEAR);
         tess.draw();
 
@@ -332,8 +350,14 @@ public final class SelectionOutlineClientRenderer {
             double cy = nbt.getInteger(ItemHorizonWand.TAG_POS1_Y) + 0.5;
             double cz = nbt.getInteger(ItemHorizonWand.TAG_POS1_Z) + 0.5;
             tess.setColorRGBA_F(0.33f, 1f, 0.33f, a);
-            addHullFacesSolid(tess, cx - CORNER_HALF_SIZE, cy - CORNER_HALF_SIZE, cz - CORNER_HALF_SIZE,
-                cx + CORNER_HALF_SIZE, cy + CORNER_HALF_SIZE, cz + CORNER_HALF_SIZE);
+            addHullFacesSolid(
+                tess,
+                cx - CORNER_HALF_SIZE,
+                cy - CORNER_HALF_SIZE,
+                cz - CORNER_HALF_SIZE,
+                cx + CORNER_HALF_SIZE,
+                cy + CORNER_HALF_SIZE,
+                cz + CORNER_HALF_SIZE);
         }
         if (pos2Set) {
             float a = clamp01(CORNER_BASE_ALPHA + CORNER_PULSE_ALPHA * pulse2);
@@ -341,8 +365,14 @@ public final class SelectionOutlineClientRenderer {
             double cy = nbt.getInteger(ItemHorizonWand.TAG_POS2_Y) + 0.5;
             double cz = nbt.getInteger(ItemHorizonWand.TAG_POS2_Z) + 0.5;
             tess.setColorRGBA_F(0.33f, 1f, 1f, a);
-            addHullFacesSolid(tess, cx - CORNER_HALF_SIZE, cy - CORNER_HALF_SIZE, cz - CORNER_HALF_SIZE,
-                cx + CORNER_HALF_SIZE, cy + CORNER_HALF_SIZE, cz + CORNER_HALF_SIZE);
+            addHullFacesSolid(
+                tess,
+                cx - CORNER_HALF_SIZE,
+                cy - CORNER_HALF_SIZE,
+                cz - CORNER_HALF_SIZE,
+                cx + CORNER_HALF_SIZE,
+                cy + CORNER_HALF_SIZE,
+                cz + CORNER_HALF_SIZE);
         }
 
         tess.draw();
