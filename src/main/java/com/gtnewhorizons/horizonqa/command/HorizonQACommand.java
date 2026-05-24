@@ -424,18 +424,9 @@ public class HorizonQACommand extends CommandBase {
                     EnumChatFormatting.RED + StatCollector.translateToLocal("horizonqa.command.clear.no_wand")));
             return;
         }
-        NBTTagCompound nbt = wand.getTagCompound();
-        if (nbt != null) {
-            nbt.removeTag(ItemHorizonWand.TAG_POS1_X);
-            nbt.removeTag(ItemHorizonWand.TAG_POS1_Y);
-            nbt.removeTag(ItemHorizonWand.TAG_POS1_Z);
-            nbt.removeTag(ItemHorizonWand.TAG_POS1_SET);
-            nbt.removeTag(ItemHorizonWand.TAG_POS2_X);
-            nbt.removeTag(ItemHorizonWand.TAG_POS2_Y);
-            nbt.removeTag(ItemHorizonWand.TAG_POS2_Z);
-            nbt.removeTag(ItemHorizonWand.TAG_POS2_SET);
-            nbt.removeTag(ItemHorizonWand.TAG_PENDING);
-        }
+
+        wand.setTagCompound(null);
+
         sender.addChatMessage(
             new ChatComponentText(
                 EnumChatFormatting.GREEN + StatCollector.translateToLocal("horizonqa.command.clear.success")));
