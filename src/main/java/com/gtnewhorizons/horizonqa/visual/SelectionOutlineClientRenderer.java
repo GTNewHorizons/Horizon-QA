@@ -62,16 +62,9 @@ public final class SelectionOutlineClientRenderer {
     private static final float TARGET_ALPHA_GHOST = 0.15f;
     private static final double TARGET_GLYPH_LEN = 0.3;
 
-    private static final double CORNER_HALF_SIZE = 0.075;
-    private static final float CORNER_BASE_ALPHA = 0.65f;
-    private static final float CORNER_PULSE_ALPHA = 0.35f;
-    private static final long CORNER_PULSE_DURATION_MS = 1000L;
-
     // corner pulse state
     private int[] lastPos1 = null;
     private int[] lastPos2 = null;
-    private long pos1PulseEnd = 0L;
-    private long pos2PulseEnd = 0L;
 
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
@@ -93,7 +86,6 @@ public final class SelectionOutlineClientRenderer {
                 nbt.getInteger(ItemHorizonWand.TAG_POS1_Z) };
             if (lastPos1 == null || !Arrays.equals(lastPos1, p1)) {
                 lastPos1 = p1;
-                pos1PulseEnd = System.currentTimeMillis() + CORNER_PULSE_DURATION_MS;
             }
         } else {
             lastPos1 = null;
@@ -103,14 +95,10 @@ public final class SelectionOutlineClientRenderer {
                 nbt.getInteger(ItemHorizonWand.TAG_POS2_Z) };
             if (lastPos2 == null || !Arrays.equals(lastPos2, p2)) {
                 lastPos2 = p2;
-                pos2PulseEnd = System.currentTimeMillis() + CORNER_PULSE_DURATION_MS;
             }
         } else {
             lastPos2 = null;
         }
-
-        float pulse1 = cornerPulseAlpha(pos1PulseEnd);
-        float pulse2 = cornerPulseAlpha(pos2PulseEnd);
 
         int[] wandTarget = ItemHorizonWand.getTargetedPosition(mc.thePlayer);
 
@@ -170,9 +158,6 @@ public final class SelectionOutlineClientRenderer {
             renderDepthTestedFaces(bounds, breathe, colorScale);
             renderDepthTestedWireframe(bounds);
         }
-
-        // Corner markers for confirmed pos1 / pos2
-        renderCornerMarkers(nbt, pos1Set, pos2Set, pulse1, pulse2);
 
         GL11.glPopAttrib();
         GL11.glPopMatrix();
@@ -327,62 +312,6 @@ public final class SelectionOutlineClientRenderer {
 
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_LINE);
         GL11.glPolygonOffset(0f, 0f);
-    }
-
-    // ---- Corner markers ----
-
-    private static void renderCornerMarkers(NBTTagCompound nbt, boolean pos1Set, boolean pos2Set, float pulse1,
-        float pulse2) {
-        if (!pos1Set && !pos2Set) return;
-
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
-        GL11.glDepthFunc(GL11.GL_LEQUAL);
-        GL11.glDisable(GL11.GL_CULL_FACE);
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL);
-
-        Tessellator tess = Tessellator.instance;
-        tess.startDrawing(GL11.GL_QUADS);
-
-        if (pos1Set) {
-            float a = clamp01(CORNER_BASE_ALPHA + CORNER_PULSE_ALPHA * pulse1);
-            double cx = nbt.getInteger(ItemHorizonWand.TAG_POS1_X) + 0.5;
-            double cy = nbt.getInteger(ItemHorizonWand.TAG_POS1_Y) + 0.5;
-            double cz = nbt.getInteger(ItemHorizonWand.TAG_POS1_Z) + 0.5;
-            tess.setColorRGBA_F(0.33f, 1f, 0.33f, a);
-            addHullFacesSolid(
-                tess,
-                cx - CORNER_HALF_SIZE,
-                cy - CORNER_HALF_SIZE,
-                cz - CORNER_HALF_SIZE,
-                cx + CORNER_HALF_SIZE,
-                cy + CORNER_HALF_SIZE,
-                cz + CORNER_HALF_SIZE);
-        }
-        if (pos2Set) {
-            float a = clamp01(CORNER_BASE_ALPHA + CORNER_PULSE_ALPHA * pulse2);
-            double cx = nbt.getInteger(ItemHorizonWand.TAG_POS2_X) + 0.5;
-            double cy = nbt.getInteger(ItemHorizonWand.TAG_POS2_Y) + 0.5;
-            double cz = nbt.getInteger(ItemHorizonWand.TAG_POS2_Z) + 0.5;
-            tess.setColorRGBA_F(0.33f, 1f, 1f, a);
-            addHullFacesSolid(
-                tess,
-                cx - CORNER_HALF_SIZE,
-                cy - CORNER_HALF_SIZE,
-                cz - CORNER_HALF_SIZE,
-                cx + CORNER_HALF_SIZE,
-                cy + CORNER_HALF_SIZE,
-                cz + CORNER_HALF_SIZE);
-        }
-
-        tess.draw();
-    }
-
-    private static float cornerPulseAlpha(long pulseEnd) {
-        long remaining = pulseEnd - System.currentTimeMillis();
-        if (remaining <= 0) return 0f;
-        float t = remaining / (float) CORNER_PULSE_DURATION_MS;
-        return t * t;
     }
 
     // ---- Selection box rendering ----
