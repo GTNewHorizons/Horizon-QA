@@ -71,11 +71,37 @@ public class GameTestInstance {
         }
     }
 
-    public void tick() {
+    public void tickStart() {
         if (status != GameTestStatus.RUNNING) return;
         tickCount++;
         recorder.clock()
             .advance();
+
+        Iterator<DelayedAction> it = delayedActions.iterator();
+        while (it.hasNext()) {
+            DelayedAction action = it.next();
+            if (tickCount >= action.triggerTick) {
+                try {
+                    action.action.run();
+                } catch (Throwable t) {
+                    fail(t);
+                    return;
+                }
+                it.remove();
+            }
+        }
+
+        if (sequence != null) {
+            try {
+                sequence.tick(tickCount - 1, TestPhase.START);
+            } catch (Throwable t) {
+                fail(t);
+            }
+        }
+    }
+
+    public void tickEnd() {
+        if (status != GameTestStatus.RUNNING) return;
 
         for (Runnable callback : eachTickCallbacks) {
             try {
@@ -107,23 +133,10 @@ public class GameTestInstance {
             }
             return;
         }
-        Iterator<DelayedAction> it = delayedActions.iterator();
-        while (it.hasNext()) {
-            DelayedAction action = it.next();
-            if (tickCount >= action.triggerTick) {
-                try {
-                    action.action.run();
-                } catch (Throwable t) {
-                    fail(t);
-                    return;
-                }
-                it.remove();
-            }
-        }
 
         if (sequence != null) {
             try {
-                sequence.tick(tickCount);
+                sequence.tick(tickCount - 1, TestPhase.END);
             } catch (Throwable t) {
                 fail(t);
             }

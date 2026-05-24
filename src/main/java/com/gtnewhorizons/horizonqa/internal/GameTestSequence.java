@@ -8,6 +8,8 @@ public class GameTestSequence {
     private final GameTestInstance instance;
     private final Deque<SequenceEvent> events = new ArrayDeque<>();
     private long currentScheduledTick = 0;
+    private long lastScheduledTick = -1;
+    private TestPhase lastPhase = null;
 
     public GameTestSequence(GameTestInstance instance) {
         this.instance = instance;
@@ -19,41 +21,93 @@ public class GameTestSequence {
     }
 
     public GameTestSequence thenExecute(Runnable action) {
-        events.add(new SequenceEvent(currentScheduledTick, action, false));
-        return this;
+        return thenExecuteAtEnd(action);
+    }
+
+    public GameTestSequence thenExecuteAtStart(Runnable action) {
+        return addEvent(currentScheduledTick, TestPhase.START, action, false);
+    }
+
+    public GameTestSequence thenExecuteAtEnd(Runnable action) {
+        return addEvent(currentScheduledTick, TestPhase.END, action, false);
     }
 
     public GameTestSequence thenExecuteFor(int ticks, Runnable action) {
+        return thenExecuteForAtEnd(ticks, action);
+    }
+
+    public GameTestSequence thenExecuteForAtStart(int ticks, Runnable action) {
         for (int i = 0; i < ticks; i++) {
-            events.add(new SequenceEvent(currentScheduledTick + i, action, false));
+            addEvent(currentScheduledTick + i, TestPhase.START, action, false);
+        }
+        currentScheduledTick += ticks;
+        return this;
+    }
+
+    public GameTestSequence thenExecuteForAtEnd(int ticks, Runnable action) {
+        for (int i = 0; i < ticks; i++) {
+            addEvent(currentScheduledTick + i, TestPhase.END, action, false);
         }
         currentScheduledTick += ticks;
         return this;
     }
 
     public GameTestSequence thenWaitUntil(Runnable condition) {
-        events.add(new SequenceEvent(currentScheduledTick, condition, true));
-        return this;
+        return thenWaitUntilAtEnd(condition);
     }
 
     public GameTestSequence thenWaitUntil(int maxTicks, Runnable condition) {
-        events.add(new SequenceEvent(currentScheduledTick, condition, true));
+        return thenWaitUntilAtEnd(maxTicks, condition);
+    }
+
+    public GameTestSequence thenWaitUntilAtStart(Runnable condition) {
+        return addEvent(currentScheduledTick, TestPhase.START, condition, true);
+    }
+
+    public GameTestSequence thenWaitUntilAtEnd(Runnable condition) {
+        return addEvent(currentScheduledTick, TestPhase.END, condition, true);
+    }
+
+    public GameTestSequence thenWaitUntilAtStart(int maxTicks, Runnable condition) {
+        addEvent(currentScheduledTick, TestPhase.START, condition, true);
+        currentScheduledTick += maxTicks;
+        return this;
+    }
+
+    public GameTestSequence thenWaitUntilAtEnd(int maxTicks, Runnable condition) {
+        addEvent(currentScheduledTick, TestPhase.END, condition, true);
         currentScheduledTick += maxTicks;
         return this;
     }
 
     public void thenSucceed() {
-        events.add(new SequenceEvent(currentScheduledTick, instance::succeed, false));
+        addEvent(currentScheduledTick, TestPhase.END, instance::succeed, false);
     }
 
     public void thenFail(String message) {
-        events.add(new SequenceEvent(currentScheduledTick, () -> instance.fail(message), false));
+        addEvent(currentScheduledTick, TestPhase.END, () -> instance.fail(message), false);
     }
 
-    void tick(long testTick) {
+    private GameTestSequence addEvent(long tick, TestPhase phase, Runnable action, boolean conditional) {
+        if (lastPhase == TestPhase.END && phase == TestPhase.START && tick == lastScheduledTick) {
+            throw new IllegalStateException(
+                "Cannot schedule a START-phase sequence event after an END-phase event at the same tick. "
+                    + "Insert thenIdle(1) before the START-phase event.");
+        }
+        events.add(new SequenceEvent(tick, phase, action, conditional));
+        lastScheduledTick = tick;
+        lastPhase = phase;
+        return this;
+    }
+
+    // Breaking on phase mismatch is safe because the ordering constraint (START before END at the
+    // same tick, ticks always ascending) guarantees remaining events are either same-tick later-phase
+    // or a later tick — both will be processed by the matching phase call.
+    void tick(long sequenceTick, TestPhase phase) {
         while (!events.isEmpty() && !instance.isDone()) {
             SequenceEvent head = events.peek();
-            if (testTick < head.scheduledTick) break;
+            if (sequenceTick < head.scheduledTick) break;
+            if (head.phase != phase) break;
 
             if (head.conditional) {
                 try {
@@ -72,11 +126,13 @@ public class GameTestSequence {
     private static final class SequenceEvent {
 
         final long scheduledTick;
+        final TestPhase phase;
         final Runnable action;
         final boolean conditional;
 
-        SequenceEvent(long scheduledTick, Runnable action, boolean conditional) {
+        SequenceEvent(long scheduledTick, TestPhase phase, Runnable action, boolean conditional) {
             this.scheduledTick = scheduledTick;
+            this.phase = phase;
             this.action = action;
             this.conditional = conditional;
         }

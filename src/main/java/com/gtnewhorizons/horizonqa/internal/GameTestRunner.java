@@ -38,8 +38,14 @@ public class GameTestRunner {
 
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.START) return;
+        if (event.phase == TickEvent.Phase.START) {
+            handleTickStart();
+        } else if (event.phase == TickEvent.Phase.END) {
+            handleTickEnd();
+        }
+    }
 
+    private void handleTickStart() {
         if (onFirstTick != null) {
             Runnable action = onFirstTick;
             onFirstTick = null;
@@ -50,7 +56,17 @@ public class GameTestRunner {
 
         for (GameTestInstance inst : instances) {
             if (!inst.isDone()) {
-                inst.tick();
+                inst.tickStart();
+            }
+        }
+    }
+
+    private void handleTickEnd() {
+        if (!running) return;
+
+        for (GameTestInstance inst : instances) {
+            if (!inst.isDone()) {
+                inst.tickEnd();
             }
         }
 
