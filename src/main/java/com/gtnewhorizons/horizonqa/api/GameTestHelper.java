@@ -425,7 +425,11 @@ public class GameTestHelper {
                     ai += Integer.parseInt(inner);
                     ei++;
                     continue;
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException(
+                        "assertLinesMatch: invalid skip directive '>> " + inner + " >>' - not a number",
+                        e);
+                }
             }
             if (ai >= actualLines.size()) throw new GameTestAssertException(
                 message + ": line [" + ei + "] expected <" + exp + "> but actual output ended",
@@ -437,7 +441,13 @@ public class GameTestHelper {
                 boolean matched = false;
                 try {
                     matched = act.matches(exp);
-                } catch (java.util.regex.PatternSyntaxException ignored) {}
+                } catch (java.util.regex.PatternSyntaxException e) {
+                    throw new GameTestAssertException(
+                        message + ": line [" + ei + "]: regex <" + exp + "> is invalid - " + e.getMessage(),
+                        originX,
+                        originY,
+                        originZ);
+                }
                 if (!matched) throw new GameTestAssertException(
                     message + ": line [" + ei + "]: expected <" + exp + "> but found <" + act + ">",
                     originX,
