@@ -26,9 +26,7 @@ public class SequencePhaseTests {
             .thenExecuteAtStart(() -> events.add("start-1"))
             .thenExecute(() -> {
                 events.add("end-1");
-                helper.assertIterableEquals(
-                    Arrays.asList("start-0", "end-0", "start-1", "end-1"),
-                    events);
+                helper.assertIterableEquals(Arrays.asList("start-0", "end-0", "start-1", "end-1"), events);
             })
             .thenSucceed();
     }
@@ -64,9 +62,7 @@ public class SequencePhaseTests {
             .thenExecuteAtStart(() -> events.add("a"))
             .thenIdle(1)
             .thenExecuteAtStart(() -> events.add("b"))
-            .thenExecute(() -> {
-                helper.assertIterableEquals(Arrays.asList("a", "b"), events);
-            })
+            .thenExecute(() -> { helper.assertIterableEquals(Arrays.asList("a", "b"), events); })
             .thenSucceed();
     }
 }
