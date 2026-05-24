@@ -184,14 +184,7 @@ public final class SelectionOutlineClientRenderer {
 
         Tessellator tess = Tessellator.instance;
         tess.startDrawing(GL11.GL_LINES);
-        addAxisLinesWithFade(
-            tess,
-            cx,
-            cy,
-            cz,
-            AXIS_EXTENT,
-            AXIS_FADE_LENGTH,
-            EDGE_ALPHA_THROUGH);
+        addAxisLinesWithFade(tess, cx, cy, cz, AXIS_EXTENT, AXIS_FADE_LENGTH, EDGE_ALPHA_THROUGH);
         tess.draw();
     }
 
@@ -208,14 +201,7 @@ public final class SelectionOutlineClientRenderer {
 
         Tessellator tess = Tessellator.instance;
         tess.startDrawing(GL11.GL_LINES);
-        addAxisLinesWithFade(
-            tess,
-            cx,
-            cy,
-            cz,
-            AXIS_EXTENT,
-            AXIS_FADE_LENGTH,
-            AXIS_ALPHA_NEAR);
+        addAxisLinesWithFade(tess, cx, cy, cz, AXIS_EXTENT, AXIS_FADE_LENGTH, AXIS_ALPHA_NEAR);
         tess.draw();
 
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_LINE);
@@ -232,9 +218,39 @@ public final class SelectionOutlineClientRenderer {
         addGradientLine(tess, cx + solid, cy, cz, cx + extent, cy, cz, AXIS_RED, 0f, 0f, alpha, AXIS_RED, 0f, 0f, 0f);
         // Y axis
         addGradientLine(tess, cx, cy, cz, cx, cy - solid, cz, 0f, AXIS_GREEN, 0f, alpha, 0f, AXIS_GREEN, 0f, alpha);
-        addGradientLine(tess, cx, cy - solid, cz, cx, cy - extent, cz, 0f, AXIS_GREEN, 0f, alpha, 0f, AXIS_GREEN, 0f, 0f);
+        addGradientLine(
+            tess,
+            cx,
+            cy - solid,
+            cz,
+            cx,
+            cy - extent,
+            cz,
+            0f,
+            AXIS_GREEN,
+            0f,
+            alpha,
+            0f,
+            AXIS_GREEN,
+            0f,
+            0f);
         addGradientLine(tess, cx, cy, cz, cx, cy + solid, cz, 0f, AXIS_GREEN, 0f, alpha, 0f, AXIS_GREEN, 0f, alpha);
-        addGradientLine(tess, cx, cy + solid, cz, cx, cy + extent, cz, 0f, AXIS_GREEN, 0f, alpha, 0f, AXIS_GREEN, 0f, 0f);
+        addGradientLine(
+            tess,
+            cx,
+            cy + solid,
+            cz,
+            cx,
+            cy + extent,
+            cz,
+            0f,
+            AXIS_GREEN,
+            0f,
+            alpha,
+            0f,
+            AXIS_GREEN,
+            0f,
+            0f);
         // Z axis
         addGradientLine(tess, cx, cy, cz - solid, cx, cy, cz, 0f, 0f, AXIS_BLUE, alpha, 0f, 0f, AXIS_BLUE, alpha);
         addGradientLine(tess, cx, cy, cz - extent, cx, cy, cz - solid, 0f, 0f, AXIS_BLUE, 0f, 0f, 0f, AXIS_BLUE, alpha);

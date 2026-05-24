@@ -86,12 +86,7 @@ public final class WandHudOverlay {
             int dz = Math.abs(nbt.getInteger(ItemHorizonWand.TAG_POS2_Z) - nbt.getInteger(ItemHorizonWand.TAG_POS1_Z))
                 + 1;
             fr.drawStringWithShadow(
-                String.format(
-                    StatCollector.translateToLocal("horizonqa.wand.hud.size"),
-                    dx,
-                    dy,
-                    dz,
-                    dx * dy * dz),
+                String.format(StatCollector.translateToLocal("horizonqa.wand.hud.size"), dx, dy, dz, dx * dy * dz),
                 x,
                 y,
                 0xFFFFFF);
