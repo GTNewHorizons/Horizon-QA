@@ -1,6 +1,6 @@
 item.horizonqa.wand.name=Horizon Wand
 
-horizonqa.command.clear.no_wand=Hold a Horizon Wand first.
+horizonqa.command.clear.no_wand=You need a Horizon Wand.
 horizonqa.command.clear.success=Wand selection cleared.
 
 horizonqa.wand.pos1.set=Pos1 set to (%d, %d, %d)
