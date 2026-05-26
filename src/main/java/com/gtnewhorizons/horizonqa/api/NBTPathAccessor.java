@@ -13,12 +13,13 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
  * Traverses {@link NBTTagCompound} structures using dotted-path notation.
  * <p>
  * Paths are dot-separated keys; numeric segments index into {@link NBTTagList} entries.
+ * Escape a literal dot in a key with {@code \\.}.
  * <p>
  * Examples:
  * <ul>
  * <li>{@code "mInventory.0.id"} — first element of the "mInventory" list, then its "id" tag</li>
  * <li>{@code "CustomName"} — top-level string tag</li>
- * <li>{@code "ForgeCaps.mymod:cap.level"} — nested compound traversal (colons are valid within a segment)</li>
+ * <li>{@code "ForgeCaps.mymod:cap\\.subkey"} key containing a literal dot</li>
  * </ul>
  */
 @Experimental
@@ -35,6 +36,9 @@ public final class NBTPathAccessor {
                 break;
             }
         }
+        if (f == null) {
+            throw new ExceptionInInitializerError("Could not locate List field in NBTTagList via reflection");
+        }
         TAG_LIST_FIELD = f;
     }
 
@@ -47,7 +51,7 @@ public final class NBTPathAccessor {
     public static NBTBase resolve(NBTTagCompound root, String path) {
         if (root == null || path == null || path.isEmpty()) return null;
 
-        String[] segments = path.split("\\.");
+        String[] segments = splitPath(path);
         NBTBase current = root;
 
         for (String segment : segments) {
@@ -67,8 +71,8 @@ public final class NBTPathAccessor {
     }
 
     /**
-     * Resolve a dotted path and return the result as a string, or {@code null} if the path doesn't
-     * exist. Uses the tag's SNBT representation.
+     * Resolve a dotted path and return the tag's SNBT serialization, or {@code null} if missing.
+     * Format is type-specific: strings quoted ({@code "\"foo\""}), longs suffixed ({@code "5L"}), ints bare.
      */
     public static String resolveAsString(NBTTagCompound root, String path) {
         NBTBase tag = resolve(root, path);
@@ -82,15 +86,20 @@ public final class NBTPathAccessor {
 
     @SuppressWarnings("unchecked")
     private static NBTBase getListElement(NBTTagList list, int index) {
-        if (TAG_LIST_FIELD != null) {
-            try {
-                List<NBTBase> internal = (List<NBTBase>) TAG_LIST_FIELD.get(list);
-                return internal.get(index);
-            } catch (Exception ignored) {}
+        try {
+            List<NBTBase> internal = (List<NBTBase>) TAG_LIST_FIELD.get(list);
+            return internal.get(index);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to access NBTTagList element via reflection", e);
         }
-        NBTTagCompound compound = list.getCompoundTagAt(index);
-        if (compound.hasNoTags()) return null;
-        return compound;
+    }
+
+    private static String[] splitPath(String path) {
+        String[] segments = path.split("(?<!\\\\)\\.", -1);
+        for (int i = 0; i < segments.length; i++) {
+            segments[i] = segments[i].replace("\\.", ".");
+        }
+        return segments;
     }
 
     private static int parseIndex(String segment) {
