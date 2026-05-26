@@ -1,7 +1,6 @@
 package com.gtnewhorizons.horizonqa.api;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.nbt.NBTBase;
@@ -96,22 +95,11 @@ public final class NBTPathAccessor {
     }
 
     private static String[] splitPath(String path) {
-        List<String> segments = new ArrayList<>();
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < path.length(); i++) {
-            char c = path.charAt(i);
-            if (c == '\\' && i + 1 < path.length() && path.charAt(i + 1) == '.') {
-                sb.append('.');
-                i++;
-            } else if (c == '.') {
-                segments.add(sb.toString());
-                sb.setLength(0);
-            } else {
-                sb.append(c);
-            }
+        String[] segments = path.split("(?<!\\\\)\\.", -1);
+        for (int i = 0; i < segments.length; i++) {
+            segments[i] = segments[i].replace("\\.", ".");
         }
-        segments.add(sb.toString());
-        return segments.toArray(new String[0]);
+        return segments;
     }
 
     private static int parseIndex(String segment) {
