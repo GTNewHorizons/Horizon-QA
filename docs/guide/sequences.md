@@ -78,12 +78,9 @@ helper.startSequence()
     .thenExecuteAtStart(nextStimulus);
 ```
 
-## Setup code and startSequence
+## Setup code and `startSequence`
 
-The test body runs immediately when the test starts, before the first counted tick. A leading
-`thenExecuteAtStart` runs at START of tick 1, and a leading `thenExecute` runs at END of tick 1.
-Structural setup usually belongs before `startSequence()` so the sequence can focus on stimulus and
-assertions:
+The test body runs immediately when the test starts, before the first counted tick. A leading `thenExecuteAtStart` runs at START of tick 1, and a leading `thenExecute` runs at END of tick 1. Structural setup usually belongs before `startSequence()` so the sequence can focus on stimulus and assertions:
 
 ```java
 @GameTest(template = "stone_platform")
@@ -95,18 +92,13 @@ public static void example(GameTestHelper helper) {
 }
 ```
 
-## thenIdle counts ticks, not gaps
+## `thenIdle` counts ticks, not gaps
 
-Ticks are author-facing and 1-based. `thenIdle(1)` advances one counted tick from the current
-sequence point; between two events, that means the next event lands on the next tick.
+Ticks are author-facing and 1-based. `thenIdle(1)` advances one counted tick from the current sequence point; between two events, that means the next event lands on the next tick.
 
-END-phase sequence actions scheduled on the timeout boundary are evaluated before the test is marked
-timed out. For example, `thenIdle(40).thenSucceed()` passes at END of tick 40 with
-`timeoutTicks = 40`.
+END-phase sequence actions scheduled on the timeout boundary are evaluated before the test is marked timed out. For example, `thenIdle(40).thenSucceed()` passes at END of tick 40 with `timeoutTicks = 40`.
 
-START-phase actions after an initial idle run before the next world tick after that many ticks have
-elapsed. For example, `thenIdle(40).thenExecuteAtStart(...)` targets START of tick 41, so it is
-outside a `timeoutTicks = 40` window.
+START-phase actions after an initial idle run before the next world tick after that many ticks have elapsed. For example, `thenIdle(40).thenExecuteAtStart(...)` targets START of tick 41, so it is outside a `timeoutTicks = 40` window.
 
 ## Assertions inside thenExecute
 
