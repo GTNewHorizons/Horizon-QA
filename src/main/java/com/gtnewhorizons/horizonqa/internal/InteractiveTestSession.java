@@ -213,15 +213,7 @@ public class InteractiveTestSession {
     }
 
     private static void clearCell(WorldServer world, CellRecord cell) {
-        for (int x = cell.minX; x <= cell.maxX; x++) {
-            for (int y = cell.minY; y <= cell.maxY; y++) {
-                for (int z = cell.minZ; z <= cell.maxZ; z++) {
-                    if (!world.isAirBlock(x, y, z)) {
-                        world.setBlockToAir(x, y, z);
-                    }
-                }
-            }
-        }
+        GridSweeper.clearAndNotify(world, cell.minX, cell.minY, cell.minZ, cell.maxX, cell.maxY, cell.maxZ);
     }
 
     private static HybridStructureTemplate loadTemplate(GameTestDefinition def) {

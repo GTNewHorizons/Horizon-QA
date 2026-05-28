@@ -17,6 +17,15 @@ final class GridSweeper {
     private GridSweeper() {}
 
     static void clear(WorldServer world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        clear(world, minX, minY, minZ, maxX, maxY, maxZ, false);
+    }
+
+    static void clearAndNotify(WorldServer world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        clear(world, minX, minY, minZ, maxX, maxY, maxZ, true);
+    }
+
+    private static void clear(WorldServer world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
+        boolean notifyClients) {
         if (minY < 0) minY = 0;
         if (maxY > 255) maxY = 255;
         if (minX > maxX || minY > maxY || minZ > maxZ) return;
@@ -29,13 +38,13 @@ final class GridSweeper {
         for (int cx = chunkMinX; cx <= chunkMaxX; cx++) {
             for (int cz = chunkMinZ; cz <= chunkMaxZ; cz++) {
                 Chunk chunk = world.getChunkFromChunkCoords(cx, cz);
-                clearChunkRegion(chunk, cx, cz, minX, minY, minZ, maxX, maxY, maxZ);
+                clearChunkRegion(chunk, world, cx, cz, minX, minY, minZ, maxX, maxY, maxZ, notifyClients);
             }
         }
     }
 
-    private static void clearChunkRegion(Chunk chunk, int cx, int cz, int minX, int minY, int minZ, int maxX, int maxY,
-        int maxZ) {
+    private static void clearChunkRegion(Chunk chunk, WorldServer world, int cx, int cz, int minX, int minY, int minZ,
+        int maxX, int maxY, int maxZ, boolean notifyClients) {
 
         int chunkBaseX = cx << 4;
         int chunkBaseZ = cz << 4;
@@ -64,10 +73,14 @@ final class GridSweeper {
             for (int lx = localMinX; lx <= localMaxX; lx++) {
                 for (int lz = localMinZ; lz <= localMaxZ; lz++) {
                     for (int ly = localMinY; ly <= localMaxY; ly++) {
+                        boolean wasNotAir = section.getBlockByExtId(lx, ly, lz) != Blocks.air;
                         section.func_150818_a(lx, ly, lz, Blocks.air);
                         section.setExtBlockMetadata(lx, ly, lz, 0);
                         if (blockLight != null) blockLight.set(lx, ly, lz, 0);
                         if (skyLight != null) skyLight.set(lx, ly, lz, 15);
+                        if (notifyClients && wasNotAir) {
+                            world.markBlockForUpdate(chunkBaseX + lx, sectionBaseY + ly, chunkBaseZ + lz);
+                        }
                     }
                 }
             }
@@ -91,6 +104,9 @@ final class GridSweeper {
             for (ChunkPosition pos : toRemove) {
                 TileEntity te = teMap.remove(pos);
                 if (te != null) te.invalidate();
+                if (notifyClients) {
+                    world.markBlockForUpdate(chunkBaseX + pos.chunkPosX, pos.chunkPosY, chunkBaseZ + pos.chunkPosZ);
+                }
             }
             if (!toRemove.isEmpty()) modified = true;
         }
