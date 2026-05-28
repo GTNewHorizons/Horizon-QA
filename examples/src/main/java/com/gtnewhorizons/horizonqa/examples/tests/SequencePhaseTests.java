@@ -79,8 +79,7 @@ public class SequencePhaseTests {
         helper.onEachTick(() -> observedTicks[0]++);
         helper.startSequence()
             .thenIdle(5)
-            .thenExecute(
-                () -> helper.assertEquals(5, observedTicks[0], "Expected final tick to be observed"));
+            .thenExecute(() -> helper.assertEquals(5, observedTicks[0], "Expected final tick to be observed"));
         helper.succeedAtTimeout();
     }
 }
