@@ -15,10 +15,14 @@ Marks a static test method with signature `void name(GameTestHelper helper)`.
 | Attribute       | Type      | Default | Description                                                              |
 |-----------------|-----------|---------|--------------------------------------------------------------------------|
 | `template`      | `String`  | `""`    | Structure name; see [Structure templates](../guide/structures.md)        |
-| `timeoutTicks`  | `int`     | `100`   | Maximum test duration in ticks (hard cap)                                |
+| `timeoutTicks`  | `int`     | `100`   | Full server ticks the test may observe before timing out                 |
 | `batch`         | `String`  | `""`    | Batch group name for ordering and `@BeforeBatch` / `@AfterBatch` hooks   |
 | `required`      | `boolean` | `true`  | If `false`, a failure may not fail the overall run                       |
 | `rotation`      | `int`     | `0`     | Structure rotation `0–3` (90° steps clockwise around Y)                  |
+
+`timeoutTicks = N` allows the test to observe ticks `1..N`. Timeout is reported after the END phase of tick `N`.
+END-phase sequence actions scheduled on that boundary run before timeout is reported, so a sequence can still pass at
+`timeoutTicks`.
 
 Stability: `@Experimental` (entire public API is experimental in 0.x.x).
 

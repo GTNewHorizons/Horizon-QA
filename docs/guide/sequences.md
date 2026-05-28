@@ -37,7 +37,7 @@ One sequence per test. For an immediate pass use `helper.succeed()` directly.
 | `thenExecuteForAtEnd(n, Runnable)`         | END   | Alias of `thenExecuteFor`                       |
 | `thenWaitUntil(Runnable)`                  | END   | Retry each tick until runnable does not throw   |
 | `thenWaitUntilAtStart(Runnable)`           | START | Same, before world tick                         |
-| `thenWaitUntil(maxTicks, Runnable)`        | END   | Same, advance schedule by `maxTicks` on success |
+| `thenWaitUntil(maxTicks, Runnable)`        | END   | Same, reserve up to `maxTicks` ticks             |
 | `thenWaitUntilAtStart(maxTicks, Runnable)` | START | Same, before world tick                         |
 | `thenSucceed()`                            | END   | Pass the test                                   |
 | `thenFail(msg)`                            | END   | Fail the test                                   |
@@ -80,45 +80,33 @@ helper.startSequence()
 
 ## Setup code and startSequence
 
-The test body itself runs during tick START. Code placed before `startSequence()` executes
-in the same tick and phase as a leading `thenExecuteAtStart`, so both patterns are equivalent:
+The test body runs immediately when the test starts, before the first counted tick. A leading
+`thenExecuteAtStart` runs at START of tick 1, and a leading `thenExecute` runs at END of tick 1.
+Structural setup usually belongs before `startSequence()` so the sequence can focus on stimulus and
+assertions:
 
-=== "Setup before `startSequence`"
-
-    ```java
-    @GameTest(template = "stone_platform")
-    public static void example(GameTestHelper helper) {
-        helper.setBlock(0, 1, 0, Blocks.chest);          // runs at tick START
-        helper.startSequence()
-            .thenWaitUntil(() -> helper.assertBlockPresent(helper.absolute(0, 1, 0), Blocks.chest))
-            .thenSucceed();
-    }
-    ```
-
-=== "Setup inside `thenExecuteAtStart`"
-
-    ```java
-    @GameTest(template = "stone_platform")
-    public static void example(GameTestHelper helper) {
-        helper.startSequence()
-            .thenExecuteAtStart(() -> helper.setBlock(0, 1, 0, Blocks.chest))  // also tick START
-            .thenWaitUntil(() -> helper.assertBlockPresent(helper.absolute(0, 1, 0), Blocks.chest))
-            .thenSucceed();
-    }
-    ```
-
-The only difference is that `thenExecuteAtStart` defers the action to the **next** tick, while
-inline code runs immediately during test setup. In practice this has no observable effect because
-no world update happens between them. Use whichever reads better for the test at hand.
-
-!!! tip
-    Keep structural setup (placing blocks, configuring machines) before `startSequence()` and
-    reserve the sequence itself for the stimulus/response steps. This keeps the sequence focused
-    on what the test is actually verifying.
+```java
+@GameTest(template = "stone_platform")
+public static void example(GameTestHelper helper) {
+    helper.setBlock(0, 1, 0, Blocks.chest);
+    helper.startSequence()
+        .thenWaitUntil(() -> helper.assertBlockPresent(helper.absolute(0, 1, 0), Blocks.chest))
+        .thenSucceed();
+}
+```
 
 ## thenIdle counts ticks, not gaps
 
-`thenIdle(1)` means exactly one full tick separates the event before it from the event after.
+Ticks are author-facing and 1-based. `thenIdle(1)` advances one counted tick from the current
+sequence point; between two events, that means the next event lands on the next tick.
+
+END-phase sequence actions scheduled on the timeout boundary are evaluated before the test is marked
+timed out. For example, `thenIdle(40).thenSucceed()` passes at END of tick 40 with
+`timeoutTicks = 40`.
+
+START-phase actions after an initial idle run before the next world tick after that many ticks have
+elapsed. For example, `thenIdle(40).thenExecuteAtStart(...)` targets START of tick 41, so it is
+outside a `timeoutTicks = 40` window.
 
 ## Assertions inside thenExecute
 

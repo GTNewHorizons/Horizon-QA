@@ -25,7 +25,9 @@ public static void doesNotFormWithoutCoils(GameTestHelper helper) {
 |---------------------------------------------------|-----------------------------------------------------------------------|
 | `onEachTick(Runnable)`                            | Runs the callback every test tick until the test passes or fails      |
 | `assertFalse(ebf.isFormed(), …)`                  | Fails immediately on the tick where the machine forms                 |
-| `succeedAtTimeout()`                              | Passes only if the test reaches `timeoutTicks - 1` without failing    |
+| `succeedAtTimeout()`                              | Passes at the END of the final allowed tick if nothing failed         |
+
+The final allowed tick is still observed before `succeedAtTimeout()` passes.
 
 A transient formation fails on **that tick**, not at the end of the window — the framework does not need to wait out the full timeout to report the failure.
 

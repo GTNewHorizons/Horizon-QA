@@ -35,6 +35,7 @@ public class GameTestInstance {
     private Throwable failureCause;
     private GameTestSequence sequence;
     private BooleanSupplier succeedWhen;
+    private boolean succeedAtTimeout;
     private final List<Runnable> eachTickCallbacks = new ArrayList<>();
     private final List<DelayedAction> delayedActions = new ArrayList<>();
     private final List<Runnable> cleanupCallbacks = new ArrayList<>();
@@ -93,7 +94,7 @@ public class GameTestInstance {
 
         if (sequence != null) {
             try {
-                sequence.tick(tickCount - 1, TestPhase.START);
+                sequence.tick(tickCount, TestPhase.START);
             } catch (Throwable t) {
                 fail(t);
             }
@@ -124,21 +125,23 @@ public class GameTestInstance {
             }
         }
 
-        if (tickCount > definition.getTimeoutTicks()) {
-            if (succeedWhen != null) {
-                fail("succeedWhen predicate did not return true within " + definition.getTimeoutTicks() + " ticks");
-            } else {
-                status = GameTestStatus.TIMED_OUT;
-                LOG.warn("TIMEOUT  {} (timed out after {} ticks)", definition.getTestId(), tickCount);
-            }
-            return;
-        }
-
         if (sequence != null) {
             try {
-                sequence.tick(tickCount - 1, TestPhase.END);
+                sequence.tick(tickCount, TestPhase.END);
             } catch (Throwable t) {
                 fail(t);
+                return;
+            }
+        }
+        if (status != GameTestStatus.RUNNING) return;
+
+        if (tickCount >= definition.getTimeoutTicks()) {
+            if (succeedAtTimeout) {
+                succeed();
+            } else if (succeedWhen != null) {
+                fail("succeedWhen predicate did not return true within " + definition.getTimeoutTicks() + " ticks");
+            } else {
+                timeout();
             }
         }
     }
@@ -207,6 +210,21 @@ public class GameTestInstance {
         }
     }
 
+    private void timeout() {
+        if (status != GameTestStatus.RUNNING) return;
+        status = GameTestStatus.TIMED_OUT;
+        recorder.record(
+            () -> new TestFinished(
+                recorder.clock()
+                    .tick(),
+                definition.getTestId(),
+                "timed out",
+                recorder.clock()
+                    .tick()));
+        runCleanup();
+        LOG.warn("TIMEOUT  {} (timed out after {} ticks)", definition.getTestId(), tickCount);
+    }
+
     public void addCleanup(Runnable callback) {
         if (callback == null) throw new IllegalArgumentException("cleanup callback must not be null");
         cleanupCallbacks.add(callback);
@@ -262,6 +280,10 @@ public class GameTestInstance {
             throw new IllegalStateException("succeedWhen has already been set on this test");
         }
         this.succeedWhen = predicate;
+    }
+
+    public void setSucceedAtTimeout() {
+        succeedAtTimeout = true;
     }
 
     public void addEachTickCallback(Runnable callback) {

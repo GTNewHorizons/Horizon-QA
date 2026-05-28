@@ -16,7 +16,7 @@ public @interface GameTest {
     /** Structure template name (resolved relative to holder namespace / prefix). */
     String template() default "";
 
-    /** Maximum ticks before the test is considered timed out. */
+    /** Number of full server ticks the test may observe before timing out after the final END phase. */
     int timeoutTicks() default 100;
 
     /** Batch name; tests sharing a batch run together with {@link BeforeBatch} / {@link AfterBatch}. */

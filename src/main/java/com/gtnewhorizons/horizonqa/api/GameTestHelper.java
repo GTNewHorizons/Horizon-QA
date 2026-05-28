@@ -84,13 +84,11 @@ public class GameTestHelper {
     }
 
     /**
-     * Schedule {@link #succeed()} to run at {@code timeoutTicks - 1}.
+     * Pass at the end of {@code timeoutTicks} after the final tick's callbacks and sequence actions
+     * have run.
      */
     public void succeedAtTimeout() {
-        instance.scheduleDelayed(
-            instance.getDefinition()
-                .getTimeoutTicks() - 1,
-            this::succeed);
+        instance.setSucceedAtTimeout();
     }
 
     /**

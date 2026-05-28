@@ -65,4 +65,22 @@ public class SequencePhaseTests {
             .thenExecute(() -> { helper.assertIterableEquals(Arrays.asList("a", "b"), events); })
             .thenSucceed();
     }
+
+    @GameTest(timeoutTicks = 5)
+    public static void boundarySequenceRunsBeforeTimeout(GameTestHelper helper) {
+        helper.startSequence()
+            .thenIdle(5)
+            .thenSucceed();
+    }
+
+    @GameTest(timeoutTicks = 5)
+    public static void succeedAtTimeoutObservesFinalTick(GameTestHelper helper) {
+        final int[] observedTicks = { 0 };
+        helper.onEachTick(() -> observedTicks[0]++);
+        helper.startSequence()
+            .thenIdle(5)
+            .thenExecute(
+                () -> helper.assertEquals(5, observedTicks[0], "Expected final tick to be observed"));
+        helper.succeedAtTimeout();
+    }
 }
