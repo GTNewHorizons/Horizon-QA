@@ -22,16 +22,15 @@ public final class JUnitXmlReporter {
         try (PrintWriter pw = new PrintWriter(Files.newBufferedWriter(path, StandardCharsets.UTF_8))) {
             pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
             pw.printf(
-                "<testsuite name=\"horizonqa\" tests=\"%d\" failures=\"%d\" errors=\"%d\" skipped=\"0\""
+                "<testsuite name=\"horizonqa\" tests=\"%d\" failures=\"%d\" errors=\"%d\" skipped=\"%d\""
                     + " time=\"%.3f\" timestamp=\"%s\" hostname=\"localhost\">%n",
                 result.cases()
                     .size()
                     + result.issues()
                         .size(),
-                result.failed(),
-                result.timedOut() + result.incomplete()
-                    + result.issues()
-                        .size(),
+                result.junitFailures(),
+                result.junitErrors(),
+                result.junitSkipped(),
                 result.durationSeconds(),
                 sanitizeAttr(
                     Instant.now()
@@ -66,18 +65,12 @@ public final class JUnitXmlReporter {
             sanitizeAttr(resultCase.classname()),
             resultCase.timeSeconds());
 
-        if (resultCase.failed()) {
-            pw.printf(
-                "    <failure message=\"%s\" type=\"%s\">%n",
-                sanitizeAttr(resultCase.failureMessage()),
-                sanitizeAttr(resultCase.failureType()));
-            pw.print(escapeBody(resultCase.failureTrace()));
-            pw.println("    </failure>");
-        } else if (resultCase.timedOut() || resultCase.incomplete()) {
-            pw.printf(
-                "    <error message=\"%s\" type=\"%s\"/>%n",
-                sanitizeAttr(resultCase.failureMessage()),
-                sanitizeAttr(resultCase.failureType()));
+        if (resultCase.failedRequiredCase()) {
+            writeFailure(pw, resultCase);
+        } else if (resultCase.infrastructureError()) {
+            writeError(pw, resultCase);
+        } else if (resultCase.failedOptionalCase() || resultCase.skippedBySetup()) {
+            writeSkipped(pw, resultCase);
         }
 
         if (hasOutput) {
@@ -89,6 +82,39 @@ public final class JUnitXmlReporter {
         }
 
         pw.println("  </testcase>");
+    }
+
+    private static void writeFailure(PrintWriter pw, CaseResult resultCase) {
+        pw.printf(
+            "    <failure message=\"%s\" type=\"%s\">%n",
+            sanitizeAttr(resultCase.failureMessage()),
+            sanitizeAttr(resultCase.failureType()));
+        pw.print(escapeBody(resultCase.failureTrace()));
+        pw.println("    </failure>");
+    }
+
+    private static void writeError(PrintWriter pw, CaseResult resultCase) {
+        pw.printf(
+            "    <error message=\"%s\" type=\"%s\"/>%n",
+            sanitizeAttr(resultCase.failureMessage()),
+            sanitizeAttr(resultCase.failureType()));
+    }
+
+    private static void writeSkipped(PrintWriter pw, CaseResult resultCase) {
+        String trace = resultCase.failureTrace();
+        if (trace == null || trace.isEmpty()) {
+            pw.printf(
+                "    <skipped message=\"%s\" type=\"%s\"/>%n",
+                sanitizeAttr(resultCase.failureMessage()),
+                sanitizeAttr(resultCase.failureType()));
+            return;
+        }
+        pw.printf(
+            "    <skipped message=\"%s\" type=\"%s\">%n",
+            sanitizeAttr(resultCase.failureMessage()),
+            sanitizeAttr(resultCase.failureType()));
+        pw.print(escapeBody(trace));
+        pw.println("    </skipped>");
     }
 
     private static void writeIssue(PrintWriter pw, IssueResult issue) {

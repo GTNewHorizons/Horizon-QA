@@ -56,6 +56,42 @@ public class ReporterOutputTest {
     }
 
     @Test
+    public void junitXmlUsesCiSemanticsForFailuresErrorsAndSkipped() throws Exception {
+        RunResult result = RunResult.completedCases(
+            "ci",
+            Arrays.asList(
+                resultCase("mod:Suite.requiredFailure", CaseResult.Status.FAILED, true, "required failure"),
+                resultCase("mod:Suite.requiredTimeout", CaseResult.Status.TIMED_OUT, true, "required timeout"),
+                resultCase("mod:Suite.optionalFailure", CaseResult.Status.FAILED, false, "optional failure"),
+                resultCase("mod:Suite.optionalTimeout", CaseResult.Status.TIMED_OUT, false, "optional timeout"),
+                resultCase("mod:Suite.setupBlocked", CaseResult.Status.NOT_STARTED, true, "setup blocked"),
+                resultCase("mod:Suite.running", CaseResult.Status.RUNNING, true, "still running")),
+            Collections.singletonList(
+                new IssueResult(
+                    "selection:missing",
+                    "UNMATCHED_SELECTOR",
+                    "horizonqa.selection",
+                    "selector:missing",
+                    "missing selector",
+                    "",
+                    true)),
+            "TEST.xml");
+
+        File output = temporaryFolder.newFile("TEST-ci-semantics.xml");
+        JUnitXmlReporter.write(result, output);
+
+        String xml = read(output);
+        assertTrue(xml.contains("tests=\"7\" failures=\"2\" errors=\"2\" skipped=\"3\""));
+        assertTrue(xml.contains("<failure message=\"required failure\""));
+        assertTrue(xml.contains("<failure message=\"required timeout\""));
+        assertTrue(xml.contains("<skipped message=\"optional failure\""));
+        assertTrue(xml.contains("<skipped message=\"optional timeout\""));
+        assertTrue(xml.contains("<skipped message=\"setup blocked\""));
+        assertTrue(xml.contains("<error message=\"still running\""));
+        assertTrue(xml.contains("<error message=\"missing selector\""));
+    }
+
+    @Test
     public void statusJsonEscapesStringsAndReportsCounts() throws Exception {
         RunResult result = RunResult.preRun(
             "ci",
@@ -112,5 +148,20 @@ public class ReporterOutputTest {
 
     private static String read(File file) throws Exception {
         return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+    }
+
+    private static CaseResult resultCase(String id, CaseResult.Status status, boolean required, String message) {
+        return new CaseResult(
+            id,
+            "mod:Suite",
+            id.substring(id.lastIndexOf('.') + 1),
+            status,
+            required,
+            20,
+            1.0,
+            message,
+            status == CaseResult.Status.TIMED_OUT ? "GameTestTimeoutError" : "java.lang.AssertionError",
+            "trace",
+            Collections.emptyList());
     }
 }
