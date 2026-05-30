@@ -8,11 +8,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.api.event.TestEvent;
 import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
+import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 import com.gtnewhorizons.horizonqa.internal.GameTestStatus;
 
 public final class JUnitXmlReporter {
@@ -22,6 +24,11 @@ public final class JUnitXmlReporter {
     private JUnitXmlReporter() {}
 
     public static void write(List<GameTestInstance> instances, File outputFile) throws IOException {
+        write(instances, Collections.emptyList(), outputFile);
+    }
+
+    public static void write(List<GameTestInstance> instances, List<SelectionIssue> infrastructureIssues,
+        File outputFile) throws IOException {
         Path path = outputFile.toPath();
         Path parent = path.getParent();
         if (parent != null) {
@@ -35,9 +42,9 @@ public final class JUnitXmlReporter {
             pw.printf(
                 "<testsuite name=\"horizonqa\" tests=\"%d\" failures=\"%d\" errors=\"%d\" skipped=\"%d\""
                     + " time=\"%.3f\" timestamp=\"%s\" hostname=\"localhost\">%n",
-                instances.size(),
+                instances.size() + infrastructureIssues.size(),
                 rollup.failures(),
-                rollup.errors(),
+                rollup.errors() + infrastructureIssues.size(),
                 rollup.skipped(),
                 suiteDuration(instances),
                 sanitizeAttr(
@@ -47,9 +54,28 @@ public final class JUnitXmlReporter {
             for (var inst : instances) {
                 writeTestCase(pw, inst);
             }
+            for (SelectionIssue issue : infrastructureIssues) {
+                writeInfrastructureIssue(pw, issue);
+            }
 
             pw.println("</testsuite>");
         }
+    }
+
+    private static void writeInfrastructureIssue(PrintWriter pw, SelectionIssue issue) {
+        pw.printf(
+            "  <testcase name=\"%s\" classname=\"%s\" time=\"0.000\">%n",
+            sanitizeAttr("selector:" + issue.selector()),
+            sanitizeAttr("horizonqa.selection"));
+        pw.printf(
+            "    <error message=\"%s\" type=\"%s\"/>%n",
+            sanitizeAttr(issue.message()),
+            sanitizeAttr(issue.kind()));
+        pw.println("    <system-out>");
+        pw.print(escapeBody("issue.id=" + issue.id() + "\n"));
+        pw.print(escapeBody("selector=" + issue.selector() + "\n"));
+        pw.println("    </system-out>");
+        pw.println("  </testcase>");
     }
 
     private static void writeTestCase(PrintWriter pw, GameTestInstance inst) {

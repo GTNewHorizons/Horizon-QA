@@ -235,6 +235,15 @@ public final class HorizonQAProperties {
                         true));
                 continue;
             }
+            if (token.indexOf('*') >= 0) {
+                issues.add(
+                    invalidSelector(
+                        "Invalid selector '" + token
+                            + "': '*' is not supported; omit -D"
+                            + TESTS_PROPERTY
+                            + " or set it to an empty value to run all valid tests."));
+                continue;
+            }
 
             int colon = token.indexOf(':');
             if (colon < 0) {
@@ -242,19 +251,21 @@ public final class HorizonQAProperties {
                 continue;
             }
 
+            if (colon == 0) {
+                issues.add(invalidSelector("Invalid selector '" + token + "' (missing namespace before ':')"));
+                continue;
+            }
             if (colon == token.length() - 1) {
                 issues.add(
                     invalidSelector(
                         "Invalid selector '" + token + "' (use namespace without ':' to select all tests)"));
                 continue;
             }
-
-            String localId = token.substring(colon + 1);
-            if (localId.indexOf('.') < 0) {
+            if (token.indexOf(':', colon + 1) >= 0) {
                 issues.add(
                     invalidSelector(
                         "Invalid selector '" + token
-                            + "' (expected exact test id in the form namespace:Class.method)"));
+                            + "' (expected one ':' in an exact test id, for example namespace:Class.method)"));
                 continue;
             }
 

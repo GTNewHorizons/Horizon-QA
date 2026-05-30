@@ -45,6 +45,27 @@ Use `off` to load the mod without Horizon-QA commands, discovery, runner behavio
 -Dhorizonqa.mode=off
 ```
 
+## `horizonqa.tests`
+
+| Property          | Values                         | Default         |
+|-------------------|--------------------------------|-----------------|
+| `horizonqa.tests` | comma-separated selectors      | all valid tests |
+
+Limits automatic CI execution to selected tests:
+
+- unset or empty selects all valid tests,
+- `namespace` selects every valid test whose id starts with `namespace:`,
+- `namespace:Class.method` selects one exact test id.
+
+Empty selector tokens are invalid, so `a,,b` aborts CI before tests run. The `*` wildcard is not supported; omit the property or set it to an empty value to run all valid tests.
+
+Selectors that are syntactically valid but match no valid tests are reported as CI infrastructure issues. If at least one selector matches valid tests, those tests still run and the infrastructure issue is included in the final CI result.
+
+```text
+-Dhorizonqa.tests=horizonqaexamples
+-Dhorizonqa.tests=horizonqaexamples:BasicTests.simplePass
+```
+
 ## `horizonqa.events`
 
 | Property           | Values                            | Default |
