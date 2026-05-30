@@ -57,6 +57,12 @@ In words:
 3. Archive `TEST-horizonqa.xml` as a build artifact.
 4. Point Jenkins / GitHub Actions `publish-unit-test-result` (or your equivalent) at the XML.
 
+To run only part of the suite, pass `-Dhorizonqa.tests=<selector>`. A token without `:` selects a namespace, while a token with `:` must be an exact test id. For example, `-Dhorizonqa.tests=horizonqaexamples` runs that namespace and `-Dhorizonqa.tests=horizonqaexamples:BasicTests.simplePass` runs one test.
+
+Invalid selector syntax, including empty tokens and `*`, aborts before execution. Valid selectors that match no valid tests are reported as infrastructure issues; any other matched tests still run.
+
+If no valid tests are selected, CI still writes `TEST-horizonqa.xml`. By default this is a diagnostic error and exit code `2`; set `-Dhorizonqa.allowNoTests=true` only for jobs where an empty selection is expected.
+
 This repository's docs site build ([`.github/workflows/publish.yml`](https://github.com/GTNewHorizons/Horizon-QA/blob/master/.github/workflows/publish.yml)) runs `mkdocs build` and `./gradlew :javadoc` on push to `master`. Consumer mods wire their own game-test CI on top of the same shape.
 
 ## `required = false` and skipped semantics

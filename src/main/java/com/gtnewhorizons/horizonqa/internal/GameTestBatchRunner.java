@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.event.StructurePlaced;
+import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
 import com.gtnewhorizons.horizonqa.report.JUnitXmlReporter;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureLoader;
@@ -36,12 +38,19 @@ public class GameTestBatchRunner {
     private final GameTestRunner runner;
     private final GameTestGridLayout grid;
     private final List<GameTestInstance> allInstances = new ArrayList<>();
+    private final List<SelectionIssue> infrastructureIssues;
 
     public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
         Map<String, List<Method>> afterBatchMethods) {
+        this(tests, beforeBatchMethods, afterBatchMethods, Collections.emptyList());
+    }
+
+    public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
+        Map<String, List<Method>> afterBatchMethods, List<SelectionIssue> infrastructureIssues) {
         runner = new GameTestRunner();
         grid = new GameTestGridLayout();
         batches = buildBatches(tests, beforeBatchMethods, afterBatchMethods);
+        this.infrastructureIssues = Collections.unmodifiableList(new ArrayList<>(infrastructureIssues));
     }
 
     public void start() {
@@ -144,11 +153,11 @@ public class GameTestBatchRunner {
         runner.unregister();
         HorizonQAMod.CHUNK_LOADER.releaseAll();
 
-        ConsoleReporter.report(allInstances);
+        ConsoleReporter.report(allInstances, infrastructureIssues);
 
         File reportFile = HorizonQAProperties.junitReportFile();
         try {
-            JUnitXmlReporter.write(allInstances, reportFile);
+            JUnitXmlReporter.write(allInstances, infrastructureIssues, reportFile);
             LOG.info("JUnit XML report written to {}", reportFile.getAbsolutePath());
         } catch (IOException e) {
             LOG.error("Failed to write JUnit XML report: {}", e.getMessage());
@@ -156,8 +165,13 @@ public class GameTestBatchRunner {
 
         if (HorizonQAProperties.isCi()) {
             long requiredFailures = countRequiredFailures();
-            int exitCode = (int) Math.min(requiredFailures, 127);
-            LOG.info("CI mode: exiting with code {} ({} required test(s) failed).", exitCode, requiredFailures);
+            long infrastructureFailures = infrastructureIssues.size();
+            int exitCode = (int) Math.min(requiredFailures + infrastructureFailures, 127);
+            LOG.info(
+                "CI mode: exiting with code {} ({} required test(s) failed, {} infrastructure issue(s)).",
+                exitCode,
+                requiredFailures,
+                infrastructureFailures);
             FMLCommonHandler.instance()
                 .exitJava(exitCode, false);
         }

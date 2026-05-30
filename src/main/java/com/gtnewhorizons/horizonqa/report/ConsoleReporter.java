@@ -1,5 +1,6 @@
 package com.gtnewhorizons.horizonqa.report;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -7,6 +8,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.gtnewhorizons.horizonqa.api.event.TestEvent;
 import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
+import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 import com.gtnewhorizons.horizonqa.internal.GameTestStatus;
 
 public final class ConsoleReporter {
@@ -18,6 +20,10 @@ public final class ConsoleReporter {
     private static final int EVENT_TAIL_LINES = 20;
 
     public static void report(List<GameTestInstance> instances) {
+        report(instances, Collections.emptyList());
+    }
+
+    public static void report(List<GameTestInstance> instances, List<SelectionIssue> infrastructureIssues) {
         int passed = 0, failed = 0, timedOut = 0, other = 0;
         for (GameTestInstance inst : instances) {
             switch (inst.getStatus()) {
@@ -39,6 +45,13 @@ public final class ConsoleReporter {
         LOG.info("=======================================================");
         LOG.info("  GameTest Results");
         LOG.info("-------------------------------------------------------");
+        if (!infrastructureIssues.isEmpty()) {
+            LOG.error("  Infrastructure issues");
+            for (SelectionIssue issue : infrastructureIssues) {
+                LOG.error("  [ISSUE] {} - {}", issue.selector(), issue.message());
+            }
+            LOG.info("-------------------------------------------------------");
+        }
         for (GameTestInstance inst : instances) {
             String id = inst.getDefinition()
                 .getTestId();
@@ -68,7 +81,7 @@ public final class ConsoleReporter {
         if (other > 0) {
             LOG.warn("  {} test(s) did not complete", other);
         }
-        if (failed + timedOut == 0) {
+        if (infrastructureIssues.isEmpty() && failed + timedOut == 0) {
             LOG.info("  RUN PASSED");
         } else {
             LOG.error("  RUN FAILED");

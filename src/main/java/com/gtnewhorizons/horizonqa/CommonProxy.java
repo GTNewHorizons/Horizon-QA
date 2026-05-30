@@ -1,5 +1,9 @@
 package com.gtnewhorizons.horizonqa;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import net.minecraftforge.common.ForgeChunkManager;
@@ -7,10 +11,14 @@ import net.minecraftforge.common.MinecraftForge;
 
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommand;
+import com.gtnewhorizons.horizonqa.internal.DiscoveryResult;
 import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
+import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
+import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
+import com.gtnewhorizons.horizonqa.report.JUnitXmlReporter;
 import com.gtnewhorizons.horizonqa.visual.SelectionBoxRenderer;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
@@ -70,26 +78,42 @@ public class CommonProxy {
         event.registerServerCommand(new HorizonQACommand());
 
         HorizonQAMod.LOG.info("Discovering tests...");
-        GameTestRegistry.discoverTests();
+        DiscoveryResult discovery = GameTestRegistry.discoverTests();
 
         if (!HorizonQAProperties.isCi()) return;
 
-        if (GameTestRegistry.getAllTests()
+        GameTestSelection selection = GameTestSelection.from(discovery);
+        List<SelectionIssue> infrastructureIssues = new ArrayList<>(selection.infrastructureIssues());
+        if (selection.selectedTests()
+            .isEmpty() && infrastructureIssues.isEmpty()
+            && !HorizonQAProperties.allowNoTests()) {
+            infrastructureIssues.add(GameTestSelection.noSelectedTests(HorizonQAProperties.selectsAllTests()));
+        }
+        logSelectionIssues(infrastructureIssues);
+
+        if (selection.selectedTests()
             .isEmpty()) {
-            HorizonQAMod.LOG.warn("No tests found. Nothing to run.");
+            if (infrastructureIssues.isEmpty()) {
+                HorizonQAMod.LOG.warn("No tests found. Nothing to run.");
+            } else {
+                HorizonQAMod.LOG.error("No selected valid tests. Nothing to run.");
+            }
+            writePreRunSelectionReport(infrastructureIssues);
+            int exitCode = HorizonQAProperties.allowNoTests() && infrastructureIssues.isEmpty() ? 0 : 2;
             FMLCommonHandler.instance()
-                .exitJava(2, false);
+                .exitJava(exitCode, false);
             return;
         }
 
         HorizonQAMod.LOG.info(
             "Starting {} test(s) in CI mode.",
-            GameTestRegistry.getAllTests()
+            selection.selectedTests()
                 .size());
         GameTestBatchRunner batchRunner = new GameTestBatchRunner(
-            GameTestRegistry.getAllTests(),
-            GameTestRegistry.getBeforeBatchMethods(),
-            GameTestRegistry.getAfterBatchMethods());
+            selection.selectedTests(),
+            discovery.beforeBatchMethods(),
+            discovery.afterBatchMethods(),
+            infrastructureIssues);
         batchRunner.start();
     }
 
@@ -101,6 +125,27 @@ public class CommonProxy {
                 issue.kind(),
                 issue.property(),
                 issue.message());
+        }
+    }
+
+    private static void logSelectionIssues(List<SelectionIssue> issues) {
+        for (SelectionIssue issue : issues) {
+            HorizonQAMod.LOG.error(
+                "Infrastructure issue [{}] {} in {}: {}",
+                issue.id(),
+                issue.kind(),
+                HorizonQAProperties.TESTS_PROPERTY,
+                issue.message());
+        }
+    }
+
+    private static void writePreRunSelectionReport(List<SelectionIssue> issues) {
+        File reportFile = HorizonQAProperties.junitReportFile();
+        try {
+            JUnitXmlReporter.write(Collections.emptyList(), issues, reportFile);
+            HorizonQAMod.LOG.info("JUnit XML report written to {}", reportFile.getAbsolutePath());
+        } catch (IOException e) {
+            HorizonQAMod.LOG.error("Failed to write JUnit XML report: {}", e.getMessage());
         }
     }
 
