@@ -63,6 +63,14 @@ Invalid selector syntax, including empty tokens and `*`, aborts before execution
 
 If no valid tests are selected, CI still writes `TEST-horizonqa.xml`. By default this is a diagnostic error and exit code `2`; set `-Dhorizonqa.allowNoTests=true` only for jobs where an empty selection is expected.
 
+CI exit codes are deterministic:
+
+| Code | Meaning                                                                                                     |
+|------|-------------------------------------------------------------------------------------------------------------|
+| `0`  | The run passed. Optional test failures do not fail the process.                                             |
+| `1`  | At least one required test failed or timed out.                                                             |
+| `2`  | Infrastructure, configuration, discovery, selection, template, cleanup, reporting, or incomplete-run error. |
+
 This repository's docs site build ([`.github/workflows/publish.yml`](https://github.com/GTNewHorizons/Horizon-QA/blob/master/.github/workflows/publish.yml)) runs `mkdocs build` and `./gradlew :javadoc` on push to `master`. Consumer mods wire their own game-test CI on top of the same shape.
 
 ## `required = false` and skipped semantics

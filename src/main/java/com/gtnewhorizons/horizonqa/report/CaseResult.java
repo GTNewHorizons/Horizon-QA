@@ -74,7 +74,7 @@ public record CaseResult(String id, String classname, String name, Status status
     }
 
     public boolean failedRequiredCase() {
-        return required && !passed();
+        return required && (failed() || timedOut());
     }
 
     public boolean failedOptionalCase() {

@@ -159,12 +159,12 @@ public class GameTestBatchRunner {
         RunResult result = RunResult
             .completed(HorizonQAProperties.modeName(), allInstances, issues, reportFile.getPath());
 
-        ConsoleReporter.report(result);
         try {
             JUnitXmlReporter.write(result, reportFile);
             LOG.info("JUnit XML report written to {}", reportFile.getAbsolutePath());
         } catch (IOException e) {
             LOG.error("Failed to write JUnit XML report: {}", e.getMessage());
+            result = result.withAdditionalIssue(IssueResult.reporting("junit", reportFile.getAbsolutePath(), e));
         }
 
         File statusFile = HorizonQAProperties.statusReportFile();
@@ -173,13 +173,16 @@ public class GameTestBatchRunner {
             LOG.info("Status JSON report written to {}", statusFile.getAbsolutePath());
         } catch (IOException e) {
             LOG.error("Failed to write status JSON report: {}", e.getMessage());
+            result = result.withAdditionalIssue(IssueResult.reporting("status", statusFile.getAbsolutePath(), e));
         }
+        ConsoleReporter.report(result);
 
         if (HorizonQAProperties.isCi()) {
             LOG.info(
-                "CI mode: exiting with code {} ({} required test(s) failed, {} infrastructure issue(s)).",
+                "CI mode: exiting with code {} ({} required test failure/timeout(s), {} incomplete test(s), {} infrastructure issue(s)).",
                 result.exitCode(),
                 result.requiredFailures(),
+                result.incomplete(),
                 result.diagnosticErrors());
             FMLCommonHandler.instance()
                 .exitJava(result.exitCode(), false);

@@ -29,4 +29,19 @@ public record IssueResult(String id, String kind, String classname, String name,
             "issue.id=" + issue.id() + "\nproperty=" + issue.property() + "\n",
             issue.fatalInCi());
     }
+
+    public static IssueResult reporting(String reporter, String target, Exception error) {
+        String name = reporter == null || reporter.isEmpty() ? "report" : reporter;
+        String message = error != null && error.getMessage() != null ? error.getMessage() : "unknown reporting error";
+        String id = "reporting:" + name;
+        String details = "issue.id=" + id + "\nreporter=" + name + "\ntarget=" + (target == null ? "" : target) + "\n";
+        return new IssueResult(
+            id,
+            "REPORTING_ERROR",
+            "horizonqa.reporting",
+            "report:" + name,
+            "Failed to write " + name + " report: " + message,
+            details,
+            true);
+    }
 }

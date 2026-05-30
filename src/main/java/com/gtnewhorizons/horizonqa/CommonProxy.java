@@ -71,8 +71,8 @@ public class CommonProxy {
         List<PropertyIssue> ciPropertyIssues = HorizonQAProperties.ciInfrastructureIssues();
         if (!ciPropertyIssues.isEmpty()) {
             logInfrastructureIssues(ciPropertyIssues);
-            RunResult result = preRunResult(toPropertyIssueResults(ciPropertyIssues), 2);
-            writePreRunReport(result);
+            RunResult result = preRunResult(toPropertyIssueResults(ciPropertyIssues));
+            result = writePreRunReport(result);
             FMLCommonHandler.instance()
                 .exitJava(result.exitCode(), false);
             return;
@@ -104,9 +104,8 @@ public class CommonProxy {
             } else {
                 HorizonQAMod.LOG.error("No selected valid tests. Nothing to run.");
             }
-            int exitCode = HorizonQAProperties.allowNoTests() && infrastructureIssues.isEmpty() ? 0 : 2;
-            RunResult result = preRunResult(issues, exitCode);
-            writePreRunReport(result);
+            RunResult result = preRunResult(issues);
+            result = writePreRunReport(result);
             FMLCommonHandler.instance()
                 .exitJava(result.exitCode(), false);
             return;
@@ -146,20 +145,19 @@ public class CommonProxy {
         }
     }
 
-    private static RunResult preRunResult(List<IssueResult> issues, int exitCode) {
+    private static RunResult preRunResult(List<IssueResult> issues) {
         File reportFile = HorizonQAProperties.junitReportFile();
-        return RunResult.preRun(HorizonQAProperties.modeName(), issues, reportFile.getPath(), exitCode);
+        return RunResult.preRun(HorizonQAProperties.modeName(), issues, reportFile.getPath());
     }
 
-    private static void writePreRunReport(RunResult result) {
-        ConsoleReporter.report(result);
-
+    private static RunResult writePreRunReport(RunResult result) {
         File reportFile = HorizonQAProperties.junitReportFile();
         try {
             JUnitXmlReporter.write(result, reportFile);
             HorizonQAMod.LOG.info("JUnit XML report written to {}", reportFile.getAbsolutePath());
         } catch (IOException e) {
             HorizonQAMod.LOG.error("Failed to write JUnit XML report: {}", e.getMessage());
+            result = result.withAdditionalIssue(IssueResult.reporting("junit", reportFile.getAbsolutePath(), e));
         }
 
         File statusFile = HorizonQAProperties.statusReportFile();
@@ -168,7 +166,10 @@ public class CommonProxy {
             HorizonQAMod.LOG.info("Status JSON report written to {}", statusFile.getAbsolutePath());
         } catch (IOException e) {
             HorizonQAMod.LOG.error("Failed to write status JSON report: {}", e.getMessage());
+            result = result.withAdditionalIssue(IssueResult.reporting("status", statusFile.getAbsolutePath(), e));
         }
+        ConsoleReporter.report(result);
+        return result;
     }
 
     private static List<IssueResult> toIssueResults(List<SelectionIssue> issues) {

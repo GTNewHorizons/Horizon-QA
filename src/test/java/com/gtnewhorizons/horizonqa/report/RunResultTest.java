@@ -54,7 +54,7 @@ public class RunResultTest {
     }
 
     @Test
-    public void exitCodeCountsRequiredFailuresAndFatalIssuesOnly() {
+    public void exitCodeUsesInfrastructureErrorWhenFatalIssueExists() {
         List<CaseResult> cases = Arrays.asList(
             resultCase("mod:Suite.required", CaseResult.Status.FAILED, true),
             resultCase("mod:Suite.optional", CaseResult.Status.FAILED, false));
@@ -70,15 +70,31 @@ public class RunResultTest {
     }
 
     @Test
-    public void runtimeOnlyFailuresReportFailedStatus() {
+    public void runtimeOnlyRequiredFailuresUseSingleFailureExitCode() {
         RunResult result = RunResult.completedCases(
             "ci",
-            Collections.singletonList(resultCase("mod:Suite.required", CaseResult.Status.TIMED_OUT, true)),
+            Arrays.asList(
+                resultCase("mod:Suite.requiredOne", CaseResult.Status.FAILED, true),
+                resultCase("mod:Suite.requiredTwo", CaseResult.Status.TIMED_OUT, true)),
             Collections.emptyList(),
             "TEST.xml");
 
         assertEquals(1, result.exitCode());
         assertEquals("failed", result.status());
+        assertEquals(2, result.requiredFailures());
+    }
+
+    @Test
+    public void incompleteCasesUseInfrastructureExitCode() {
+        RunResult result = RunResult.completedCases(
+            "ci",
+            Collections.singletonList(resultCase("mod:Suite.required", CaseResult.Status.RUNNING, true)),
+            Collections.emptyList(),
+            "TEST.xml");
+
+        assertEquals(2, result.exitCode());
+        assertEquals("error", result.status());
+        assertEquals(0, result.requiredFailures());
     }
 
     private static CaseResult resultCase(String id, CaseResult.Status status, boolean required) {

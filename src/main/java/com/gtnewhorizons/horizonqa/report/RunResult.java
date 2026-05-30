@@ -8,8 +8,11 @@ import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
 
 @Desugar
-public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> issues, String junitReport,
-    int exitCode) {
+public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> issues, String junitReport) {
+
+    private static final int EXIT_PASSED = 0;
+    private static final int EXIT_REQUIRED_TEST_FAILURE = 1;
+    private static final int EXIT_INFRASTRUCTURE_ERROR = 2;
 
     public RunResult {
         cases = immutableList(cases);
@@ -29,19 +32,38 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
 
     public static RunResult completedCases(String mode, List<CaseResult> cases, List<IssueResult> issues,
         String junitReport) {
-        int exitCode = cappedExitCode(requiredFailures(cases) + fatalIssues(issues));
-        return new RunResult(mode, cases, issues, junitReport, exitCode);
+        return new RunResult(mode, cases, issues, junitReport);
     }
 
-    public static RunResult preRun(String mode, List<IssueResult> issues, String junitReport, int exitCode) {
-        return new RunResult(mode, Collections.emptyList(), issues, junitReport, exitCode);
+    public static RunResult preRun(String mode, List<IssueResult> issues, String junitReport) {
+        return new RunResult(mode, Collections.emptyList(), issues, junitReport);
+    }
+
+    public RunResult withAdditionalIssue(IssueResult issue) {
+        if (issue == null) {
+            return this;
+        }
+        List<IssueResult> updated = new ArrayList<>(issues);
+        updated.add(issue);
+        return new RunResult(mode, cases, updated, junitReport);
+    }
+
+    public int exitCode() {
+        if (hasInfrastructureError(cases, issues)) {
+            return EXIT_INFRASTRUCTURE_ERROR;
+        }
+        if (requiredFailures(cases) > 0) {
+            return EXIT_REQUIRED_TEST_FAILURE;
+        }
+        return EXIT_PASSED;
     }
 
     public String status() {
-        if (exitCode == 0) {
+        int exitCode = exitCode();
+        if (exitCode == EXIT_PASSED) {
             return "passed";
         }
-        if (diagnosticErrors() > 0 || cases.isEmpty()) {
+        if (exitCode == EXIT_INFRASTRUCTURE_ERROR) {
             return "error";
         }
         return "failed";
@@ -100,7 +122,7 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
     }
 
     public boolean passedRun() {
-        return exitCode == 0;
+        return exitCode() == EXIT_PASSED;
     }
 
     public double durationSeconds() {
@@ -119,6 +141,21 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
         return count;
     }
 
+    private static boolean hasInfrastructureError(List<CaseResult> cases, List<IssueResult> issues) {
+        if (fatalIssues(issues) > 0) {
+            return true;
+        }
+        if (cases == null) {
+            return false;
+        }
+        for (CaseResult result : cases) {
+            if (result.incomplete()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static long fatalIssues(List<IssueResult> issues) {
         long count = 0;
         if (issues == null) {
@@ -128,10 +165,6 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
             if (issue.fatalInCi()) count++;
         }
         return count;
-    }
-
-    private static int cappedExitCode(long failures) {
-        return (int) Math.min(failures, 127);
     }
 
     private static <T> List<T> immutableList(List<T> source) {

@@ -123,9 +123,11 @@ Override the JUnit path with either an exact file or an output directory:
 |------------------------|-----------------------------------------------------------------------------------|
 | `horizonqa.reportFile` | Exact JUnit XML file path                                                         |
 | `horizonqa.reportDir`  | Directory containing `TEST-horizonqa.xml`                                         |
-| `horizonqa.statusFile` | Parsed now for CI validation; status JSON writing lands in a later reporting pass |
+| `horizonqa.statusFile` | Exact status JSON file path                                                       |
 
 `horizonqa.reportFile` wins over `horizonqa.reportDir`. Relative paths resolve from the server process working directory.
+
+CI process exit codes are fixed by outcome category: `0` for passed, `1` for required test failure or timeout, and `2` for infrastructure, configuration, discovery, selection, template, cleanup, reporting, or incomplete-run errors.
 
 !!! warning "Use lowercase property values"
 

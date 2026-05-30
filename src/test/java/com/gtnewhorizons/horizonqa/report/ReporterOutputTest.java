@@ -68,8 +68,7 @@ public class ReporterOutputTest {
                     "bad",
                     "",
                     true)),
-            "TEST-\u03b1.xml\n",
-            2);
+            "TEST-\u03b1.xml\n");
 
         File output = temporaryFolder.newFile("horizonqa-result.json");
         StatusJsonReporter.write(result, output);
