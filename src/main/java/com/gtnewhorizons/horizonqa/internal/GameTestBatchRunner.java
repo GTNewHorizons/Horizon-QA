@@ -21,9 +21,11 @@ import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.event.StructurePlaced;
-import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
+import com.gtnewhorizons.horizonqa.report.IssueResult;
 import com.gtnewhorizons.horizonqa.report.JUnitXmlReporter;
+import com.gtnewhorizons.horizonqa.report.RunResult;
+import com.gtnewhorizons.horizonqa.report.StatusJsonReporter;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureLoader;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
 import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
@@ -38,7 +40,7 @@ public class GameTestBatchRunner {
     private final GameTestRunner runner;
     private final GameTestGridLayout grid;
     private final List<GameTestInstance> allInstances = new ArrayList<>();
-    private final List<SelectionIssue> infrastructureIssues;
+    private final List<IssueResult> issues;
 
     public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
         Map<String, List<Method>> afterBatchMethods) {
@@ -46,11 +48,11 @@ public class GameTestBatchRunner {
     }
 
     public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
-        Map<String, List<Method>> afterBatchMethods, List<SelectionIssue> infrastructureIssues) {
+        Map<String, List<Method>> afterBatchMethods, List<IssueResult> issues) {
         runner = new GameTestRunner();
         grid = new GameTestGridLayout();
         batches = buildBatches(tests, beforeBatchMethods, afterBatchMethods);
-        this.infrastructureIssues = Collections.unmodifiableList(new ArrayList<>(infrastructureIssues));
+        this.issues = Collections.unmodifiableList(new ArrayList<>(issues));
     }
 
     public void start() {
@@ -153,39 +155,35 @@ public class GameTestBatchRunner {
         runner.unregister();
         HorizonQAMod.CHUNK_LOADER.releaseAll();
 
-        ConsoleReporter.report(allInstances, infrastructureIssues);
-
         File reportFile = HorizonQAProperties.junitReportFile();
+        RunResult result = RunResult
+            .completed(HorizonQAProperties.modeName(), allInstances, issues, reportFile.getPath());
+
+        ConsoleReporter.report(result);
         try {
-            JUnitXmlReporter.write(allInstances, infrastructureIssues, reportFile);
+            JUnitXmlReporter.write(result, reportFile);
             LOG.info("JUnit XML report written to {}", reportFile.getAbsolutePath());
         } catch (IOException e) {
             LOG.error("Failed to write JUnit XML report: {}", e.getMessage());
         }
 
+        File statusFile = HorizonQAProperties.statusReportFile();
+        try {
+            StatusJsonReporter.write(result, statusFile);
+            LOG.info("Status JSON report written to {}", statusFile.getAbsolutePath());
+        } catch (IOException e) {
+            LOG.error("Failed to write status JSON report: {}", e.getMessage());
+        }
+
         if (HorizonQAProperties.isCi()) {
-            long requiredFailures = countRequiredFailures();
-            long infrastructureFailures = infrastructureIssues.size();
-            int exitCode = (int) Math.min(requiredFailures + infrastructureFailures, 127);
             LOG.info(
                 "CI mode: exiting with code {} ({} required test(s) failed, {} infrastructure issue(s)).",
-                exitCode,
-                requiredFailures,
-                infrastructureFailures);
+                result.exitCode(),
+                result.requiredFailures(),
+                result.diagnosticErrors());
             FMLCommonHandler.instance()
-                .exitJava(exitCode, false);
+                .exitJava(result.exitCode(), false);
         }
-    }
-
-    private long countRequiredFailures() {
-        long count = 0;
-        for (GameTestInstance inst : allInstances) {
-            if (inst.getDefinition()
-                .isRequired() && inst.getStatus() != GameTestStatus.PASSED) {
-                count++;
-            }
-        }
-        return count;
     }
 
     private static void invokeMethods(List<Method> methods, String phase) {

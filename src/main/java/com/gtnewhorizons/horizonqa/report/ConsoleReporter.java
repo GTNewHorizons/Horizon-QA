@@ -1,87 +1,62 @@
 package com.gtnewhorizons.horizonqa.report;
 
-import java.util.Collections;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.gtnewhorizons.horizonqa.api.event.TestEvent;
-import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
-import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
-import com.gtnewhorizons.horizonqa.internal.GameTestStatus;
-
 public final class ConsoleReporter {
 
     private static final Logger LOG = LogManager.getLogger("GameTest");
+    private static final int EVENT_TAIL_LINES = 20;
 
     private ConsoleReporter() {}
 
-    private static final int EVENT_TAIL_LINES = 20;
-
-    public static void report(List<GameTestInstance> instances) {
-        report(instances, Collections.emptyList());
-    }
-
-    public static void report(List<GameTestInstance> instances, List<SelectionIssue> infrastructureIssues) {
-        int passed = 0, failed = 0, timedOut = 0, other = 0;
-        for (GameTestInstance inst : instances) {
-            switch (inst.getStatus()) {
-                case PASSED:
-                    passed++;
-                    break;
-                case FAILED:
-                    failed++;
-                    break;
-                case TIMED_OUT:
-                    timedOut++;
-                    break;
-                default:
-                    other++;
-                    break;
-            }
-        }
-
+    public static void report(RunResult result) {
         LOG.info("=======================================================");
         LOG.info("  GameTest Results");
         LOG.info("-------------------------------------------------------");
-        if (!infrastructureIssues.isEmpty()) {
-            LOG.error("  Infrastructure issues");
-            for (SelectionIssue issue : infrastructureIssues) {
-                LOG.error("  [ISSUE] {} - {}", issue.selector(), issue.message());
+
+        if (!result.issues()
+            .isEmpty()) {
+            LOG.error("  Diagnostics");
+            for (IssueResult issue : result.issues()) {
+                LOG.error("  [ISSUE] {} - {}", issue.name(), issue.message());
             }
             LOG.info("-------------------------------------------------------");
         }
-        for (GameTestInstance inst : instances) {
-            String id = inst.getDefinition()
-                .getTestId();
-            GameTestStatus status = inst.getStatus();
-            switch (status) {
+
+        for (CaseResult resultCase : result.cases()) {
+            switch (resultCase.status()) {
                 case PASSED:
-                    LOG.info("  [PASS] {}", id);
+                    LOG.info("  [PASS] {}", resultCase.id());
                     break;
-                case FAILED: {
-                    Throwable cause = inst.getFailureCause();
-                    String detail = cause != null ? cause.getMessage() : "unknown failure";
-                    LOG.error("  [FAIL] {} — {}", id, detail);
-                    dumpEventTail(inst);
+                case FAILED:
+                    LOG.error("  [FAIL] {} - {}", resultCase.id(), detail(resultCase));
+                    dumpOutputTail(resultCase);
                     break;
-                }
                 case TIMED_OUT:
-                    LOG.error("  [TIME] {} (timed out after {} ticks)", id, inst.getTickCount());
-                    dumpEventTail(inst);
+                    LOG.error("  [TIME] {} (timed out after {} ticks)", resultCase.id(), resultCase.tickCount());
+                    dumpOutputTail(resultCase);
                     break;
                 default:
-                    LOG.warn("  [SKIP] {} (did not complete, status: {})", id, status);
+                    LOG.warn("  [SKIP] {} (did not complete, status: {})", resultCase.id(), resultCase.status());
                     break;
             }
         }
+
         LOG.info("-------------------------------------------------------");
-        LOG.info("  {} passed  {} failed  {} timed out", passed, failed, timedOut);
-        if (other > 0) {
-            LOG.warn("  {} test(s) did not complete", other);
+        LOG.info("  {} passed  {} failed  {} timed out", result.passed(), result.failed(), result.timedOut());
+        if (result.incomplete() > 0) {
+            LOG.warn("  {} test(s) did not complete", result.incomplete());
         }
-        if (infrastructureIssues.isEmpty() && failed + timedOut == 0) {
+        if (result.diagnosticErrors() > 0) {
+            LOG.error("  {} diagnostic error(s)", result.diagnosticErrors());
+        }
+        if (result.optionalFailures() > 0) {
+            LOG.warn("  {} optional test failure(s)", result.optionalFailures());
+        }
+        if (result.passedRun()) {
             LOG.info("  RUN PASSED");
         } else {
             LOG.error("  RUN FAILED");
@@ -89,17 +64,21 @@ public final class ConsoleReporter {
         LOG.info("=======================================================");
     }
 
-    private static void dumpEventTail(GameTestInstance inst) {
-        List<TestEvent> events = inst.getRecorder()
-            .snapshot();
-        if (events.isEmpty()) return;
-        int from = Math.max(0, events.size() - EVENT_TAIL_LINES);
+    private static void dumpOutputTail(CaseResult resultCase) {
+        List<String> lines = resultCase.outputLines();
+        if (lines.isEmpty()) return;
+
+        int from = Math.max(0, lines.size() - EVENT_TAIL_LINES);
         if (from > 0) {
-            LOG.error("         (showing last {} of {} events)", events.size() - from, events.size());
+            LOG.error("         (showing last {} of {} output lines)", lines.size() - from, lines.size());
         }
-        for (int i = from; i < events.size(); i++) {
-            TestEvent e = events.get(i);
-            LOG.error("         [t={}] [{}] {}", e.tick(), e.category(), e.summary());
+        for (int i = from; i < lines.size(); i++) {
+            LOG.error("         {}", lines.get(i));
         }
+    }
+
+    private static String detail(CaseResult resultCase) {
+        String message = resultCase.failureMessage();
+        return message == null || message.isEmpty() ? "unknown failure" : message;
     }
 }

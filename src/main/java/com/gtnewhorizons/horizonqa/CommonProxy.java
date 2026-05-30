@@ -3,7 +3,6 @@ package com.gtnewhorizons.horizonqa;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import net.minecraftforge.common.ForgeChunkManager;
@@ -18,7 +17,11 @@ import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
+import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
+import com.gtnewhorizons.horizonqa.report.IssueResult;
 import com.gtnewhorizons.horizonqa.report.JUnitXmlReporter;
+import com.gtnewhorizons.horizonqa.report.RunResult;
+import com.gtnewhorizons.horizonqa.report.StatusJsonReporter;
 import com.gtnewhorizons.horizonqa.visual.SelectionBoxRenderer;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
@@ -68,8 +71,10 @@ public class CommonProxy {
         List<PropertyIssue> ciPropertyIssues = HorizonQAProperties.ciInfrastructureIssues();
         if (!ciPropertyIssues.isEmpty()) {
             logInfrastructureIssues(ciPropertyIssues);
+            RunResult result = preRunResult(toPropertyIssueResults(ciPropertyIssues), 2);
+            writePreRunReport(result);
             FMLCommonHandler.instance()
-                .exitJava(2, false);
+                .exitJava(result.exitCode(), false);
             return;
         }
         if (HorizonQAProperties.isOff()) return;
@@ -90,6 +95,7 @@ public class CommonProxy {
             infrastructureIssues.add(GameTestSelection.noSelectedTests(HorizonQAProperties.selectsAllTests()));
         }
         logSelectionIssues(infrastructureIssues);
+        List<IssueResult> issues = toIssueResults(infrastructureIssues);
 
         if (selection.selectedTests()
             .isEmpty()) {
@@ -98,10 +104,11 @@ public class CommonProxy {
             } else {
                 HorizonQAMod.LOG.error("No selected valid tests. Nothing to run.");
             }
-            writePreRunSelectionReport(infrastructureIssues);
             int exitCode = HorizonQAProperties.allowNoTests() && infrastructureIssues.isEmpty() ? 0 : 2;
+            RunResult result = preRunResult(issues, exitCode);
+            writePreRunReport(result);
             FMLCommonHandler.instance()
-                .exitJava(exitCode, false);
+                .exitJava(result.exitCode(), false);
             return;
         }
 
@@ -113,7 +120,7 @@ public class CommonProxy {
             selection.selectedTests(),
             discovery.beforeBatchMethods(),
             discovery.afterBatchMethods(),
-            infrastructureIssues);
+            issues);
         batchRunner.start();
     }
 
@@ -139,14 +146,45 @@ public class CommonProxy {
         }
     }
 
-    private static void writePreRunSelectionReport(List<SelectionIssue> issues) {
+    private static RunResult preRunResult(List<IssueResult> issues, int exitCode) {
+        File reportFile = HorizonQAProperties.junitReportFile();
+        return RunResult.preRun(HorizonQAProperties.modeName(), issues, reportFile.getPath(), exitCode);
+    }
+
+    private static void writePreRunReport(RunResult result) {
+        ConsoleReporter.report(result);
+
         File reportFile = HorizonQAProperties.junitReportFile();
         try {
-            JUnitXmlReporter.write(Collections.emptyList(), issues, reportFile);
+            JUnitXmlReporter.write(result, reportFile);
             HorizonQAMod.LOG.info("JUnit XML report written to {}", reportFile.getAbsolutePath());
         } catch (IOException e) {
             HorizonQAMod.LOG.error("Failed to write JUnit XML report: {}", e.getMessage());
         }
+
+        File statusFile = HorizonQAProperties.statusReportFile();
+        try {
+            StatusJsonReporter.write(result, statusFile);
+            HorizonQAMod.LOG.info("Status JSON report written to {}", statusFile.getAbsolutePath());
+        } catch (IOException e) {
+            HorizonQAMod.LOG.error("Failed to write status JSON report: {}", e.getMessage());
+        }
+    }
+
+    private static List<IssueResult> toIssueResults(List<SelectionIssue> issues) {
+        List<IssueResult> results = new ArrayList<>();
+        for (SelectionIssue issue : issues) {
+            results.add(IssueResult.selection(issue));
+        }
+        return results;
+    }
+
+    private static List<IssueResult> toPropertyIssueResults(List<PropertyIssue> issues) {
+        List<IssueResult> results = new ArrayList<>();
+        for (PropertyIssue issue : issues) {
+            results.add(IssueResult.property(issue));
+        }
+        return results;
     }
 
     private static void logNonFatalPropertyIssues() {
