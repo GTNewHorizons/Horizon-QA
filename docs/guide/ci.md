@@ -8,7 +8,7 @@ tags:
 
 # CI & JUnit reports
 
-Batch execution writes **`TEST-horizonqa.xml`** in the server working directory when `/horizonqa runall` (or a headless batch entrypoint) completes. The format is the standard JUnit XML schema, so any JUnit-aware result publisher will pick it up unchanged.
+Batch execution writes **`TEST-horizonqa.xml`** and **`horizonqa-result.json`** in the server working directory when `/horizonqa runall` (or a headless batch entrypoint) completes. The XML uses the standard JUnit schema, so any JUnit-aware result publisher will pick it up unchanged.
 
 ## Report contents
 
@@ -28,6 +28,8 @@ Batch execution writes **`TEST-horizonqa.xml`** in the server working directory 
 
 Failed tests include stack traces. Passing tests with warnings or recorded events also emit `<system-out>` blocks.
 
+`horizonqa-result.json` is the compact automation surface. It contains the schema version, final status and exit code, effective configuration, aggregate counts, report paths, infrastructure issues, and concise per-test outcomes. It includes infrastructure stack traces when available, but leaves full normal test event logs in the JUnit report.
+
 ## Event log in CI
 
 When event recording is enabled (default), each `<testcase>` can include the ordered `[t=NNN] [category] summary` log. The same log is mirrored to the server console (last 20 lines on failure) so a Jenkins console snippet is enough to triage most recipe, EU, and maintenance failures without a local rerun.
@@ -45,7 +47,7 @@ Full catalog: [Test event log](../reference/events.md).
 ```mermaid
 flowchart LR
     A[Start dedicated server<br/>with -Dhorizonqa.mode=ci] --> B[Headless batch entrypoint]
-    B --> C[Server writes<br/>TEST-horizonqa.xml]
+    B --> C[Server writes<br/>TEST-horizonqa.xml<br/>horizonqa-result.json]
     C --> D[Archive as<br/>build artifact]
     D --> E[Publish via JUnit-aware<br/>action / plugin]
 ```
@@ -54,14 +56,14 @@ In words:
 
 1. Start a dedicated server with `-Dhorizonqa.mode=ci`.
 2. Horizon-QA discovers tests and starts the batch once the world is ready.
-3. Archive `TEST-horizonqa.xml` as a build artifact.
+3. Archive `TEST-horizonqa.xml` and `horizonqa-result.json` as build artifacts.
 4. Point Jenkins / GitHub Actions `publish-unit-test-result` (or your equivalent) at the XML.
 
 To run only part of the suite, pass `-Dhorizonqa.tests=<selector>`. A token without `:` selects a namespace, while a token with `:` must be an exact test id. For example, `-Dhorizonqa.tests=horizonqaexamples` runs that namespace and `-Dhorizonqa.tests=horizonqaexamples:BasicTests.simplePass` runs one test.
 
 Invalid selector syntax, including empty tokens and `*`, aborts before execution. Valid selectors that match no valid tests are reported as infrastructure issues; any other matched tests still run.
 
-If no valid tests are selected, CI still writes `TEST-horizonqa.xml`. By default this is a diagnostic error and exit code `2`; set `-Dhorizonqa.allowNoTests=true` only for jobs where an empty selection is expected.
+If no valid tests are selected, CI still writes `TEST-horizonqa.xml` and `horizonqa-result.json`. By default this is a diagnostic error and exit code `2`; set `-Dhorizonqa.allowNoTests=true` only for jobs where an empty selection is expected.
 
 CI exit codes are deterministic:
 

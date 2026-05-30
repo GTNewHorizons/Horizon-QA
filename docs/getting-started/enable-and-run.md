@@ -55,7 +55,7 @@ In-game (operator permission level **2**):
 | `/horizonqa runfailed`            | Re-run only the tests that failed in the last batch                  |
 | `/qa`                             | Alias for `/horizonqa`                                               |
 
-After a batch completes, the server writes **`TEST-horizonqa.xml`** in the working directory (typically the run folder). See [CI & JUnit reports](../guide/ci.md).
+After a batch completes, the server writes **`TEST-horizonqa.xml`** and **`horizonqa-result.json`** in the working directory (typically the run folder). See [CI & JUnit reports](../guide/ci.md).
 
 ## Horizon Wand
 
