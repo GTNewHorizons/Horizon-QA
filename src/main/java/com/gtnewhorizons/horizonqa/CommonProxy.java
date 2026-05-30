@@ -5,8 +5,8 @@ import java.util.List;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.MinecraftForge;
 
-import com.gtnewhorizons.horizonqa.command.HorizonQACommand;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
+import com.gtnewhorizons.horizonqa.command.HorizonQACommand;
 import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;

@@ -244,7 +244,8 @@ public final class HorizonQAProperties {
 
             if (colon == token.length() - 1) {
                 issues.add(
-                    invalidSelector("Invalid selector '" + token + "' (use namespace without ':' to select all tests)"));
+                    invalidSelector(
+                        "Invalid selector '" + token + "' (use namespace without ':' to select all tests)"));
                 continue;
             }
 
@@ -252,8 +253,7 @@ public final class HorizonQAProperties {
             if (localId.indexOf('.') < 0) {
                 issues.add(
                     invalidSelector(
-                        "Invalid selector '"
-                            + token
+                        "Invalid selector '" + token
                             + "' (expected exact test id in the form namespace:Class.method)"));
                 continue;
             }
@@ -358,20 +358,9 @@ public final class HorizonQAProperties {
     }
 
     @Desugar
-    private record ParsedProperties(
-        String rawMode,
-        Mode mode,
-        PropertyIssue modeIssue,
-        String rawTests,
-        boolean selectsAllTests,
-        List<TestSelector> testSelectors,
-        String rawAllowNoTests,
-        boolean allowNoTests,
-        String reportFile,
-        String reportDir,
-        String statusFile,
-        String rawEvents,
-        boolean eventsEnabled,
+    private record ParsedProperties(String rawMode, Mode mode, PropertyIssue modeIssue, String rawTests,
+        boolean selectsAllTests, List<TestSelector> testSelectors, String rawAllowNoTests, boolean allowNoTests,
+        String reportFile, String reportDir, String statusFile, String rawEvents, boolean eventsEnabled,
         List<PropertyIssue> issues) {
 
     }
