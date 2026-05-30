@@ -21,19 +21,21 @@ dependencies {
 
 Pin the version to the same Horizon-QA build your pack or meta-repo uses. The `examples/` subproject in this repository shows a full GTNH dependency set (GT5-Unofficial, CoreMod, etc.) and is the canonical reference for the wiring.
 
-## Enable tests in run configurations
+## Runtime mode
 
-**Server** runs that execute tests must include:
+Local server runs use interactive mode by default, so no JVM flag is required for `/horizonqa` commands, discovery, and visual debugging.
+
+Automated server runs should use CI mode:
 
 ```text
--Dgtnh.horizonqa=true
+-Dhorizonqa.mode=ci
 ```
 
 === "Gradle (Kotlin DSL)"
 
     ```kotlin
     tasks.named<JavaExec>("runServer") {
-        jvmArgs("-Dgtnh.horizonqa=true")
+        jvmArgs("-Dhorizonqa.mode=ci")
     }
     ```
 
@@ -41,11 +43,11 @@ Pin the version to the same Horizon-QA build your pack or meta-repo uses. The `e
 
     ```groovy
     runServer {
-        jvmArgs '-Dgtnh.horizonqa=true'
+        jvmArgs '-Dhorizonqa.mode=ci'
     }
     ```
 
-Client runs only need the flag if you are exercising client-only visuals. Batch execution and JUnit XML are server-side.
+Use `-Dhorizonqa.mode=off` only when you want the mod on the classpath without commands, discovery, runner behavior, or test visuals. Batch execution and JUnit XML are server-side.
 
 ## Source layout
 
@@ -93,7 +95,7 @@ The `examples` subproject is the canonical reference:
 - `GTNHExampleTests` — EBF formation, EU supply, maintenance gating, synthetic recipes.
 - `StructureTests` — template placement and block-level assertions.
 
-Run `./gradlew :examples:runServer -Dgtnh.horizonqa=true` to iterate against them.
+Run `./gradlew :examples:runServer` to iterate against them.
 
 ## Publishing
 

@@ -16,7 +16,7 @@ import net.minecraft.world.WorldServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.gtnewhorizons.horizonqa.GameTestJvmFlags;
+import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.event.StructurePlaced;
@@ -154,7 +154,7 @@ public class GameTestBatchRunner {
             LOG.error("Failed to write JUnit XML report: {}", e.getMessage());
         }
 
-        if (GameTestJvmFlags.isEnabled()) {
+        if (HorizonQAProperties.isCi()) {
             long requiredFailures = countRequiredFailures();
             int exitCode = (int) Math.min(requiredFailures, 127);
             LOG.info("CI mode: exiting with code {} ({} required test(s) failed).", exitCode, requiredFailures);

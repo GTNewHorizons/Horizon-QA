@@ -15,6 +15,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+        if (!HorizonQAProperties.isInteractive()) return;
         MinecraftForge.EVENT_BUS.register(new SelectionOutlineClientRenderer());
         MinecraftForge.EVENT_BUS.register(new GameTestOverlayRenderer());
         MinecraftForge.EVENT_BUS.register(new WandHudOverlay());

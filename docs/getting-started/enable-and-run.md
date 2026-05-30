@@ -1,6 +1,6 @@
 ---
 title: Enable & run
-description: Activate Horizon-QA with a JVM flag and drive it via /horizonqa commands in a dev server.
+description: Use Horizon-QA interactively by default or switch to headless CI mode.
 tags:
   - getting-started
   - commands
@@ -8,37 +8,42 @@ tags:
 
 # Enable & run
 
-Horizon-QA is **opt-in at the JVM level**. Normal dev clients are unaffected until you set the flag, so adding the mod to a workspace is safe even when you do not intend to run tests.
+Horizon-QA starts in **interactive** mode by default. Adding the mod to a workspace enables `/horizonqa` commands, test discovery, and visual debugging without extra JVM flags.
 
-## Enable the framework
+## Select a mode
 
-Add this system property to the **server** JVM (Gradle `runServer`, CI script, or IDE run configuration):
+Set `horizonqa.mode` on the **server** JVM when you need a mode other than the default:
 
 ```text
--Dgtnh.horizonqa=true
+-Dhorizonqa.mode=off
+-Dhorizonqa.mode=interactive
+-Dhorizonqa.mode=ci
 ```
 
-When the flag is present:
+`off` loads the mod but disables commands, discovery, runner behavior, and test visuals.
+
+`interactive` enables commands, overlays, and manual test runs. It is the default when `horizonqa.mode` is not set.
+
+`ci` enables the deterministic headless path:
 
 - The dedicated **GameTest** world type is registered.
 - ASM-based discovery runs across every `@GameTestHolder` class on the classpath.
-- `/horizonqa` commands and batch execution become available.
+- All discovered tests run automatically.
+- A JUnit report is written before the server exits.
 
-Without the flag the mod still loads, but the runner mixins remain inert.
+!!! tip "Pick the mode for the job"
 
-!!! tip "Add it once, gate later"
-
-    Set `-Dgtnh.horizonqa=true` permanently on your `runServer` task. The flag is cheap when no tests run, and forgetting it is the most common "why are my tests not found?" cause.
+    Use the default `interactive` mode for local authoring and `ci` for automated server runs.
 
 ## Run the examples
 
 From the repository root, with GTNH caches already configured:
 
 ```bash
-./gradlew --info --stacktrace :examples:runServer --mcJvmArgs="-Dgtnh.horizonqa=true"
+./gradlew --info --stacktrace :examples:runServer
 ```
 
-`runServer` is provided by Retrofuturagradle, which forwards JVM flags to the Minecraft server only via `--mcJvmArgs`. Passing `-Dgtnh.horizonqa=true` directly to Gradle sets it on the Gradle daemon, where the runner never sees it.
+`runServer` is provided by Retrofuturagradle. When you do need to pass a JVM flag, such as CI mode, forward it to the Minecraft server via `--mcJvmArgs`. Passing `-Dhorizonqa.mode=ci` directly to Gradle sets it on the Gradle daemon, where the runner never sees it.
 
 In-game (operator permission level **2**):
 

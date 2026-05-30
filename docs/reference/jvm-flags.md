@@ -8,21 +8,42 @@ tags:
 
 # JVM & system properties
 
-Horizon-QA reads two system properties at startup. Both are defined in `GameTestJvmFlags`.
+Horizon-QA reads system properties from the Minecraft server JVM. With Retrofuturagradle `runServer`, pass these through `--mcJvmArgs`; passing them directly to Gradle sets them on the Gradle daemon instead.
 
-## `gtnh.horizonqa`
+## `horizonqa.mode`
 
-| Property          | Values            | Default |
-|-------------------|-------------------|---------|
-| `gtnh.horizonqa`  | `true` / `false`  | `false` |
+| Property         | Values                       | Default       |
+|------------------|------------------------------|---------------|
+| `horizonqa.mode` | `off` / `interactive` / `ci` | `interactive` |
 
-**Required** to activate Horizon-QA on the server:
+Controls Horizon-QA runtime behavior:
+
+`off`
+:   The mod loads, but commands, discovery, runner behavior, and test visuals remain inert.
+
+`interactive`
+:   Enables `/horizonqa` commands, discovery, and client-side test visuals for local authoring.
+
+`ci`
+:   Enables deterministic headless execution: void world, no network bind, no spawns/nether, automatic test run, report writing, and server exit.
+
+No mode property is required for local test authoring because `interactive` is the default. You can still set it explicitly:
 
 ```text
--Dgtnh.horizonqa=true
+-Dhorizonqa.mode=interactive
 ```
 
-When `false`, the mod loads but its mixins and the test runner do not take over the dedicated world flow — there is no measurable cost.
+Use `ci` for automated runs:
+
+```text
+-Dhorizonqa.mode=ci
+```
+
+Use `off` to load the mod without Horizon-QA commands, discovery, runner behavior, or test visuals:
+
+```text
+-Dhorizonqa.mode=off
+```
 
 ## `horizonqa.events`
 
@@ -36,7 +57,7 @@ Controls the event recorder behind `EventLog`:
 :   Record typed events. Each `<testcase>` in the JUnit XML may include the event log under `<system-out>`.
 
 `off`
-:   Recording is a no-op. Emit sites use `Supplier` instances that are never invoked — no payload allocation work.
+:   Recording is a no-op. Emit sites use `Supplier` instances that are never invoked, so payload allocation work is skipped.
 
 ```text
 -Dhorizonqa.events=off
@@ -46,12 +67,12 @@ Controls the event recorder behind `EventLog`:
 
     Disable event recording only for performance micro-benchmarks, not for normal CI. The event log is the canonical source of "what happened" on a failing test.
 
-## Gradle example
+## CI Gradle example
 
 ```kotlin
 tasks.named<JavaExec>("runServer") {
     jvmArgs(
-        "-Dgtnh.horizonqa=true",
+        "-Dhorizonqa.mode=ci",
         // "-Dhorizonqa.events=off",  // micro-benchmarks only
     )
 }

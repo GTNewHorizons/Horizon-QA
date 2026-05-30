@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-import com.gtnewhorizons.horizonqa.GameTestJvmFlags;
+import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 
 @Mixin(NetHandlerPlayServer.class)
@@ -17,7 +17,7 @@ public abstract class MixinNetHandlerPlayServer {
         method = "onDisconnect",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;initiateShutdown()V"))
     private void gametest$dontKillEmptyIntegratedServer(MinecraftServer server) {
-        if (GameTestJvmFlags.isEnabled() && server.isSinglePlayer()) {
+        if (HorizonQAProperties.isActive() && server.isSinglePlayer()) {
             HorizonQAMod.LOG.info("GameTest: host disconnected; integrated server stays running until /stop.");
             return;
         }

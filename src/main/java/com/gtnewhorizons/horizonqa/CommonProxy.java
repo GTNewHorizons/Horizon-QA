@@ -11,6 +11,7 @@ import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.visual.SelectionBoxRenderer;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -24,8 +25,11 @@ public class CommonProxy {
 
         HorizonQAMod.LOG.info(Config.greeting);
         HorizonQAMod.LOG.info("I am " + HorizonQAMod.NAME + " at version " + Tags.VERSION);
-        HorizonQAMod.LOG.info("Mode (-D{}): {}", GameTestJvmFlags.PROPERTY, GameTestJvmFlags.isEnabled());
-        if (GameTestJvmFlags.isEnabled()) {
+        HorizonQAMod.LOG.info("Mode (-D{}): {}", HorizonQAProperties.MODE_PROPERTY, HorizonQAProperties.modeName());
+        if (HorizonQAProperties.hasModeError()) {
+            HorizonQAMod.LOG.error(HorizonQAProperties.modeError());
+        }
+        if (HorizonQAProperties.isCi()) {
             HorizonQAMod.LOG.info(
                 "Void world registered as '{}' (Forge id {}).",
                 GameTestWorldType.INSTANCE.getWorldTypeName(),
@@ -38,7 +42,9 @@ public class CommonProxy {
         ItemHorizonWand.INSTANCE = new ItemHorizonWand();
         GameRegistry.registerItem(ItemHorizonWand.INSTANCE, "wand");
 
-        MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
+        if (HorizonQAProperties.isActive()) {
+            MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
+        }
     }
 
     public void init(FMLInitializationEvent event) {}
@@ -46,17 +52,27 @@ public class CommonProxy {
     public void postInit(FMLPostInitializationEvent event) {}
 
     public void serverStarting(FMLServerStartingEvent event) {
+        if (HorizonQAProperties.hasModeError()) {
+            HorizonQAMod.LOG.error(HorizonQAProperties.modeError());
+            FMLCommonHandler.instance()
+                .exitJava(2, false);
+            return;
+        }
+        if (HorizonQAProperties.isOff()) return;
+
         InteractiveTestSession.reset();
         event.registerServerCommand(new HorizonQACommand());
 
         HorizonQAMod.LOG.info("Discovering tests...");
         GameTestRegistry.discoverTests();
 
-        if (!GameTestJvmFlags.isEnabled()) return;
+        if (!HorizonQAProperties.isCi()) return;
 
         if (GameTestRegistry.getAllTests()
             .isEmpty()) {
             HorizonQAMod.LOG.warn("No tests found. Nothing to run.");
+            FMLCommonHandler.instance()
+                .exitJava(2, false);
             return;
         }
 

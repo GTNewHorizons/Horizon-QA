@@ -11,7 +11,7 @@ Horizon-QA ships as a Forge mod (`horizonqa`) that other mods depend on at **dev
 
 !!! abstract "What you will have at the end"
 
-    A `runServer` task that launches Minecraft with `-Dgtnh.horizonqa=true`, runs every test in your mod, leaves failed cells in the world for inspection, and writes a JUnit XML report next to the server directory.
+    A `runServer` task that launches Minecraft with `-Dhorizonqa.mode=ci`, runs every test in your mod, leaves failed cells in the world for inspection, and writes a JUnit XML report next to the server directory.
 
 ## Prerequisites
 

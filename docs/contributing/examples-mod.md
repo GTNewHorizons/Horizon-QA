@@ -38,11 +38,7 @@ Holder namespace: `horizonqaexamples` (`@GameTestHolder("horizonqaexamples")`).
 ./gradlew :examples:runServer
 ```
 
-Make sure the JVM picks up:
-
-```text
--Dgtnh.horizonqa=true
-```
+Interactive mode is the default, so no JVM flag is required for local example runs.
 
 Then, in-game:
 

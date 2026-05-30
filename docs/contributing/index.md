@@ -13,7 +13,7 @@ This section is for **framework contributors** and reviewers. Mod authors adopti
 
 1. Read [Design principles](principles.md). If a change conflicts with one of them, cite the principle number in the PR description and explain why.
 2. Read the [Clean-room policy](legal.md) — **no modern Minecraft decompiled source** under any circumstances.
-3. Run the relevant tests via `examples` with `-Dgtnh.horizonqa=true`.
+3. Run the relevant tests via `examples`.
 4. Update the documentation if you change author-facing behaviour (annotations, commands, events, JVM flags).
 
 ## Development setup
@@ -22,7 +22,6 @@ This section is for **framework contributors** and reviewers. Mod authors adopti
 git clone https://github.com/GTNewHorizons/Horizon-QA.git
 cd Horizon-QA
 ./gradlew :examples:runServer
-# Add -Dgtnh.horizonqa=true to the runServer JVM args (IDE or build.gradle)
 ```
 
 Documentation preview:

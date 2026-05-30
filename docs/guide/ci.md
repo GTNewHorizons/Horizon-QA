@@ -44,7 +44,7 @@ Full catalog: [Test event log](../reference/events.md).
 
 ```mermaid
 flowchart LR
-    A[Start dedicated server<br/>with -Dgtnh.horizonqa=true] --> B[Trigger batch<br/>command block / RCON / entrypoint]
+    A[Start dedicated server<br/>with -Dhorizonqa.mode=ci] --> B[Headless batch entrypoint]
     B --> C[Server writes<br/>TEST-horizonqa.xml]
     C --> D[Archive as<br/>build artifact]
     D --> E[Publish via JUnit-aware<br/>action / plugin]
@@ -52,8 +52,8 @@ flowchart LR
 
 In words:
 
-1. Start a dedicated server with `-Dgtnh.horizonqa=true`.
-2. Trigger a batch — typically via a command block, RCON, or a mod-specific CI entrypoint that calls `/horizonqa runall` once the world is ready.
+1. Start a dedicated server with `-Dhorizonqa.mode=ci`.
+2. Horizon-QA discovers tests and starts the batch once the world is ready.
 3. Archive `TEST-horizonqa.xml` as a build artifact.
 4. Point Jenkins / GitHub Actions `publish-unit-test-result` (or your equivalent) at the XML.
 

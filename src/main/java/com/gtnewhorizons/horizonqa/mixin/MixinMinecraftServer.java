@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-import com.gtnewhorizons.horizonqa.GameTestJvmFlags;
+import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
 @Mixin(MinecraftServer.class)
@@ -22,7 +22,7 @@ public abstract class MixinMinecraftServer {
             target = "(JLnet/minecraft/world/WorldSettings$GameType;ZZLnet/minecraft/world/WorldType;)Lnet/minecraft/world/WorldSettings;"))
     private WorldSettings gametest$newSettingsFromSeed(long seed, WorldSettings.GameType gameType, boolean mapFeatures,
         boolean hardcore, WorldType requestedType) {
-        if (!GameTestJvmFlags.isEnabled()) {
+        if (!HorizonQAProperties.isCi()) {
             return new WorldSettings(seed, gameType, mapFeatures, hardcore, requestedType);
         }
         return new WorldSettings(seed, gameType, false, hardcore, GameTestWorldType.INSTANCE);
@@ -34,7 +34,7 @@ public abstract class MixinMinecraftServer {
             value = "NEW",
             target = "(Lnet/minecraft/world/storage/WorldInfo;)Lnet/minecraft/world/WorldSettings;"))
     private WorldSettings gametest$newSettingsFromDisk(WorldInfo info) {
-        if (!GameTestJvmFlags.isEnabled()) {
+        if (!HorizonQAProperties.isCi()) {
             return new WorldSettings(info);
         }
         WorldSettings recreated = new WorldSettings(

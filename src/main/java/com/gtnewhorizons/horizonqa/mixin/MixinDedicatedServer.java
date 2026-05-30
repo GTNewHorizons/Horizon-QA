@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import com.gtnewhorizons.horizonqa.GameTestJvmFlags;
+import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
@@ -31,7 +31,7 @@ public abstract class MixinDedicatedServer {
             value = "INVOKE",
             target = "Lnet/minecraft/world/WorldType;parseWorldType(Ljava/lang/String;)Lnet/minecraft/world/WorldType;"))
     private static WorldType gametest$forceLevelTypeProperty(String name) {
-        if (GameTestJvmFlags.isEnabled()) {
+        if (HorizonQAProperties.isCi()) {
             return GameTestWorldType.INSTANCE;
         }
         return WorldType.parseWorldType(name);
@@ -43,7 +43,7 @@ public abstract class MixinDedicatedServer {
             value = "INVOKE",
             target = "Lnet/minecraft/network/NetworkSystem;addLanEndpoint(Ljava/net/InetAddress;I)V"))
     private void gametest$skipBind(NetworkSystem net, InetAddress address, int port) throws IOException {
-        if (GameTestJvmFlags.isEnabled()) {
+        if (HorizonQAProperties.isCi()) {
             HorizonQAMod.LOG.info("GameTest: skipping dedicated server network bind (would have used port {})", port);
             return;
         }
@@ -57,7 +57,7 @@ public abstract class MixinDedicatedServer {
             target = "Lnet/minecraft/server/dedicated/DedicatedServer;loadAllWorlds(Ljava/lang/String;Ljava/lang/String;JLnet/minecraft/world/WorldType;Ljava/lang/String;)V",
             shift = At.Shift.BEFORE))
     private void gametest$tuneDedicatedFlags(CallbackInfoReturnable<Boolean> cir) {
-        if (!GameTestJvmFlags.isEnabled()) {
+        if (!HorizonQAProperties.isCi()) {
             return;
         }
         MinecraftServer self = (MinecraftServer) (Object) this;
@@ -68,14 +68,14 @@ public abstract class MixinDedicatedServer {
 
     @Inject(method = "allowSpawnMonsters", at = @At("HEAD"), cancellable = true)
     private void gametest$noHostileSpawns(CallbackInfoReturnable<Boolean> cir) {
-        if (GameTestJvmFlags.isEnabled()) {
+        if (HorizonQAProperties.isCi()) {
             cir.setReturnValue(false);
         }
     }
 
     @Inject(method = "getAllowNether", at = @At("HEAD"), cancellable = true)
     private void gametest$disableNether(CallbackInfoReturnable<Boolean> cir) {
-        if (GameTestJvmFlags.isEnabled()) {
+        if (HorizonQAProperties.isCi()) {
             cir.setReturnValue(false);
         }
     }
