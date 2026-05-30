@@ -146,7 +146,7 @@ public class GameTestBatchRunner {
 
         ConsoleReporter.report(allInstances);
 
-        File reportFile = new File("TEST-horizonqa.xml");
+        File reportFile = HorizonQAProperties.junitReportFile();
         try {
             JUnitXmlReporter.write(allInstances, reportFile);
             LOG.info("JUnit XML report written to {}", reportFile.getAbsolutePath());

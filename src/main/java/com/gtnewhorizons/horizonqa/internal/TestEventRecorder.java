@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.event.EventLog;
 import com.gtnewhorizons.horizonqa.api.event.EventOverflow;
 import com.gtnewhorizons.horizonqa.api.event.TestEvent;
@@ -23,7 +24,7 @@ import com.gtnewhorizons.horizonqa.api.event.TestEvent;
  */
 public final class TestEventRecorder implements EventLog {
 
-    private static final boolean ENABLED = !"off".equalsIgnoreCase(System.getProperty("horizonqa.events", "on"));
+    private static final boolean ENABLED = HorizonQAProperties.eventsEnabled();
     private static final int MAX_EVENTS = 10_000;
 
     private final List<TestEvent> events;

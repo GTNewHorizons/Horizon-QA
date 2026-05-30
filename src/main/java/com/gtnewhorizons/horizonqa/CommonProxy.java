@@ -1,9 +1,12 @@
 package com.gtnewhorizons.horizonqa;
 
+import java.util.List;
+
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.MinecraftForge;
 
 import com.gtnewhorizons.horizonqa.command.HorizonQACommand;
+import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
 import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
@@ -28,6 +31,8 @@ public class CommonProxy {
         HorizonQAMod.LOG.info("Mode (-D{}): {}", HorizonQAProperties.MODE_PROPERTY, HorizonQAProperties.modeName());
         if (HorizonQAProperties.hasModeError()) {
             HorizonQAMod.LOG.error(HorizonQAProperties.modeError());
+        } else if (HorizonQAProperties.isInteractive()) {
+            logNonFatalPropertyIssues();
         }
         if (HorizonQAProperties.isCi()) {
             HorizonQAMod.LOG.info(
@@ -52,8 +57,9 @@ public class CommonProxy {
     public void postInit(FMLPostInitializationEvent event) {}
 
     public void serverStarting(FMLServerStartingEvent event) {
-        if (HorizonQAProperties.hasModeError()) {
-            HorizonQAMod.LOG.error(HorizonQAProperties.modeError());
+        List<PropertyIssue> ciPropertyIssues = HorizonQAProperties.ciInfrastructureIssues();
+        if (!ciPropertyIssues.isEmpty()) {
+            logInfrastructureIssues(ciPropertyIssues);
             FMLCommonHandler.instance()
                 .exitJava(2, false);
             return;
@@ -85,5 +91,27 @@ public class CommonProxy {
             GameTestRegistry.getBeforeBatchMethods(),
             GameTestRegistry.getAfterBatchMethods());
         batchRunner.start();
+    }
+
+    private static void logInfrastructureIssues(List<PropertyIssue> issues) {
+        for (PropertyIssue issue : issues) {
+            HorizonQAMod.LOG.error(
+                "Infrastructure issue [{}] {} in {}: {}",
+                issue.id(),
+                issue.kind(),
+                issue.property(),
+                issue.message());
+        }
+    }
+
+    private static void logNonFatalPropertyIssues() {
+        for (PropertyIssue issue : HorizonQAProperties.propertyIssues()) {
+            HorizonQAMod.LOG.warn(
+                "Ignoring non-CI property issue [{}] {} in {}: {}",
+                issue.id(),
+                issue.kind(),
+                issue.property(),
+                issue.message());
+        }
     }
 }

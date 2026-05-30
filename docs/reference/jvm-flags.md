@@ -49,7 +49,7 @@ Use `off` to load the mod without Horizon-QA commands, discovery, runner behavio
 
 | Property           | Values                            | Default |
 |--------------------|-----------------------------------|---------|
-| `horizonqa.events` | `on` / `off` (case-insensitive)   | `on`    |
+| `horizonqa.events` | `on` / `off`                      | `on`    |
 
 Controls the event recorder behind `EventLog`:
 
@@ -80,10 +80,22 @@ tasks.named<JavaExec>("runServer") {
 
 ## Reports
 
-JUnit output path is fixed, relative to the server process working directory:
+JUnit output defaults to the server process working directory:
 
 ```text
 TEST-horizonqa.xml
 ```
 
-No system property overrides this path today; archive the file directly in CI after the batch completes.
+Override the JUnit path with either an exact file or an output directory:
+
+| Property               | Meaning                                                                           |
+|------------------------|-----------------------------------------------------------------------------------|
+| `horizonqa.reportFile` | Exact JUnit XML file path                                                         |
+| `horizonqa.reportDir`  | Directory containing `TEST-horizonqa.xml`                                         |
+| `horizonqa.statusFile` | Parsed now for CI validation; status JSON writing lands in a later reporting pass |
+
+`horizonqa.reportFile` wins over `horizonqa.reportDir`. Relative paths resolve from the server process working directory.
+
+!!! warning "Use lowercase property values"
+
+    CI property parsing is strict. Use `ci`, `true`, `false`, `on`, and `off` exactly as documented.
