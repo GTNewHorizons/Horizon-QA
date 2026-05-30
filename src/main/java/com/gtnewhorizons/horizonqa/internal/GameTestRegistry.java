@@ -106,6 +106,11 @@ public final class GameTestRegistry {
         sortHookMap(collector.beforeBatchMethods);
         sortHookMap(collector.afterBatchMethods);
 
+        List<InvalidTestDefinition> invalidTests = sortedInvalidTests(collector.invalidTests);
+        List<InvalidBatchHook> invalidHooks = sortedInvalidHooks(collector.invalidHooks);
+        List<DuplicateTestId> duplicateIdsList = sortedDuplicateIds(collector.duplicateIds);
+        List<DiscoveryIssue> issues = sortedIssues(collector.issues);
+
         ALL_TESTS.addAll(validTests);
         copyHookMap(collector.beforeBatchMethods, BEFORE_BATCH_METHODS);
         copyHookMap(collector.afterBatchMethods, AFTER_BATCH_METHODS);
@@ -114,10 +119,10 @@ public final class GameTestRegistry {
             immutableList(validTests),
             immutableHookMap(collector.beforeBatchMethods),
             immutableHookMap(collector.afterBatchMethods),
-            immutableList(collector.invalidTests),
-            immutableList(collector.invalidHooks),
-            immutableList(collector.duplicateIds),
-            immutableList(collector.issues));
+            immutableList(invalidTests),
+            immutableList(invalidHooks),
+            immutableList(duplicateIdsList),
+            immutableList(issues));
 
         LOG.info(
             "Discovery complete: {} valid test(s), {} invalid test(s), {} invalid hook(s), {} duplicate id(s)"
@@ -171,7 +176,9 @@ public final class GameTestRegistry {
 
         List<DiscoveryIssue> issues = new ArrayList<>();
         if (namespaceIssue != null) issues.add(namespaceIssue);
-        if (templatePrefixIssue != null) issues.add(templatePrefixIssue);
+        if (templatePrefixIssue != null && usesTemplatePrefix(testAnn.template(), templatePrefix)) {
+            issues.add(templatePrefixIssue);
+        }
         collectTestMethodIssues(method, issues);
         collectBatchNameIssue(testAnn.batch(), method, "test", issues);
         if (testAnn.timeoutTicks() <= 0) {
@@ -195,7 +202,7 @@ public final class GameTestRegistry {
                         + "': rotation must be between 0 and 3."));
         }
 
-        String intendedTestId = namespace + ":" + clazz.getSimpleName() + "." + method.getName();
+        String intendedTestId = intendedTestId(namespace, clazz, method);
         if (!issues.isEmpty()) {
             for (DiscoveryIssue issue : issues) {
                 collector.issues.add(issue);
@@ -250,6 +257,17 @@ public final class GameTestRegistry {
         }
         String base = prefix.isEmpty() ? rawTemplate : (prefix + "/" + rawTemplate);
         return namespace + ":" + base;
+    }
+
+    private static boolean usesTemplatePrefix(String rawTemplate, String templatePrefix) {
+        return templatePrefix != null && !templatePrefix.isEmpty()
+            && !rawTemplate.isEmpty()
+            && !rawTemplate.contains(":");
+    }
+
+    private static String intendedTestId(String namespace, Class<?> clazz, Method method) {
+        String renderedNamespace = namespace == null || namespace.isEmpty() ? "invalid-namespace" : namespace;
+        return renderedNamespace + ":" + clazz.getSimpleName() + "." + method.getName();
     }
 
     private static void collectTestMethodIssues(Method method, List<DiscoveryIssue> issues) {
@@ -440,10 +458,43 @@ public final class GameTestRegistry {
     }
 
     private static void copyHookMap(Map<String, List<Method>> source, Map<String, List<Method>> target) {
-        target.clear();
         for (Map.Entry<String, List<Method>> entry : source.entrySet()) {
             target.put(entry.getKey(), new ArrayList<>(entry.getValue()));
         }
+    }
+
+    private static List<InvalidTestDefinition> sortedInvalidTests(List<InvalidTestDefinition> invalidTests) {
+        List<InvalidTestDefinition> sorted = new ArrayList<>(invalidTests);
+        sorted.sort(
+            Comparator.comparing(InvalidTestDefinition::intendedTestId)
+                .thenComparing(invalidTest -> methodRef(invalidTest.method())));
+        return sorted;
+    }
+
+    private static List<InvalidBatchHook> sortedInvalidHooks(List<InvalidBatchHook> invalidHooks) {
+        List<InvalidBatchHook> sorted = new ArrayList<>(invalidHooks);
+        sorted.sort(
+            Comparator.comparing(
+                (InvalidBatchHook invalidHook) -> invalidHook.phase()
+                    .name())
+                .thenComparing(invalidHook -> invalidHook.batch() == null ? "" : invalidHook.batch())
+                .thenComparing(invalidHook -> methodRef(invalidHook.method())));
+        return sorted;
+    }
+
+    private static List<DuplicateTestId> sortedDuplicateIds(List<DuplicateTestId> duplicateIds) {
+        List<DuplicateTestId> sorted = new ArrayList<>(duplicateIds);
+        sorted.sort(Comparator.comparing(DuplicateTestId::testId));
+        return sorted;
+    }
+
+    private static List<DiscoveryIssue> sortedIssues(List<DiscoveryIssue> issues) {
+        List<DiscoveryIssue> sorted = new ArrayList<>(issues);
+        sorted.sort(
+            Comparator.comparing(DiscoveryIssue::id)
+                .thenComparing(DiscoveryIssue::kind)
+                .thenComparing(DiscoveryIssue::message));
+        return sorted;
     }
 
     private static String renderMethods(List<Method> methods) {
