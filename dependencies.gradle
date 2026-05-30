@@ -39,4 +39,6 @@ dependencies {
     // GT5-Unofficial: compileOnly so the framework can reference GT types without bundling GT into the jar.
     // The consuming modpack supplies GT5U at runtime. Update the version to match your modpack's GT5U build.
     compileOnly("com.github.GTNewHorizons:GT5-Unofficial:5.09.52.482:dev")
+
+    testImplementation("junit:junit:4.13.2")
 }

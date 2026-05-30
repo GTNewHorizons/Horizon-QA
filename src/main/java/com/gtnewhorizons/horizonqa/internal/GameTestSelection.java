@@ -15,8 +15,6 @@ import com.gtnewhorizons.horizonqa.HorizonQAProperties.TestSelector;
 @Desugar
 public record GameTestSelection(List<GameTestDefinition> selectedTests, List<SelectionIssue> infrastructureIssues) {
 
-    private static final String KIND_SELECTION_ERROR = "SELECTION_ERROR";
-
     public static GameTestSelection from(DiscoveryResult discovery) {
         return from(
             discovery.validTests(),
@@ -67,6 +65,13 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
         return new GameTestSelection(immutableList(selected), immutableList(issues));
     }
 
+    public static SelectionIssue noSelectedTests(boolean selectedAllTests) {
+        String selector = selectedAllTests ? "<all valid tests>" : HorizonQAProperties.rawTests();
+        String message = selectedAllTests ? "No valid tests were discovered."
+            : "No valid tests were selected by -D" + HorizonQAProperties.TESTS_PROPERTY + "=" + selector + ".";
+        return new SelectionIssue("selection:noTestsSelected", "NO_TESTS_SELECTED", selector, message);
+    }
+
     private static boolean matches(TestSelector selector, String testId) {
         if (selector.type() == SelectorType.NAMESPACE) {
             return testId.startsWith(selector.value() + ":");
@@ -96,37 +101,41 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
         boolean matchedDuplicate) {
         String selectorKind = selector.type() == SelectorType.NAMESPACE ? "namespace" : "exact test id";
         String issueKind;
+        String diagnosticKind;
         String message;
         if (matchedInvalid && matchedDuplicate) {
             issueKind = "excludedOnly";
+            diagnosticKind = "EXCLUDED_TEST_SELECTION";
             message = "The " + selectorKind
                 + " selector '"
                 + selector.value()
                 + "' matched only tests excluded during discovery; fix the discovery diagnostics before selecting it.";
         } else if (matchedInvalid) {
             issueKind = "invalidOnly";
+            diagnosticKind = "INVALID_TEST_SELECTION";
             message = "The " + selectorKind
                 + " selector '"
                 + selector.value()
                 + "' matched only invalid test definitions; fix the discovery diagnostics before selecting it.";
         } else if (matchedDuplicate) {
             issueKind = "duplicateOnly";
+            diagnosticKind = "DUPLICATE_TEST_SELECTION";
             message = "The " + selectorKind
                 + " selector '"
                 + selector.value()
                 + "' matched only duplicate test ids excluded during discovery; fix the duplicate id diagnostics before selecting it.";
         } else {
             issueKind = "unmatched";
+            diagnosticKind = "UNMATCHED_SELECTOR";
             message = "The " + selectorKind + " selector '" + selector.value() + "' did not match any valid tests.";
         }
 
         String selectorType = selector.type() == SelectorType.NAMESPACE ? "namespace" : "test";
         return new SelectionIssue(
             "selection:" + issueKind + ":" + selectorType + ":" + selector.value(),
-            KIND_SELECTION_ERROR,
+            diagnosticKind,
             selector.value(),
-            message,
-            true);
+            message);
     }
 
     private static <T> List<T> immutableList(List<T> source) {
@@ -134,7 +143,7 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
     }
 
     @Desugar
-    public record SelectionIssue(String id, String kind, String selector, String message, boolean fatalInCi) {
+    public record SelectionIssue(String id, String kind, String selector, String message) {
 
     }
 }

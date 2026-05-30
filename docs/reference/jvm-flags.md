@@ -61,10 +61,20 @@ Empty selector tokens are invalid, so `a,,b` aborts CI before tests run. The `*`
 
 Selectors that are syntactically valid but match no valid tests are reported as CI infrastructure issues. If at least one selector matches valid tests, those tests still run and the infrastructure issue is included in the final CI result.
 
+When no valid tests are selected and `horizonqa.allowNoTests=false`, CI writes a diagnostic JUnit report and exits with code `2`.
+
 ```text
 -Dhorizonqa.tests=horizonqaexamples
 -Dhorizonqa.tests=horizonqaexamples:BasicTests.simplePass
 ```
+
+## `horizonqa.allowNoTests`
+
+| Property                 | Values           | Default |
+|--------------------------|------------------|---------|
+| `horizonqa.allowNoTests` | `true` / `false` | `false` |
+
+Allows a CI run with no selected valid tests to pass. This only applies when there are no selector or discovery-selection infrastructure issues.
 
 ## `horizonqa.events`
 

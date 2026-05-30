@@ -165,7 +165,7 @@ public class GameTestBatchRunner {
 
         if (HorizonQAProperties.isCi()) {
             long requiredFailures = countRequiredFailures();
-            long infrastructureFailures = countFatalInfrastructureIssues();
+            long infrastructureFailures = infrastructureIssues.size();
             int exitCode = (int) Math.min(requiredFailures + infrastructureFailures, 127);
             LOG.info(
                 "CI mode: exiting with code {} ({} required test(s) failed, {} infrastructure issue(s)).",
@@ -182,16 +182,6 @@ public class GameTestBatchRunner {
         for (GameTestInstance inst : allInstances) {
             if (inst.getDefinition()
                 .isRequired() && inst.getStatus() != GameTestStatus.PASSED) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private long countFatalInfrastructureIssues() {
-        long count = 0;
-        for (SelectionIssue issue : infrastructureIssues) {
-            if (issue.fatalInCi()) {
                 count++;
             }
         }

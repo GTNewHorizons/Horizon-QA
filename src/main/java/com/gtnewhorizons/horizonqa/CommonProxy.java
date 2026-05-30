@@ -2,6 +2,7 @@ package com.gtnewhorizons.horizonqa;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -82,22 +83,23 @@ public class CommonProxy {
         if (!HorizonQAProperties.isCi()) return;
 
         GameTestSelection selection = GameTestSelection.from(discovery);
-        logSelectionIssues(selection.infrastructureIssues());
+        List<SelectionIssue> infrastructureIssues = new ArrayList<>(selection.infrastructureIssues());
+        if (selection.selectedTests()
+            .isEmpty() && infrastructureIssues.isEmpty()
+            && !HorizonQAProperties.allowNoTests()) {
+            infrastructureIssues.add(GameTestSelection.noSelectedTests(HorizonQAProperties.selectsAllTests()));
+        }
+        logSelectionIssues(infrastructureIssues);
 
         if (selection.selectedTests()
             .isEmpty()) {
-            if (selection.infrastructureIssues()
-                .isEmpty()) {
+            if (infrastructureIssues.isEmpty()) {
                 HorizonQAMod.LOG.warn("No tests found. Nothing to run.");
             } else {
                 HorizonQAMod.LOG.error("No selected valid tests. Nothing to run.");
             }
-            if (!selection.infrastructureIssues()
-                .isEmpty() || HorizonQAProperties.allowNoTests()) {
-                writePreRunSelectionReport(selection.infrastructureIssues());
-            }
-            int exitCode = HorizonQAProperties.allowNoTests() && selection.infrastructureIssues()
-                .isEmpty() ? 0 : 2;
+            writePreRunSelectionReport(infrastructureIssues);
+            int exitCode = HorizonQAProperties.allowNoTests() && infrastructureIssues.isEmpty() ? 0 : 2;
             FMLCommonHandler.instance()
                 .exitJava(exitCode, false);
             return;
@@ -111,7 +113,7 @@ public class CommonProxy {
             selection.selectedTests(),
             discovery.beforeBatchMethods(),
             discovery.afterBatchMethods(),
-            selection.infrastructureIssues());
+            infrastructureIssues);
         batchRunner.start();
     }
 
