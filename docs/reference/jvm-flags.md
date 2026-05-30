@@ -115,6 +115,7 @@ JUnit output defaults to the server process working directory:
 
 ```text
 TEST-horizonqa.xml
+horizonqa-result.json
 ```
 
 Override the JUnit path with either an exact file or an output directory:
@@ -125,7 +126,9 @@ Override the JUnit path with either an exact file or an output directory:
 | `horizonqa.reportDir`  | Directory containing `TEST-horizonqa.xml`                                         |
 | `horizonqa.statusFile` | Exact status JSON file path                                                       |
 
-`horizonqa.reportFile` wins over `horizonqa.reportDir`. Relative paths resolve from the server process working directory.
+`horizonqa.reportFile` wins over `horizonqa.reportDir`. When `horizonqa.reportDir` is set, the status JSON defaults to `horizonqa-result.json` in the same directory. Relative paths resolve from the server process working directory.
+
+The status JSON is a concise machine-readable summary with `schemaVersion`, `status`, `exitCode`, `configuration`, `counts`, `reports`, `issues`, and `tests`. It includes infrastructure issue stack traces when available, but it does not duplicate the full per-test event logs already present in JUnit XML.
 
 CI process exit codes are fixed by outcome category: `0` for passed, `1` for required test failure or timeout, and `2` for infrastructure, configuration, discovery, selection, template, cleanup, reporting, or incomplete-run errors.
 

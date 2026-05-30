@@ -4,6 +4,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
@@ -95,6 +96,48 @@ public class ReporterOutputTest {
     public void statusJsonEscapesStringsAndReportsCounts() throws Exception {
         RunResult result = RunResult.preRun(
             "ci",
+            Collections
+                .singletonList(IssueResult.reporting("junit", "TEST.xml", new IOException("disk \"full\" \u0001"))),
+            "TEST-alpha.xml\n");
+
+        File output = temporaryFolder.newFile("horizonqa-result.json");
+        StatusJsonReporter.write(result, output);
+
+        String json = read(output);
+        assertTrue(json.contains("\"schemaVersion\": 1"));
+        assertTrue(json.contains("\"status\": \"error\""));
+        assertTrue(json.contains("\"exitCode\": 2"));
+        assertTrue(json.contains("\"configuration\": {"));
+        assertTrue(json.contains("\"counts\": {"));
+        assertTrue(json.contains("\"selectedTests\": 0"));
+        assertTrue(json.contains("\"diagnosticErrors\": 1"));
+        assertTrue(json.contains("\"reports\": {"));
+        assertTrue(json.contains("\"junit\": \"TEST-alpha.xml\\n\""));
+        assertTrue(json.contains("\"status\": \""));
+        assertTrue(json.contains("\"issues\": ["));
+        assertTrue(json.contains("\"kind\": \"REPORTING_ERROR\""));
+        assertTrue(json.contains("disk \\\"full\\\" \\u0001"));
+        assertTrue(json.contains("\"stackTrace\": \"java.io.IOException: disk \\\"full\\\" \\u0001"));
+        assertTrue(json.contains("\"tests\": []"));
+    }
+
+    @Test
+    public void statusJsonIncludesTestsWithoutEventLogs() throws Exception {
+        RunResult result = RunResult.completedCases(
+            "ci",
+            Collections.singletonList(
+                new CaseResult(
+                    "mod:Suite.fails",
+                    "mod:Suite",
+                    "fails",
+                    CaseResult.Status.FAILED,
+                    true,
+                    10,
+                    0.5,
+                    "bad",
+                    "java.lang.AssertionError",
+                    "trace line",
+                    Collections.singletonList("event line that belongs only in JUnit"))),
             Collections.singletonList(
                 new IssueResult(
                     "config:bad",
@@ -104,17 +147,22 @@ public class ReporterOutputTest {
                     "bad",
                     "",
                     true)),
-            "TEST-\u03b1.xml\n");
+            "TEST.xml");
 
-        File output = temporaryFolder.newFile("horizonqa-result.json");
+        File output = temporaryFolder.newFile("cases.json");
         StatusJsonReporter.write(result, output);
 
         String json = read(output);
         assertTrue(json.contains("\"status\": \"error\""));
         assertTrue(json.contains("\"exitCode\": 2"));
-        assertTrue(json.contains("\"selectedTests\": 0"));
+        assertTrue(json.contains("\"selectedTests\": 1"));
+        assertTrue(json.contains("\"tests\": ["));
+        assertTrue(json.contains("\"id\": \"mod:Suite.fails\""));
+        assertTrue(json.contains("\"status\": \"failed\""));
+        assertTrue(json.contains("\"failure\": {"));
+        assertTrue(json.contains("\"stackTrace\": \"trace line\""));
         assertTrue(json.contains("\"diagnosticErrors\": 1"));
-        assertTrue(json.contains("\"junitReport\": \"TEST-\\u03b1.xml\\n\""));
+        assertFalse(json.contains("event line that belongs only in JUnit"));
     }
 
     @Test

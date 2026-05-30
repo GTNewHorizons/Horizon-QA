@@ -1,12 +1,24 @@
 package com.gtnewhorizons.horizonqa.report;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 
 @Desugar
 public record IssueResult(String id, String kind, String classname, String name, String message, String details,
-    boolean fatalInCi) {
+    boolean fatalInCi, String stackTrace) {
+
+    public IssueResult(String id, String kind, String classname, String name, String message, String details,
+        boolean fatalInCi) {
+        this(id, kind, classname, name, message, details, fatalInCi, "");
+    }
+
+    public IssueResult {
+        stackTrace = stackTrace == null ? "" : stackTrace;
+    }
 
     public static IssueResult selection(SelectionIssue issue) {
         return new IssueResult(
@@ -42,6 +54,16 @@ public record IssueResult(String id, String kind, String classname, String name,
             "report:" + name,
             "Failed to write " + name + " report: " + message,
             details,
-            true);
+            true,
+            stackTrace(error));
+    }
+
+    private static String stackTrace(Exception error) {
+        if (error == null) {
+            return "";
+        }
+        StringWriter sw = new StringWriter();
+        error.printStackTrace(new PrintWriter(sw));
+        return sw.toString();
     }
 }
