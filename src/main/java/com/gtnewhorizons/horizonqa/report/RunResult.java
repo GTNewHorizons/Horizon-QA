@@ -110,15 +110,71 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
     }
 
     public long optionalFailures() {
+        return optionalFailed() + optionalTimedOut();
+    }
+
+    public long requiredFailures() {
+        return requiredFailed() + requiredTimedOut();
+    }
+
+    public long requiredFailed() {
         long count = 0;
         for (CaseResult result : cases) {
-            if (result.failedOptionalCase()) count++;
+            if (result.requiredFailed()) count++;
         }
         return count;
     }
 
-    public long requiredFailures() {
-        return requiredFailures(cases);
+    public long requiredTimedOut() {
+        long count = 0;
+        for (CaseResult result : cases) {
+            if (result.requiredTimedOut()) count++;
+        }
+        return count;
+    }
+
+    public long optionalFailed() {
+        long count = 0;
+        for (CaseResult result : cases) {
+            if (result.optionalFailed()) count++;
+        }
+        return count;
+    }
+
+    public long optionalTimedOut() {
+        long count = 0;
+        for (CaseResult result : cases) {
+            if (result.optionalTimedOut()) count++;
+        }
+        return count;
+    }
+
+    public long skippedBySetup() {
+        long count = 0;
+        for (CaseResult result : cases) {
+            if (result.skippedBySetup()) count++;
+        }
+        return count;
+    }
+
+    public long infrastructureErrors() {
+        long count = issues.size();
+        for (CaseResult result : cases) {
+            if (result.infrastructureError()) count++;
+        }
+        return count;
+    }
+
+    public long junitFailures() {
+        return requiredFailed() + requiredTimedOut();
+    }
+
+    public long junitErrors() {
+        return infrastructureErrors();
+    }
+
+    public long junitSkipped() {
+        return optionalFailed() + optionalTimedOut() + skippedBySetup();
     }
 
     public boolean passedRun() {

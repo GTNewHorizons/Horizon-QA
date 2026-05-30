@@ -77,8 +77,32 @@ public record CaseResult(String id, String classname, String name, Status status
         return required && (failed() || timedOut());
     }
 
+    public boolean requiredFailed() {
+        return required && failed();
+    }
+
+    public boolean requiredTimedOut() {
+        return required && timedOut();
+    }
+
+    public boolean optionalFailed() {
+        return !required && failed();
+    }
+
+    public boolean optionalTimedOut() {
+        return !required && timedOut();
+    }
+
     public boolean failedOptionalCase() {
-        return !required && !passed();
+        return optionalFailed() || optionalTimedOut();
+    }
+
+    public boolean skippedBySetup() {
+        return status == Status.NOT_STARTED;
+    }
+
+    public boolean infrastructureError() {
+        return status == Status.RUNNING;
     }
 
     public enum Status {

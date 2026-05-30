@@ -97,6 +97,31 @@ public class RunResultTest {
         assertEquals(0, result.requiredFailures());
     }
 
+    @Test
+    public void junitAggregateCountsUseCiSemantics() {
+        RunResult result = RunResult.completedCases(
+            "ci",
+            Arrays.asList(
+                resultCase("mod:Suite.requiredFailure", CaseResult.Status.FAILED, true),
+                resultCase("mod:Suite.requiredTimeout", CaseResult.Status.TIMED_OUT, true),
+                resultCase("mod:Suite.optionalFailure", CaseResult.Status.FAILED, false),
+                resultCase("mod:Suite.optionalTimeout", CaseResult.Status.TIMED_OUT, false),
+                resultCase("mod:Suite.setupBlocked", CaseResult.Status.NOT_STARTED, true),
+                resultCase("mod:Suite.running", CaseResult.Status.RUNNING, true)),
+            Collections.singletonList(issue("selection:fatal", true)),
+            "TEST.xml");
+
+        assertEquals(1, result.requiredFailed());
+        assertEquals(1, result.requiredTimedOut());
+        assertEquals(1, result.optionalFailed());
+        assertEquals(1, result.optionalTimedOut());
+        assertEquals(1, result.skippedBySetup());
+        assertEquals(2, result.infrastructureErrors());
+        assertEquals(2, result.junitFailures());
+        assertEquals(2, result.junitErrors());
+        assertEquals(3, result.junitSkipped());
+    }
+
     private static CaseResult resultCase(String id, CaseResult.Status status, boolean required) {
         return resultCase(id, status, required, Collections.emptyList());
     }
