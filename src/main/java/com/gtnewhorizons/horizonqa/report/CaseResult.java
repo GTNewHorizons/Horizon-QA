@@ -124,7 +124,7 @@ public record CaseResult(String id, String classname, String name, Status status
         GameTestStatus status = inst.getStatus();
         if (status == GameTestStatus.FAILED) {
             return cause != null ? cause.getClass()
-                .getName() : "java.lang.AssertionError";
+                .getName() : "GameTestError";
         }
         if (status == GameTestStatus.TIMED_OUT) {
             return "GameTestTimeoutError";
