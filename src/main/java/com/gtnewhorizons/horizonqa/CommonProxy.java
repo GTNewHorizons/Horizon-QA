@@ -20,6 +20,7 @@ import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
 import com.gtnewhorizons.horizonqa.report.JUnitXmlReporter;
+import com.gtnewhorizons.horizonqa.report.ReportPathPreflight;
 import com.gtnewhorizons.horizonqa.report.RunResult;
 import com.gtnewhorizons.horizonqa.report.StatusJsonReporter;
 import com.gtnewhorizons.horizonqa.visual.SelectionBoxRenderer;
@@ -69,6 +70,18 @@ public class CommonProxy {
 
     public void serverStarting(FMLServerStartingEvent event) {
         List<PropertyIssue> ciPropertyIssues = HorizonQAProperties.ciInfrastructureIssues();
+        if (!ciPropertyIssues.isEmpty() || HorizonQAProperties.isCi()) {
+            List<IssueResult> reportPathIssues = ReportPathPreflight
+                .check(HorizonQAProperties.junitReportFile(), HorizonQAProperties.statusReportFile());
+            if (!reportPathIssues.isEmpty()) {
+                logReportPathIssues(reportPathIssues);
+                RunResult result = preRunResult(reportPathIssues);
+                ConsoleReporter.report(result);
+                FMLCommonHandler.instance()
+                    .exitJava(result.exitCode(), false);
+                return;
+            }
+        }
         if (!ciPropertyIssues.isEmpty()) {
             logInfrastructureIssues(ciPropertyIssues);
             RunResult result = preRunResult(toPropertyIssueResults(ciPropertyIssues));
@@ -142,6 +155,13 @@ public class CommonProxy {
                 issue.kind(),
                 HorizonQAProperties.TESTS_PROPERTY,
                 issue.message());
+        }
+    }
+
+    private static void logReportPathIssues(List<IssueResult> issues) {
+        HorizonQAMod.LOG.error("Report path preflight failed; aborting before test discovery/execution.");
+        for (IssueResult issue : issues) {
+            HorizonQAMod.LOG.error("Infrastructure issue [{}] {}: {}", issue.id(), issue.name(), issue.message());
         }
     }
 
