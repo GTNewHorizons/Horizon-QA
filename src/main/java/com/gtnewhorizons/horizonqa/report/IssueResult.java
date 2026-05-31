@@ -49,7 +49,7 @@ public record IssueResult(String id, String kind, String classname, String name,
         String details = "issue.id=" + id + "\nreporter=" + name + "\ntarget=" + (target == null ? "" : target) + "\n";
         return new IssueResult(
             id,
-            "REPORTING_ERROR",
+            "REPORT_WRITE_ERROR",
             "horizonqa.reporting",
             "report:" + name,
             "Failed to write " + name + " report: " + message,

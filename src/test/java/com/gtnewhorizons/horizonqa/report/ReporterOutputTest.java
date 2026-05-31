@@ -1,14 +1,22 @@
 package com.gtnewhorizons.horizonqa.report;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -115,7 +123,7 @@ public class ReporterOutputTest {
         assertTrue(json.contains("\"junit\": \"TEST-alpha.xml\\n\""));
         assertTrue(json.contains("\"status\": \""));
         assertTrue(json.contains("\"issues\": ["));
-        assertTrue(json.contains("\"kind\": \"REPORTING_ERROR\""));
+        assertTrue(json.contains("\"kind\": \"REPORT_WRITE_ERROR\""));
         assertTrue(json.contains("disk \\\"full\\\" \\u0001"));
         assertTrue(json.contains("\"stackTrace\": \"java.io.IOException: disk \\\"full\\\" \\u0001"));
         assertTrue(json.contains("\"tests\": []"));
@@ -194,8 +202,106 @@ public class ReporterOutputTest {
         assertTrue(json.contains("\"optionalFailures\": 1"));
     }
 
+    @Test
+    public void atomicReportWriterFallsBackOnlyWhenAtomicMoveIsUnsupported() throws Exception {
+        Path target = new File(temporaryFolder.getRoot(), "TEST-horizonqa.xml").toPath();
+        AtomicInteger moveCount = new AtomicInteger();
+        AtomicReference<Path> tempPath = new AtomicReference<>();
+
+        AtomicReportWriter.write(target, tempFile -> {
+            tempPath.set(tempFile);
+            Files.write(tempFile, "report".getBytes(StandardCharsets.UTF_8));
+        }, (source, destination, options) -> {
+            moveCount.incrementAndGet();
+            if (hasOption(options, StandardCopyOption.ATOMIC_MOVE)) {
+                throw new AtomicMoveNotSupportedException(source.toString(), destination.toString(), "unsupported");
+            }
+            Files.move(source, destination, options);
+        });
+
+        assertTrue(Files.exists(target));
+        assertTrue(read(target.toFile()).contains("report"));
+        assertEquals(2, moveCount.get());
+        assertEquals(
+            target.toAbsolutePath()
+                .getParent(),
+            tempPath.get()
+                .getParent());
+        String tempName = tempPath.get()
+            .getFileName()
+            .toString();
+        assertTrue(tempName.startsWith("TEST-horizonqa.xml."));
+        assertTrue(tempName.endsWith(".tmp"));
+        assertNoTempReports(target);
+    }
+
+    @Test
+    public void atomicReportWriterPropagatesOtherMoveIoExceptions() throws Exception {
+        Path target = new File(temporaryFolder.getRoot(), "horizonqa-result.json").toPath();
+        AtomicInteger moveCount = new AtomicInteger();
+
+        IOException error = assertThrows(
+            IOException.class,
+            () -> AtomicReportWriter.write(
+                target,
+                tempFile -> Files.write(tempFile, "report".getBytes(StandardCharsets.UTF_8)),
+                (source, destination, options) -> {
+                    moveCount.incrementAndGet();
+                    throw new IOException("move failed");
+                }));
+
+        assertTrue(
+            error.getMessage()
+                .contains("move failed"));
+        assertEquals(1, moveCount.get());
+        assertFalse(Files.exists(target));
+        assertNoTempReports(target);
+    }
+
+    @Test
+    public void atomicReportWriterCleansUpPartialTempFileWhenWriterThrows() throws Exception {
+        Path target = new File(temporaryFolder.getRoot(), "TEST-writer-fails.xml").toPath();
+
+        IOException error = assertThrows(IOException.class, () -> AtomicReportWriter.write(target, tempFile -> {
+            Files.write(tempFile, "partial report".getBytes(StandardCharsets.UTF_8));
+            throw new IOException("writer failed");
+        },
+            (source, destination, options) -> {
+                throw new AssertionError("move should not run after writer failure");
+            }));
+
+        assertTrue(
+            error.getMessage()
+                .contains("writer failed"));
+        assertFalse(Files.exists(target));
+        assertNoTempReports(target);
+    }
+
     private static String read(File file) throws Exception {
         return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+    }
+
+    private static boolean hasOption(CopyOption[] options, CopyOption option) {
+        for (CopyOption candidate : options) {
+            if (candidate == option) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void assertNoTempReports(Path target) throws IOException {
+        Path parent = target.toAbsolutePath()
+            .getParent();
+        String prefix = target.getFileName()
+            .toString() + ".";
+        try (java.util.stream.Stream<Path> files = Files.list(parent)) {
+            assertFalse(files.anyMatch(path -> {
+                String name = path.getFileName()
+                    .toString();
+                return name.startsWith(prefix) && name.endsWith(".tmp");
+            }));
+        }
     }
 
     private static CaseResult resultCase(String id, CaseResult.Status status, boolean required, String message) {
