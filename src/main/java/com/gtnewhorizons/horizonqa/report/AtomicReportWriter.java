@@ -36,7 +36,6 @@ final class AtomicReportWriter {
 
         Path tempFile = tempFileFor(absoluteTarget);
         try {
-            Files.createFile(tempFile);
             writer.write(tempFile);
             moveAtomically(tempFile, absoluteTarget, mover);
         } catch (IOException e) {

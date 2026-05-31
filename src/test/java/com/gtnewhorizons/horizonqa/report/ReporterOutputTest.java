@@ -258,6 +258,25 @@ public class ReporterOutputTest {
         assertNoTempReports(target);
     }
 
+    @Test
+    public void atomicReportWriterCleansUpPartialTempFileWhenWriterThrows() throws Exception {
+        Path target = new File(temporaryFolder.getRoot(), "TEST-writer-fails.xml").toPath();
+
+        IOException error = assertThrows(IOException.class, () -> AtomicReportWriter.write(target, tempFile -> {
+            Files.write(tempFile, "partial report".getBytes(StandardCharsets.UTF_8));
+            throw new IOException("writer failed");
+        },
+            (source, destination, options) -> {
+                throw new AssertionError("move should not run after writer failure");
+            }));
+
+        assertTrue(
+            error.getMessage()
+                .contains("writer failed"));
+        assertFalse(Files.exists(target));
+        assertNoTempReports(target);
+    }
+
     private static String read(File file) throws Exception {
         return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
     }
