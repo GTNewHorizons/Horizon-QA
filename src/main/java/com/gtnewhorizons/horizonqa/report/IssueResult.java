@@ -59,15 +59,13 @@ public record IssueResult(String id, String kind, String classname, String name,
     }
 
     public static IssueResult reportPath(String id, String name, String target, String message, Exception error) {
-        String safeId = id == null || id.isEmpty() ? "reportPath:unknown" : id;
-        String safeName = name == null || name.isEmpty() ? "unknown" : name;
-        String details = "issue.id=" + safeId + "\ntarget=" + (target == null ? "" : target) + "\n";
+        String details = "issue.id=" + id + "\ntarget=" + target + "\n";
         return new IssueResult(
-            safeId,
+            id,
             "REPORT_PATH_ERROR",
             "horizonqa.reporting",
-            "report-path:" + safeName,
-            message == null || message.isEmpty() ? "Invalid report output path" : message,
+            "report-path:" + name,
+            message,
             details,
             true,
             stackTrace(error));

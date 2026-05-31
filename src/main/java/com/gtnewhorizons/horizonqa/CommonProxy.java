@@ -76,6 +76,8 @@ public class CommonProxy {
             if (!reportPathIssues.isEmpty()) {
                 logReportPathIssues(reportPathIssues);
                 RunResult result = preRunResult(reportPathIssues);
+                // The configured report outputs just failed preflight; retrying them can create partial or colliding
+                // files, so report this class of failure to the console only.
                 ConsoleReporter.report(result);
                 FMLCommonHandler.instance()
                     .exitJava(result.exitCode(), false);

@@ -46,7 +46,7 @@ public final class ReportPathPreflight {
             verifySentinel(parent, issues);
         }
 
-        return Collections.unmodifiableList(new ArrayList<>(issues));
+        return Collections.unmodifiableList(issues);
     }
 
     private static Path normalize(File file) {
@@ -92,7 +92,7 @@ public final class ReportPathPreflight {
                     label,
                     target,
                     "Cannot create parent directory for " + label + " report '" + target + "': " + e.getMessage(),
-                    asException(e)));
+                    e));
             return;
         }
 
@@ -122,7 +122,7 @@ public final class ReportPathPreflight {
                     label,
                     target,
                     "Cannot inspect " + label + " report target '" + target + "': " + e.getMessage(),
-                    asException(e)));
+                    e));
         }
     }
 
@@ -131,9 +131,11 @@ public final class ReportPathPreflight {
         Exception sentinelError = null;
         try {
             sentinel = Files.createTempFile(parent.path, ".horizonqa-preflight-", ".tmp");
+            sentinel.toFile()
+                .deleteOnExit();
             Files.write(sentinel, SENTINEL_BYTES);
         } catch (IOException | SecurityException e) {
-            sentinelError = asException(e);
+            sentinelError = e;
             issues.add(
                 issue(
                     parentIssueId(parent, "sentinel-write"),
@@ -160,7 +162,7 @@ public final class ReportPathPreflight {
                             parentIssueName(parent),
                             sentinel,
                             "Cannot delete sentinel report file '" + sentinel + "': " + e.getMessage(),
-                            asException(e)));
+                            e));
                 }
             }
         }
@@ -171,7 +173,7 @@ public final class ReportPathPreflight {
     }
 
     private static String parentIssueId(ParentTarget parent, String suffix) {
-        return "reportPath:parent:" + Integer.toHexString(pathKey(parent.path).hashCode()) + ":" + suffix;
+        return "reportPath:parent:" + hex(pathKey(parent.path)) + ":" + suffix;
     }
 
     private static String parentIssueName(ParentTarget parent) {
@@ -207,8 +209,17 @@ public final class ReportPathPreflight {
             .contains("win");
     }
 
-    private static Exception asException(Exception e) {
-        return e;
+    private static String hex(String value) {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        StringBuilder out = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            int v = b & 0xFF;
+            if (v < 0x10) {
+                out.append('0');
+            }
+            out.append(Integer.toHexString(v));
+        }
+        return out.toString();
     }
 
     private static final class ParentTarget {

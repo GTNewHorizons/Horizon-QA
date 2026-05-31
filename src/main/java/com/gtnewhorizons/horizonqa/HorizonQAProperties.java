@@ -307,16 +307,17 @@ public final class HorizonQAProperties {
         if (raw == null) {
             return null;
         }
-        if (raw.isEmpty()) {
+        String value = raw.trim();
+        if (value.isEmpty()) {
             issues.add(
                 configIssue(
                     "config:" + property,
                     property,
-                    "Invalid -D" + property + "=<empty> (expected a file system path)",
+                    "Invalid -D" + property + "=" + renderRawValue(raw) + " (expected a file system path)",
                     true));
             return null;
         }
-        return raw;
+        return value;
     }
 
     static File resolveServerFile(File workingDirectory, String path) {
@@ -365,7 +366,10 @@ public final class HorizonQAProperties {
     }
 
     private static String renderRawValue(String raw) {
-        return raw == null ? "<unset>" : raw.isEmpty() ? "<empty>" : raw;
+        return raw == null ? "<unset>"
+            : raw.isEmpty() ? "<empty>"
+                : raw.trim()
+                    .isEmpty() ? "<blank>" : raw;
     }
 
     public enum Mode {
