@@ -2,6 +2,8 @@ package com.gtnewhorizons.horizonqa.internal;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -17,10 +19,13 @@ import net.minecraft.world.WorldServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.event.StructurePlaced;
+import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook.HookPhase;
+import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
 import com.gtnewhorizons.horizonqa.report.JUnitXmlReporter;
@@ -35,12 +40,16 @@ import cpw.mods.fml.common.FMLCommonHandler;
 public class GameTestBatchRunner {
 
     private static final Logger LOG = LogManager.getLogger("GameTest");
+    private static final Comparator<Method> METHOD_ORDER = Comparator.comparing(
+        (Method m) -> m.getDeclaringClass()
+            .getName())
+        .thenComparing(Method::getName);
 
     private final List<Batch> batches;
     private final GameTestRunner runner;
     private final GameTestGridLayout grid;
-    private final List<GameTestInstance> allInstances = new ArrayList<>();
-    private final List<IssueResult> issues;
+    private final List<ResultEntry> resultEntries = new ArrayList<>();
+    private final List<IssueResult> issues = new ArrayList<>();
 
     public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
         Map<String, List<Method>> afterBatchMethods) {
@@ -52,7 +61,9 @@ public class GameTestBatchRunner {
         runner = new GameTestRunner();
         grid = new GameTestGridLayout();
         batches = buildBatches(tests, beforeBatchMethods, afterBatchMethods);
-        this.issues = Collections.unmodifiableList(new ArrayList<>(issues));
+        if (issues != null) {
+            this.issues.addAll(issues);
+        }
     }
 
     public void start() {
@@ -70,7 +81,21 @@ public class GameTestBatchRunner {
         Batch batch = batches.get(idx);
         LOG.info("--- Batch '{}' ({} test(s)) ---", batch.name, batch.tests.size());
 
-        invokeMethods(batch.beforeMethods, "BeforeBatch");
+        List<IssueResult> beforeIssues = invokeHooks(
+            batch.beforeMethods,
+            HookPhase.BEFORE,
+            batch.name,
+            true,
+            batch.tests.size());
+        if (!beforeIssues.isEmpty()) {
+            IssueResult rootIssue = beforeIssues.get(0);
+            issues.add(rootIssue);
+            for (CaseResult skippedCase : skippedCasesForBeforeFailure(batch.tests, rootIssue)) {
+                resultEntries.add(ResultEntry.result(skippedCase));
+            }
+            runNextBatchOrFinish(idx);
+            return;
+        }
 
         WorldServer world = MinecraftServer.getServer()
             .worldServerForDimension(0);
@@ -137,17 +162,12 @@ public class GameTestBatchRunner {
 
             inst.start(world);
             batchInstances.add(inst);
-            allInstances.add(inst);
+            resultEntries.add(ResultEntry.instance(inst));
         }
 
         runner.run(batchInstances, () -> {
-            invokeMethods(batch.afterMethods, "AfterBatch");
-            int next = idx + 1;
-            if (next < batches.size()) {
-                runBatch(next);
-            } else {
-                onAllBatchesDone();
-            }
+            issues.addAll(invokeHooks(batch.afterMethods, HookPhase.AFTER, batch.name, false, 0));
+            runNextBatchOrFinish(idx);
         });
     }
 
@@ -157,7 +177,7 @@ public class GameTestBatchRunner {
 
         File reportFile = HorizonQAProperties.junitReportFile();
         RunResult result = RunResult
-            .completed(HorizonQAProperties.modeName(), allInstances, issues, reportFile.getPath());
+            .completedCases(HorizonQAProperties.modeName(), collectCaseResults(), issues, reportFile.getPath());
 
         try {
             JUnitXmlReporter.write(result, reportFile);
@@ -189,21 +209,64 @@ public class GameTestBatchRunner {
         }
     }
 
-    private static void invokeMethods(List<Method> methods, String phase) {
-        for (Method m : methods) {
+    private void runNextBatchOrFinish(int idx) {
+        int next = idx + 1;
+        if (next < batches.size()) {
+            runBatch(next);
+        } else {
+            onAllBatchesDone();
+        }
+    }
+
+    private List<CaseResult> collectCaseResults() {
+        List<CaseResult> cases = new ArrayList<>(resultEntries.size());
+        for (ResultEntry entry : resultEntries) {
+            cases.add(entry.toCaseResult());
+        }
+        return cases;
+    }
+
+    static List<IssueResult> invokeHooks(List<Method> methods, HookPhase phase, String batch, boolean stopOnFailure,
+        int affectedTests) {
+        List<IssueResult> failures = new ArrayList<>();
+        for (Method m : sortedHookMethods(methods)) {
             try {
                 m.invoke(null);
             } catch (InvocationTargetException e) {
-                LOG.error(
-                    "Exception in @{} method '{}': {}",
-                    phase,
-                    m.getName(),
-                    e.getCause() != null ? e.getCause()
-                        .getMessage() : e.getMessage());
-            } catch (IllegalAccessException e) {
-                LOG.error("Cannot access @{} method '{}': {}", phase, m.getName(), e.getMessage());
+                Throwable cause = e.getCause() != null ? e.getCause() : e;
+                IssueResult issue = hookIssue(phase, batch, m, cause, affectedTests);
+                logHookIssue(phase, batch, m, cause);
+                failures.add(issue);
+                if (stopOnFailure) {
+                    return failures;
+                }
+            } catch (IllegalAccessException | IllegalArgumentException e) {
+                IssueResult issue = hookIssue(phase, batch, m, e, affectedTests);
+                logHookIssue(phase, batch, m, e);
+                failures.add(issue);
+                if (stopOnFailure) {
+                    return failures;
+                }
             }
         }
+        return failures;
+    }
+
+    static List<CaseResult> skippedCasesForBeforeFailure(List<GameTestDefinition> tests, IssueResult rootIssue) {
+        List<CaseResult> skipped = new ArrayList<>();
+        for (GameTestDefinition test : tests) {
+            skipped.add(CaseResult.skippedByIssue(test, rootIssue.id(), rootIssue.message()));
+        }
+        return skipped;
+    }
+
+    static List<Method> sortedHookMethods(List<Method> methods) {
+        if (methods == null || methods.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Method> sorted = new ArrayList<>(methods);
+        sorted.sort(METHOD_ORDER);
+        return sorted;
     }
 
     private PlannedTest plan(GameTestDefinition def, WorldServer world) {
@@ -273,11 +336,104 @@ public class GameTestBatchRunner {
             entry.getValue()
                 .sort(Comparator.comparing(GameTestDefinition::getTestId));
             String name = entry.getKey();
-            List<Method> before = beforeMethods.getOrDefault(name, new ArrayList<>());
-            List<Method> after = afterMethods.getOrDefault(name, new ArrayList<>());
+            List<Method> before = sortedHookMethods(beforeMethods == null ? null : beforeMethods.get(name));
+            List<Method> after = sortedHookMethods(afterMethods == null ? null : afterMethods.get(name));
             result.add(new Batch(name, entry.getValue(), before, after));
         }
         return result;
+    }
+
+    private static IssueResult hookIssue(HookPhase phase, String batch, Method method, Throwable error,
+        int affectedTests) {
+        String phaseName = phaseName(phase);
+        String methodRef = methodRef(method);
+        String id = "batchHook:" + phase.name()
+            .toLowerCase() + ":" + batchId(batch) + ":" + methodRef;
+        String message = "@" + phaseName
+            + " method '"
+            + methodRef
+            + "' failed for batch '"
+            + batchName(batch)
+            + "': "
+            + errorMessage(error);
+        StringBuilder details = new StringBuilder();
+        details.append("issue.id=")
+            .append(id)
+            .append('\n');
+        details.append("phase=")
+            .append(phaseName)
+            .append('\n');
+        details.append("batch=")
+            .append(batchName(batch))
+            .append('\n');
+        details.append("method=")
+            .append(methodRef)
+            .append('\n');
+        if (phase == HookPhase.BEFORE) {
+            details.append("affectedTests=")
+                .append(affectedTests)
+                .append('\n');
+        }
+
+        return new IssueResult(
+            id,
+            phase == HookPhase.BEFORE ? "BEFORE_BATCH_ERROR" : "AFTER_BATCH_ERROR",
+            "horizonqa.infrastructure",
+            "batch-hook:" + phase.name()
+                .toLowerCase() + ":" + batchName(batch) + ":" + methodRef,
+            message,
+            details.toString(),
+            true,
+            stackTrace(error));
+    }
+
+    private static void logHookIssue(HookPhase phase, String batch, Method method, Throwable error) {
+        LOG.error(
+            "Exception in @{} method '{}' for batch '{}': {}",
+            phaseName(phase),
+            methodRef(method),
+            batchName(batch),
+            errorMessage(error),
+            error);
+    }
+
+    private static String phaseName(HookPhase phase) {
+        return phase == HookPhase.BEFORE ? "BeforeBatch" : "AfterBatch";
+    }
+
+    private static String batchName(String batch) {
+        return batch == null || batch.isEmpty() ? "default" : batch;
+    }
+
+    private static String batchId(String batch) {
+        return batchName(batch);
+    }
+
+    private static String methodRef(Method method) {
+        return method.getDeclaringClass()
+            .getName() + "#"
+            + method.getName();
+    }
+
+    private static String errorMessage(Throwable error) {
+        if (error == null) {
+            return "unknown hook error";
+        }
+        String message = error.getMessage();
+        if (message == null || message.isEmpty()) {
+            return error.getClass()
+                .getName();
+        }
+        return message;
+    }
+
+    private static String stackTrace(Throwable error) {
+        if (error == null) {
+            return "";
+        }
+        StringWriter sw = new StringWriter();
+        error.printStackTrace(new PrintWriter(sw));
+        return sw.toString();
     }
 
     private static final class Batch {
@@ -295,32 +451,25 @@ public class GameTestBatchRunner {
         }
     }
 
-    private static final class PlannedTest {
+    @Desugar
+    private record ResultEntry(GameTestInstance instance, CaseResult result) {
 
-        final GameTestDefinition def;
-        final HybridStructureTemplate template;
-        final int originX, originY, originZ;
-        final int tmplSizeX, tmplSizeY, tmplSizeZ;
-        final int cellMinX, cellMinY, cellMinZ;
-        final int cellMaxX, cellMaxY, cellMaxZ;
-
-        PlannedTest(GameTestDefinition def, HybridStructureTemplate template, int originX, int originY, int originZ,
-            int tmplSizeX, int tmplSizeY, int tmplSizeZ, int cellMinX, int cellMinY, int cellMinZ, int cellMaxX,
-            int cellMaxY, int cellMaxZ) {
-            this.def = def;
-            this.template = template;
-            this.originX = originX;
-            this.originY = originY;
-            this.originZ = originZ;
-            this.tmplSizeX = tmplSizeX;
-            this.tmplSizeY = tmplSizeY;
-            this.tmplSizeZ = tmplSizeZ;
-            this.cellMinX = cellMinX;
-            this.cellMinY = cellMinY;
-            this.cellMinZ = cellMinZ;
-            this.cellMaxX = cellMaxX;
-            this.cellMaxY = cellMaxY;
-            this.cellMaxZ = cellMaxZ;
+        static ResultEntry instance(GameTestInstance instance) {
+            return new ResultEntry(instance, null);
         }
+
+        static ResultEntry result(CaseResult result) {
+            return new ResultEntry(null, result);
+        }
+
+        CaseResult toCaseResult() {
+            return result != null ? result : CaseResult.from(instance);
+        }
+    }
+
+    private record PlannedTest(GameTestDefinition def, HybridStructureTemplate template, int originX, int originY,
+        int originZ, int tmplSizeX, int tmplSizeY, int tmplSizeZ, int cellMinX, int cellMinY, int cellMinZ,
+        int cellMaxX, int cellMaxY, int cellMaxZ) {
+
     }
 }

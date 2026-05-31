@@ -187,6 +187,9 @@ public final class StatusJsonReporter {
         first = appendBooleanField(out, 3, "required", resultCase.required(), first);
         first = appendNumberField(out, 3, "ticks", resultCase.tickCount(), first);
         first = appendNumberField(out, 3, "timeSeconds", resultCase.timeSeconds(), first);
+        if (hasText(resultCase.blockedByIssueId())) {
+            first = appendStringField(out, 3, "blockedByIssueId", resultCase.blockedByIssueId(), first);
+        }
         if (!resultCase.passed()) {
             appendFailure(out, resultCase, first);
         }

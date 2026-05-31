@@ -40,7 +40,11 @@ public final class ConsoleReporter {
                     dumpOutputTail(resultCase);
                     break;
                 default:
-                    LOG.warn("  [SKIP] {} (did not complete, status: {})", resultCase.id(), resultCase.status());
+                    if (hasText(resultCase.blockedByIssueId())) {
+                        LOG.warn("  [SKIP] {} (blocked by {})", resultCase.id(), resultCase.blockedByIssueId());
+                    } else {
+                        LOG.warn("  [SKIP] {} (did not complete, status: {})", resultCase.id(), resultCase.status());
+                    }
                     break;
             }
         }
@@ -80,5 +84,9 @@ public final class ConsoleReporter {
     private static String detail(CaseResult resultCase) {
         String message = resultCase.failureMessage();
         return message == null || message.isEmpty() ? "unknown failure" : message;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isEmpty();
     }
 }

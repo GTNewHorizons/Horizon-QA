@@ -8,25 +8,42 @@ import java.util.List;
 
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.api.event.TestEvent;
+import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
 import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
 import com.gtnewhorizons.horizonqa.internal.GameTestStatus;
 
 @Desugar
 public record CaseResult(String id, String classname, String name, Status status, boolean required, int tickCount,
-    double timeSeconds, String failureMessage, String failureType, String failureTrace, List<String> outputLines) {
+    double timeSeconds, String failureMessage, String failureType, String failureTrace, List<String> outputLines,
+    String blockedByIssueId) {
 
     private static final double TICKS_PER_SECOND = 20.0;
 
     public CaseResult {
         outputLines = immutableList(outputLines);
+        blockedByIssueId = blockedByIssueId == null ? "" : blockedByIssueId;
+    }
+
+    public CaseResult(String id, String classname, String name, Status status, boolean required, int tickCount,
+        double timeSeconds, String failureMessage, String failureType, String failureTrace, List<String> outputLines) {
+        this(
+            id,
+            classname,
+            name,
+            status,
+            required,
+            tickCount,
+            timeSeconds,
+            failureMessage,
+            failureType,
+            failureTrace,
+            outputLines,
+            "");
     }
 
     public static CaseResult from(GameTestInstance inst) {
         String testId = inst.getDefinition()
             .getTestId();
-        int sep = Math.max(testId.lastIndexOf('.'), testId.lastIndexOf('#'));
-        String classname = sep > 0 ? testId.substring(0, sep) : "horizonqa";
-        String name = sep > 0 ? testId.substring(sep + 1) : testId;
 
         Throwable cause = inst.getFailureCause();
         String failureMessage = failureMessage(inst, cause);
@@ -44,8 +61,8 @@ public record CaseResult(String id, String classname, String name, Status status
 
         return new CaseResult(
             testId,
-            classname,
-            name,
+            classname(testId),
+            name(testId),
             Status.from(inst.getStatus()),
             inst.getDefinition()
                 .isRequired(),
@@ -54,7 +71,26 @@ public record CaseResult(String id, String classname, String name, Status status
             failureMessage,
             failureType,
             failureTrace,
-            output);
+            output,
+            "");
+    }
+
+    public static CaseResult skippedByIssue(GameTestDefinition definition, String blockedByIssueId, String message) {
+        String testId = definition.getTestId();
+        String failureMessage = message == null || message.isEmpty() ? "Blocked by infrastructure issue" : message;
+        return new CaseResult(
+            testId,
+            classname(testId),
+            name(testId),
+            Status.NOT_STARTED,
+            definition.isRequired(),
+            0,
+            0.0,
+            failureMessage,
+            "BATCH_HOOK_ERROR",
+            "",
+            Collections.emptyList(),
+            blockedByIssueId);
     }
 
     public boolean passed() {
@@ -161,6 +197,23 @@ public record CaseResult(String id, String classname, String name, Status status
 
     private static String formatEvent(TestEvent event) {
         return String.format("[t=%5d] [%-11s] %s", event.tick(), event.category(), event.summary());
+    }
+
+    private static String classname(String testId) {
+        int sep = splitIndex(testId);
+        return sep > 0 ? testId.substring(0, sep) : "horizonqa";
+    }
+
+    private static String name(String testId) {
+        int sep = splitIndex(testId);
+        return sep > 0 ? testId.substring(sep + 1) : testId;
+    }
+
+    private static int splitIndex(String testId) {
+        if (testId == null) {
+            return -1;
+        }
+        return Math.max(testId.lastIndexOf('.'), testId.lastIndexOf('#'));
     }
 
     private static String stackTrace(Throwable t) {

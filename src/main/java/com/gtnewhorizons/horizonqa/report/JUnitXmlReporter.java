@@ -47,7 +47,7 @@ public final class JUnitXmlReporter {
 
     private static void writeTestCase(PrintWriter pw, CaseResult resultCase) {
         boolean hasOutput = !resultCase.outputLines()
-            .isEmpty();
+            .isEmpty() || hasText(resultCase.blockedByIssueId());
         if (resultCase.passed() && !hasOutput) {
             pw.printf(
                 "  <testcase name=\"%s\" classname=\"%s\" time=\"%.3f\"/>%n",
@@ -73,6 +73,9 @@ public final class JUnitXmlReporter {
 
         if (hasOutput) {
             pw.println("    <system-out>");
+            if (hasText(resultCase.blockedByIssueId())) {
+                pw.print(escapeBody("blockedByIssueId=" + resultCase.blockedByIssueId() + "\n"));
+            }
             for (String line : resultCase.outputLines()) {
                 pw.print(escapeBody(line + "\n"));
             }
@@ -120,10 +123,19 @@ public final class JUnitXmlReporter {
             "  <testcase name=\"%s\" classname=\"%s\" time=\"0.000\">%n",
             sanitizeAttr(issue.name()),
             sanitizeAttr(issue.classname()));
-        pw.printf(
-            "    <error message=\"%s\" type=\"%s\"/>%n",
-            sanitizeAttr(issue.message()),
-            sanitizeAttr(issue.kind()));
+        if (hasText(issue.stackTrace())) {
+            pw.printf(
+                "    <error message=\"%s\" type=\"%s\">%n",
+                sanitizeAttr(issue.message()),
+                sanitizeAttr(issue.kind()));
+            pw.print(escapeBody(issue.stackTrace()));
+            pw.println("    </error>");
+        } else {
+            pw.printf(
+                "    <error message=\"%s\" type=\"%s\"/>%n",
+                sanitizeAttr(issue.message()),
+                sanitizeAttr(issue.kind()));
+        }
         if (issue.details() != null && !issue.details()
             .isEmpty()) {
             pw.println("    <system-out>");
@@ -199,5 +211,9 @@ public final class JUnitXmlReporter {
             || (cp >= 0xA0 && cp <= 0xD7FF)
             || (cp >= 0xE000 && cp <= 0xFFFD)
             || (cp >= 0x10000 && cp <= 0x10FFFF);
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isEmpty();
     }
 }

@@ -174,6 +174,50 @@ public class ReporterOutputTest {
     }
 
     @Test
+    public void skippedCasesCanReferenceBlockingInfrastructureIssue() throws Exception {
+        CaseResult skipped = new CaseResult(
+            "mod:Suite.blocked",
+            "mod:Suite",
+            "blocked",
+            CaseResult.Status.NOT_STARTED,
+            true,
+            0,
+            0.0,
+            "before batch failed",
+            "BATCH_HOOK_ERROR",
+            "",
+            Collections.emptyList(),
+            "batchHook:before:default:mod.Suite#setup");
+        RunResult result = RunResult.completedCases(
+            "ci",
+            Collections.singletonList(skipped),
+            Collections.singletonList(
+                new IssueResult(
+                    "batchHook:before:default:mod.Suite#setup",
+                    "BEFORE_BATCH_ERROR",
+                    "horizonqa.infrastructure",
+                    "batch-hook:before:default:mod.Suite#setup",
+                    "before batch failed",
+                    "issue.id=batchHook:before:default:mod.Suite#setup\n",
+                    true)),
+            "TEST.xml");
+
+        File xmlOutput = temporaryFolder.newFile("blocked.xml");
+        JUnitXmlReporter.write(result, xmlOutput);
+
+        String xml = read(xmlOutput);
+        assertTrue(xml.contains("tests=\"2\" failures=\"0\" errors=\"1\" skipped=\"1\""));
+        assertTrue(xml.contains("<skipped message=\"before batch failed\" type=\"BATCH_HOOK_ERROR\"/>"));
+        assertTrue(xml.contains("blockedByIssueId=batchHook:before:default:mod.Suite#setup"));
+
+        File jsonOutput = temporaryFolder.newFile("blocked.json");
+        StatusJsonReporter.write(result, jsonOutput);
+
+        String json = read(jsonOutput);
+        assertTrue(json.contains("\"blockedByIssueId\": \"batchHook:before:default:mod.Suite#setup\""));
+    }
+
+    @Test
     public void statusJsonReportsPassedOptionalFailureRunsAsPassed() throws Exception {
         RunResult result = RunResult.completedCases(
             "ci",
