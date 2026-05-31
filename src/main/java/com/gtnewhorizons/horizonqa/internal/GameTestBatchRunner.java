@@ -100,7 +100,12 @@ public class GameTestBatchRunner {
         WorldServer world = MinecraftServer.getServer()
             .worldServerForDimension(0);
         if (world == null) {
-            LOG.error("World dimension 0 is null - cannot start tests.");
+            IssueResult rootIssue = worldUnavailableIssue(batch.name, remainingTestCount(idx));
+            LOG.error(rootIssue.message());
+            issues.add(rootIssue);
+            for (CaseResult skippedCase : skippedCasesForIssue(remainingTests(idx), rootIssue, "WORLD_UNAVAILABLE")) {
+                resultEntries.add(ResultEntry.result(skippedCase));
+            }
             onAllBatchesDone();
             return;
         }
@@ -229,7 +234,8 @@ public class GameTestBatchRunner {
     static List<IssueResult> invokeHooks(List<Method> methods, HookPhase phase, String batch, boolean stopOnFailure,
         int affectedTests) {
         List<IssueResult> failures = new ArrayList<>();
-        for (Method m : sortedHookMethods(methods)) {
+        List<Method> orderedMethods = methods == null ? Collections.emptyList() : methods;
+        for (Method m : orderedMethods) {
             try {
                 m.invoke(null);
             } catch (InvocationTargetException e) {
@@ -253,9 +259,14 @@ public class GameTestBatchRunner {
     }
 
     static List<CaseResult> skippedCasesForBeforeFailure(List<GameTestDefinition> tests, IssueResult rootIssue) {
+        return skippedCasesForIssue(tests, rootIssue, "BATCH_HOOK_ERROR");
+    }
+
+    static List<CaseResult> skippedCasesForIssue(List<GameTestDefinition> tests, IssueResult rootIssue,
+        String failureType) {
         List<CaseResult> skipped = new ArrayList<>();
         for (GameTestDefinition test : tests) {
-            skipped.add(CaseResult.skippedByIssue(test, rootIssue.id(), rootIssue.message()));
+            skipped.add(CaseResult.skippedByIssue(test, rootIssue.id(), rootIssue.message(), failureType));
         }
         return skipped;
     }
@@ -267,6 +278,22 @@ public class GameTestBatchRunner {
         List<Method> sorted = new ArrayList<>(methods);
         sorted.sort(METHOD_ORDER);
         return sorted;
+    }
+
+    private int remainingTestCount(int batchIndex) {
+        int count = 0;
+        for (int i = batchIndex; i < batches.size(); i++) {
+            count += batches.get(i).tests.size();
+        }
+        return count;
+    }
+
+    private List<GameTestDefinition> remainingTests(int batchIndex) {
+        List<GameTestDefinition> tests = new ArrayList<>();
+        for (int i = batchIndex; i < batches.size(); i++) {
+            tests.addAll(batches.get(i).tests);
+        }
+        return tests;
     }
 
     private PlannedTest plan(GameTestDefinition def, WorldServer world) {
@@ -387,6 +414,25 @@ public class GameTestBatchRunner {
             stackTrace(error));
     }
 
+    private static IssueResult worldUnavailableIssue(String batch, int affectedTests) {
+        String id = "runner:worldUnavailable:dimension0";
+        String message = "World dimension 0 is null; cannot start batch '" + batchName(batch) + "' or remaining tests.";
+        String details = "issue.id=" + id
+            + "\nkind=WORLD_UNAVAILABLE\nbatch="
+            + batchName(batch)
+            + "\ndimension=0\naffectedTests="
+            + affectedTests
+            + "\n";
+        return new IssueResult(
+            id,
+            "WORLD_UNAVAILABLE",
+            "horizonqa.infrastructure",
+            "world:dimension0",
+            message,
+            details,
+            true);
+    }
+
     private static void logHookIssue(HookPhase phase, String batch, Method method, Throwable error) {
         LOG.error(
             "Exception in @{} method '{}' for batch '{}': {}",
@@ -467,6 +513,7 @@ public class GameTestBatchRunner {
         }
     }
 
+    @Desugar
     private record PlannedTest(GameTestDefinition def, HybridStructureTemplate template, int originX, int originY,
         int originZ, int tmplSizeX, int tmplSizeY, int tmplSizeZ, int cellMinX, int cellMinY, int cellMinZ,
         int cellMaxX, int cellMaxY, int cellMaxZ) {

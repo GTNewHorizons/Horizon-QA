@@ -76,6 +76,11 @@ public record CaseResult(String id, String classname, String name, Status status
     }
 
     public static CaseResult skippedByIssue(GameTestDefinition definition, String blockedByIssueId, String message) {
+        return skippedByIssue(definition, blockedByIssueId, message, "BATCH_HOOK_ERROR");
+    }
+
+    public static CaseResult skippedByIssue(GameTestDefinition definition, String blockedByIssueId, String message,
+        String failureType) {
         String testId = definition.getTestId();
         String failureMessage = message == null || message.isEmpty() ? "Blocked by infrastructure issue" : message;
         return new CaseResult(
@@ -87,7 +92,7 @@ public record CaseResult(String id, String classname, String name, Status status
             0,
             0.0,
             failureMessage,
-            "BATCH_HOOK_ERROR",
+            failureType == null || failureType.isEmpty() ? "INFRASTRUCTURE_ERROR" : failureType,
             "",
             Collections.emptyList(),
             blockedByIssueId);

@@ -34,16 +34,21 @@ public class GameTestBatchRunnerTest {
     public void beforeHookFailureCreatesOneRootIssueAndSkippedCases() throws Exception {
         Method shouldNotRun = BeforeHooks.class.getMethod("shouldNotRun");
         Method failFirst = BeforeHooks.class.getMethod("failFirst");
+        Method secondFailure = BeforeHooks.class.getMethod("secondFailure");
 
         BeforeHooks.calls.clear();
-        List<IssueResult> issues = GameTestBatchRunner
-            .invokeHooks(Arrays.asList(shouldNotRun, failFirst), HookPhase.BEFORE, "", true, 2);
+        List<Method> hooks = GameTestBatchRunner
+            .sortedHookMethods(Arrays.asList(shouldNotRun, secondFailure, failFirst));
+        List<IssueResult> issues = GameTestBatchRunner.invokeHooks(hooks, HookPhase.BEFORE, "", true, 2);
 
         assertEquals(1, issues.size());
         IssueResult rootIssue = issues.get(0);
         assertTrue(
             rootIssue.id()
                 .startsWith("batchHook:before:default:"));
+        assertTrue(
+            rootIssue.id()
+                .contains("#failFirst"));
         assertEquals("BEFORE_BATCH_ERROR", rootIssue.kind());
         assertTrue(
             rootIssue.details()
@@ -76,14 +81,42 @@ public class GameTestBatchRunnerTest {
     }
 
     @Test
+    public void skippedCasesCanUseNonHookInfrastructureFailureTypes() throws Exception {
+        IssueResult rootIssue = new IssueResult(
+            "runner:worldUnavailable:dimension0",
+            "WORLD_UNAVAILABLE",
+            "horizonqa.infrastructure",
+            "world:dimension0",
+            "World dimension 0 is null",
+            "issue.id=runner:worldUnavailable:dimension0\n",
+            true);
+
+        List<CaseResult> skipped = GameTestBatchRunner.skippedCasesForIssue(
+            Collections.singletonList(definition("mod:Suite.blocked", true)),
+            rootIssue,
+            "WORLD_UNAVAILABLE");
+
+        assertEquals(1, skipped.size());
+        assertEquals(
+            "WORLD_UNAVAILABLE",
+            skipped.get(0)
+                .failureType());
+        assertEquals(
+            rootIssue.id(),
+            skipped.get(0)
+                .blockedByIssueId());
+    }
+
+    @Test
     public void afterHookFailuresCreateIssuesAndContinueInOrder() throws Exception {
         Method secondFailure = AfterHooks.class.getMethod("secondFailure");
         Method recordsCall = AfterHooks.class.getMethod("recordsCall");
         Method firstFailure = AfterHooks.class.getMethod("firstFailure");
 
         AfterHooks.calls.clear();
-        List<IssueResult> issues = GameTestBatchRunner
-            .invokeHooks(Arrays.asList(secondFailure, recordsCall, firstFailure), HookPhase.AFTER, "cleanup", false, 0);
+        List<Method> hooks = GameTestBatchRunner
+            .sortedHookMethods(Arrays.asList(secondFailure, recordsCall, firstFailure));
+        List<IssueResult> issues = GameTestBatchRunner.invokeHooks(hooks, HookPhase.AFTER, "cleanup", false, 0);
 
         assertEquals(2, issues.size());
         assertEquals(
@@ -130,6 +163,10 @@ public class GameTestBatchRunnerTest {
 
         public static void failFirst() {
             throw new IllegalStateException("setup broke");
+        }
+
+        public static void secondFailure() {
+            throw new IllegalStateException("second setup broke");
         }
 
         public static void shouldNotRun() {
