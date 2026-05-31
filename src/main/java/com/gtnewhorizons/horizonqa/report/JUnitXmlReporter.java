@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 
 public final class JUnitXmlReporter {
@@ -13,38 +12,37 @@ public final class JUnitXmlReporter {
     private JUnitXmlReporter() {}
 
     public static void write(RunResult result, File outputFile) throws IOException {
-        Path path = outputFile.toPath();
-        Path parent = path.getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
-        }
+        AtomicReportWriter.write(outputFile, tempFile -> {
+            try (PrintWriter pw = new PrintWriter(Files.newBufferedWriter(tempFile, StandardCharsets.UTF_8))) {
+                pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+                pw.printf(
+                    "<testsuite name=\"horizonqa\" tests=\"%d\" failures=\"%d\" errors=\"%d\" skipped=\"%d\""
+                        + " time=\"%.3f\" timestamp=\"%s\" hostname=\"localhost\">%n",
+                    result.cases()
+                        .size()
+                        + result.issues()
+                            .size(),
+                    result.junitFailures(),
+                    result.junitErrors(),
+                    result.junitSkipped(),
+                    result.durationSeconds(),
+                    sanitizeAttr(
+                        Instant.now()
+                            .toString()));
 
-        try (PrintWriter pw = new PrintWriter(Files.newBufferedWriter(path, StandardCharsets.UTF_8))) {
-            pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-            pw.printf(
-                "<testsuite name=\"horizonqa\" tests=\"%d\" failures=\"%d\" errors=\"%d\" skipped=\"%d\""
-                    + " time=\"%.3f\" timestamp=\"%s\" hostname=\"localhost\">%n",
-                result.cases()
-                    .size()
-                    + result.issues()
-                        .size(),
-                result.junitFailures(),
-                result.junitErrors(),
-                result.junitSkipped(),
-                result.durationSeconds(),
-                sanitizeAttr(
-                    Instant.now()
-                        .toString()));
+                for (CaseResult resultCase : result.cases()) {
+                    writeTestCase(pw, resultCase);
+                }
+                for (IssueResult issue : result.issues()) {
+                    writeIssue(pw, issue);
+                }
 
-            for (CaseResult resultCase : result.cases()) {
-                writeTestCase(pw, resultCase);
+                pw.println("</testsuite>");
+                if (pw.checkError()) {
+                    throw new IOException("Failed while writing JUnit XML report");
+                }
             }
-            for (IssueResult issue : result.issues()) {
-                writeIssue(pw, issue);
-            }
-
-            pw.println("</testsuite>");
-        }
+        });
     }
 
     private static void writeTestCase(PrintWriter pw, CaseResult resultCase) {

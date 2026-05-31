@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 
@@ -15,13 +14,9 @@ public final class StatusJsonReporter {
     private StatusJsonReporter() {}
 
     public static void write(RunResult result, File outputFile) throws IOException {
-        Path path = outputFile.toPath();
-        Path parent = path.getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
-        }
-
-        Files.write(path, toJson(result, outputFile).getBytes(StandardCharsets.UTF_8));
+        AtomicReportWriter.write(
+            outputFile,
+            tempFile -> Files.write(tempFile, toJson(result, outputFile).getBytes(StandardCharsets.UTF_8)));
     }
 
     static String toJson(RunResult result, File outputFile) {
