@@ -17,6 +17,7 @@ public record CaseResult(String id, String classname, String name, Status status
     double timeSeconds, String failureMessage, String failureType, String failureTrace, List<String> outputLines,
     String blockedByIssueId) {
 
+    public static final String CLEANUP_ERROR = "CLEANUP_ERROR";
     private static final double TICKS_PER_SECOND = 20.0;
 
     public CaseResult {
@@ -45,7 +46,7 @@ public record CaseResult(String id, String classname, String name, Status status
         String testId = inst.getDefinition()
             .getTestId();
 
-        Throwable cause = inst.getFailureCause();
+        Throwable cause = failureCauseForReport(inst);
         String failureMessage = failureMessage(inst, cause);
         String failureType = failureType(inst, cause);
         String failureTrace = cause != null ? stackTrace(cause) : "";
@@ -110,6 +111,10 @@ public record CaseResult(String id, String classname, String name, Status status
         return status == Status.TIMED_OUT;
     }
 
+    public boolean error() {
+        return status == Status.ERROR;
+    }
+
     public boolean incomplete() {
         return status == Status.NOT_STARTED || status == Status.RUNNING;
     }
@@ -143,7 +148,7 @@ public record CaseResult(String id, String classname, String name, Status status
     }
 
     public boolean infrastructureError() {
-        return status == Status.RUNNING;
+        return status == Status.ERROR || status == Status.RUNNING;
     }
 
     public enum Status {
@@ -152,6 +157,7 @@ public record CaseResult(String id, String classname, String name, Status status
         RUNNING,
         PASSED,
         FAILED,
+        ERROR,
         TIMED_OUT;
 
         private static Status from(GameTestStatus status) {
@@ -160,6 +166,8 @@ public record CaseResult(String id, String classname, String name, Status status
                     return PASSED;
                 case FAILED:
                     return FAILED;
+                case ERROR:
+                    return ERROR;
                 case TIMED_OUT:
                     return TIMED_OUT;
                 case RUNNING:
@@ -173,6 +181,9 @@ public record CaseResult(String id, String classname, String name, Status status
 
     private static String failureMessage(GameTestInstance inst, Throwable cause) {
         GameTestStatus status = inst.getStatus();
+        if (status == GameTestStatus.ERROR) {
+            return errorMessage(cause, "Cleanup callback failed");
+        }
         if (status == GameTestStatus.FAILED) {
             return cause != null && cause.getMessage() != null ? cause.getMessage() : "Test failed";
         }
@@ -187,6 +198,9 @@ public record CaseResult(String id, String classname, String name, Status status
 
     private static String failureType(GameTestInstance inst, Throwable cause) {
         GameTestStatus status = inst.getStatus();
+        if (status == GameTestStatus.ERROR) {
+            return CLEANUP_ERROR;
+        }
         if (status == GameTestStatus.FAILED) {
             return cause != null ? cause.getClass()
                 .getName() : "GameTestError";
@@ -198,6 +212,25 @@ public record CaseResult(String id, String classname, String name, Status status
             return "GameTestError";
         }
         return "";
+    }
+
+    private static Throwable failureCauseForReport(GameTestInstance inst) {
+        if (inst.getStatus() == GameTestStatus.ERROR) {
+            return inst.getCleanupFailureCause();
+        }
+        return inst.getFailureCause();
+    }
+
+    private static String errorMessage(Throwable cause, String fallback) {
+        if (cause == null) {
+            return fallback;
+        }
+        String message = cause.getMessage();
+        if (message == null || message.isEmpty()) {
+            return cause.getClass()
+                .getName();
+        }
+        return message;
     }
 
     private static String formatEvent(TestEvent event) {

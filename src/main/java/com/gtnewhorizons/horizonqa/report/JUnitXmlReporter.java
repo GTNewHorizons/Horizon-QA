@@ -95,10 +95,20 @@ public final class JUnitXmlReporter {
     }
 
     private static void writeError(PrintWriter pw, CaseResult resultCase) {
+        String trace = resultCase.failureTrace();
+        if (trace == null || trace.isEmpty()) {
+            pw.printf(
+                "    <error message=\"%s\" type=\"%s\"/>%n",
+                sanitizeAttr(resultCase.failureMessage()),
+                sanitizeAttr(resultCase.failureType()));
+            return;
+        }
         pw.printf(
-            "    <error message=\"%s\" type=\"%s\"/>%n",
+            "    <error message=\"%s\" type=\"%s\">%n",
             sanitizeAttr(resultCase.failureMessage()),
             sanitizeAttr(resultCase.failureType()));
+        pw.print(escapeBody(trace));
+        pw.println("    </error>");
     }
 
     private static void writeSkipped(PrintWriter pw, CaseResult resultCase) {

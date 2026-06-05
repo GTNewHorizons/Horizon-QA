@@ -33,6 +33,7 @@ public class GameTestInstance {
     private GameTestStatus status = GameTestStatus.NOT_STARTED;
     private int tickCount = 0;
     private Throwable failureCause;
+    private Throwable cleanupFailureCause;
     private GameTestSequence sequence;
     private BooleanSupplier succeedWhen;
     private boolean succeedAtTimeout;
@@ -153,15 +154,8 @@ public class GameTestInstance {
     public void succeed() {
         if (status != GameTestStatus.RUNNING) return;
         status = GameTestStatus.PASSED;
-        recorder.record(
-            () -> new TestFinished(
-                recorder.clock()
-                    .tick(),
-                definition.getTestId(),
-                "passed",
-                recorder.clock()
-                    .tick()));
         runCleanup();
+        recordFinished();
         if (status == GameTestStatus.PASSED) {
             LOG.info("PASSED   {}", definition.getTestId());
         }
@@ -194,35 +188,21 @@ public class GameTestInstance {
                 type,
                 pos);
         });
-        recorder.record(
-            () -> new TestFinished(
-                recorder.clock()
-                    .tick(),
-                definition.getTestId(),
-                "failed",
-                recorder.clock()
-                    .tick()));
-        runCleanup();
         String detail = cause != null ? cause.getMessage() : "unknown";
         LOG.error("FAILED   {} - {}", definition.getTestId(), detail);
         if (cause != null && !(cause instanceof GameTestAssertException)) {
             LOG.error("Caused by:", cause);
         }
+        runCleanup();
+        recordFinished();
     }
 
     private void timeout() {
         if (status != GameTestStatus.RUNNING) return;
         status = GameTestStatus.TIMED_OUT;
-        recorder.record(
-            () -> new TestFinished(
-                recorder.clock()
-                    .tick(),
-                definition.getTestId(),
-                "timed out",
-                recorder.clock()
-                    .tick()));
-        runCleanup();
         LOG.warn("TIMEOUT  {} (timed out after {} ticks)", definition.getTestId(), tickCount);
+        runCleanup();
+        recordFinished();
     }
 
     public void addCleanup(Runnable callback) {
@@ -239,33 +219,69 @@ public class GameTestInstance {
     }
 
     private void runCleanup() {
-        TestIsolationViolation isolationViolation = null;
+        Throwable cleanupFailure = null;
         for (Runnable cb : cleanupCallbacks) {
             try {
                 cb.run();
             } catch (TestIsolationViolation e) {
-                if (isolationViolation == null) isolationViolation = e;
+                cleanupFailure = appendCleanupFailure(cleanupFailure, e);
+                recordIsolationViolation(e);
+                LOG.error("Exception in cleanup callback for {}: {}", definition.getTestId(), e.getMessage(), e);
             } catch (Throwable t) {
+                cleanupFailure = appendCleanupFailure(cleanupFailure, t);
                 LOG.error("Exception in cleanup callback for {}: {}", definition.getTestId(), t.getMessage(), t);
             }
         }
         cleanupCallbacks.clear();
-        if (isolationViolation != null) {
-            if (status == GameTestStatus.PASSED) {
-                status = GameTestStatus.FAILED;
-                failureCause = isolationViolation;
-            }
-            final TestIsolationViolation iv = isolationViolation;
-            recorder.record(
-                () -> new IsolationViolation(
-                    recorder.clock()
-                        .tick(),
-                    iv.getClass()
-                        .getSimpleName(),
-                    null,
-                    iv.getMessage()));
-            LOG.error("ISOLATION {} - {}", definition.getTestId(), isolationViolation.getMessage());
+        if (cleanupFailure != null) {
+            cleanupFailureCause = cleanupFailure;
+            status = GameTestStatus.ERROR;
         }
+    }
+
+    private static Throwable appendCleanupFailure(Throwable first, Throwable next) {
+        if (first == null) {
+            return next;
+        }
+        if (next != null && next != first) {
+            first.addSuppressed(next);
+        }
+        return first;
+    }
+
+    private void recordIsolationViolation(TestIsolationViolation violation) {
+        final TestIsolationViolation iv = violation;
+        recorder.record(
+            () -> new IsolationViolation(
+                recorder.clock()
+                    .tick(),
+                iv.getClass()
+                    .getSimpleName(),
+                null,
+                iv.getMessage()));
+        LOG.error("ISOLATION {} - {}", definition.getTestId(), violation.getMessage());
+    }
+
+    private void recordFinished() {
+        recorder.record(
+            () -> new TestFinished(
+                recorder.clock()
+                    .tick(),
+                definition.getTestId(),
+                finishedStatusName(),
+                recorder.clock()
+                    .tick()));
+    }
+
+    private String finishedStatusName() {
+        return switch (status) {
+            case PASSED -> "passed";
+            case FAILED -> "failed";
+            case TIMED_OUT -> "timed out";
+            case ERROR -> "error";
+            default -> status.name()
+                .toLowerCase();
+        };
     }
 
     public void setSequence(GameTestSequence seq) {
@@ -307,6 +323,10 @@ public class GameTestInstance {
 
     public Throwable getFailureCause() {
         return failureCause;
+    }
+
+    public Throwable getCleanupFailureCause() {
+        return cleanupFailureCause;
     }
 
     public int getOriginX() {

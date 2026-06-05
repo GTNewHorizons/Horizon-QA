@@ -73,6 +73,7 @@ public class ReporterOutputTest {
                 resultCase("mod:Suite.requiredTimeout", CaseResult.Status.TIMED_OUT, true, "required timeout"),
                 resultCase("mod:Suite.optionalFailure", CaseResult.Status.FAILED, false, "optional failure"),
                 resultCase("mod:Suite.optionalTimeout", CaseResult.Status.TIMED_OUT, false, "optional timeout"),
+                resultCase("mod:Suite.cleanupError", CaseResult.Status.ERROR, true, "cleanup broke"),
                 resultCase("mod:Suite.setupBlocked", CaseResult.Status.NOT_STARTED, true, "setup blocked"),
                 resultCase("mod:Suite.running", CaseResult.Status.RUNNING, true, "still running")),
             Collections.singletonList(
@@ -90,11 +91,12 @@ public class ReporterOutputTest {
         JUnitXmlReporter.write(result, output);
 
         String xml = read(output);
-        assertTrue(xml.contains("tests=\"7\" failures=\"2\" errors=\"2\" skipped=\"3\""));
+        assertTrue(xml.contains("tests=\"8\" failures=\"2\" errors=\"3\" skipped=\"3\""));
         assertTrue(xml.contains("<failure message=\"required failure\""));
         assertTrue(xml.contains("<failure message=\"required timeout\""));
         assertTrue(xml.contains("<skipped message=\"optional failure\""));
         assertTrue(xml.contains("<skipped message=\"optional timeout\""));
+        assertTrue(xml.contains("<error message=\"cleanup broke\" type=\"CLEANUP_ERROR\""));
         assertTrue(xml.contains("<skipped message=\"setup blocked\""));
         assertTrue(xml.contains("<error message=\"still running\""));
         assertTrue(xml.contains("<error message=\"missing selector\""));
@@ -358,8 +360,18 @@ public class ReporterOutputTest {
             20,
             1.0,
             message,
-            status == CaseResult.Status.TIMED_OUT ? "GameTestTimeoutError" : "java.lang.AssertionError",
+            failureType(status),
             "trace",
             Collections.emptyList());
+    }
+
+    private static String failureType(CaseResult.Status status) {
+        if (status == CaseResult.Status.TIMED_OUT) {
+            return "GameTestTimeoutError";
+        }
+        if (status == CaseResult.Status.ERROR) {
+            return CaseResult.CLEANUP_ERROR;
+        }
+        return "java.lang.AssertionError";
     }
 }

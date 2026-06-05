@@ -205,7 +205,7 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
             return false;
         }
         for (CaseResult result : cases) {
-            if (result.incomplete()) {
+            if (result.infrastructureError() || result.incomplete()) {
                 return true;
             }
         }

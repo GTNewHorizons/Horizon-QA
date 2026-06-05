@@ -39,6 +39,10 @@ public final class ConsoleReporter {
                     LOG.error("  [TIME] {} (timed out after {} ticks)", resultCase.id(), resultCase.tickCount());
                     dumpOutputTail(resultCase);
                     break;
+                case ERROR:
+                    LOG.error("  [ERROR] {} - {}", resultCase.id(), detail(resultCase));
+                    dumpOutputTail(resultCase);
+                    break;
                 default:
                     if (hasText(resultCase.blockedByIssueId())) {
                         LOG.warn("  [SKIP] {} (blocked by {})", resultCase.id(), resultCase.blockedByIssueId());
@@ -53,6 +57,11 @@ public final class ConsoleReporter {
         LOG.info("  {} passed  {} failed  {} timed out", result.passed(), result.failed(), result.timedOut());
         if (result.incomplete() > 0) {
             LOG.warn("  {} test(s) did not complete", result.incomplete());
+        }
+        long caseInfrastructureErrors = result.infrastructureErrors() - result.issues()
+            .size();
+        if (caseInfrastructureErrors > 0) {
+            LOG.error("  {} test infrastructure error(s)", caseInfrastructureErrors);
         }
         if (result.diagnosticErrors() > 0) {
             LOG.error("  {} diagnostic error(s)", result.diagnosticErrors());

@@ -21,10 +21,10 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 
 public final class GameTestOverlayRenderer {
 
-    private static final float[] COL_WHITE = { 1f, 1f, 1f };
     private static final float[] COL_RUNNING = { 0.55f, 0.55f, 0.55f };
     private static final float[] COL_PASSED = { 0.18f, 1.00f, 0.38f };
     private static final float[] COL_FAILED = { 1.00f, 0.16f, 0.16f };
+    private static final float[] COL_ERROR = { 1.00f, 0.12f, 0.72f };
     private static final float[] COL_TIMEOUT = { 1.00f, 0.62f, 0.04f };
 
     private static final double TEXT_Y_LIFT = 3.0;
@@ -127,6 +127,7 @@ public final class GameTestOverlayRenderer {
         return switch (s) {
             case PASSED -> COL_PASSED;
             case FAILED -> COL_FAILED;
+            case ERROR -> COL_ERROR;
             case TIMED_OUT -> COL_TIMEOUT;
             default -> COL_RUNNING;
         };
@@ -140,14 +141,15 @@ public final class GameTestOverlayRenderer {
             return new String[] { name, statusLine };
         }
 
-        if (status == GameTestStatus.FAILED && inst != null) {
-            Throwable cause = inst.getFailureCause();
+        if ((status == GameTestStatus.FAILED || status == GameTestStatus.ERROR) && inst != null) {
+            Throwable cause = status == GameTestStatus.ERROR ? inst.getCleanupFailureCause() : inst.getFailureCause();
             String msg = cause != null ? cause.getMessage() : null;
             if (msg != null) msg = msg.trim();
             boolean hasPos = inst.hasFailPosition();
 
             if (msg != null && !msg.isEmpty()) {
-                String detail = "\u00a7c" + ellipsize(msg, MAX_CELL_FAILURE_CHARS);
+                String detail = (status == GameTestStatus.ERROR ? "\u00a7d" : "\u00a7c")
+                    + ellipsize(msg, MAX_CELL_FAILURE_CHARS);
                 if (hasPos) {
                     return new String[] { name, statusLine, detail,
                         String.format("\u00a78%d %d %d\u00a7r", inst.getFailX(), inst.getFailY(), inst.getFailZ()) };
@@ -155,7 +157,8 @@ public final class GameTestOverlayRenderer {
                 return new String[] { name, statusLine, detail };
             }
 
-            String fallback = "\u00a7cNon-assertion error - see log\u00a7r";
+            String fallback = status == GameTestStatus.ERROR ? "\u00a7dCleanup error - see log\u00a7r"
+                : "\u00a7cNon-assertion error - see log\u00a7r";
             if (hasPos) {
                 return new String[] { name, statusLine, fallback,
                     String.format("\u00a78%d %d %d\u00a7r", inst.getFailX(), inst.getFailY(), inst.getFailZ()) };
@@ -177,6 +180,7 @@ public final class GameTestOverlayRenderer {
             case RUNNING -> "\u00a77RUNNING\u00a7r";
             case PASSED -> "\u00a7aPASSED\u00a7r";
             case FAILED -> "\u00a7cFAILED\u00a7r";
+            case ERROR -> "\u00a7dERROR\u00a7r";
             case TIMED_OUT -> "\u00a76TIMED OUT\u00a7r";
             default -> "\u00a77\u2014\u00a7r";
         };
