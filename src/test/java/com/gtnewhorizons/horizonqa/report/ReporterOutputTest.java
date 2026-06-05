@@ -278,6 +278,51 @@ public class ReporterOutputTest {
     }
 
     @Test
+    public void consoleSummaryLineReportsSeparateCountsAndTerminalStatus() {
+        RunResult errorResult = RunResult.completedCases(
+            "ci",
+            Arrays.asList(
+                resultCase("mod:Suite.passed", CaseResult.Status.PASSED, true, ""),
+                resultCase("mod:Suite.requiredFailure", CaseResult.Status.FAILED, true, "required failure"),
+                resultCase("mod:Suite.requiredTimeout", CaseResult.Status.TIMED_OUT, true, "required timeout"),
+                resultCase("mod:Suite.optionalFailure", CaseResult.Status.FAILED, false, "optional failure"),
+                resultCase("mod:Suite.optionalTimeout", CaseResult.Status.TIMED_OUT, false, "optional timeout"),
+                resultCase("mod:Suite.cleanupError", CaseResult.Status.ERROR, true, "cleanup broke"),
+                resultCase("mod:Suite.setupBlocked", CaseResult.Status.NOT_STARTED, true, "setup blocked")),
+            Collections.singletonList(
+                new IssueResult(
+                    "selection:missing",
+                    "UNMATCHED_SELECTOR",
+                    "horizonqa.selection",
+                    "selector:missing",
+                    "missing selector",
+                    "",
+                    true)),
+            "TEST.xml");
+
+        assertEquals(
+            "HorizonQA RESULT status=ERROR exitCode=2 mode=ci passed=1 requiredFailed=1"
+                + " requiredTimedOut=1 optionalFailed=1 optionalTimedOut=1 skippedBySetup=1 infrastructureErrors=2",
+            ConsoleReporter.summaryLine(errorResult));
+        assertEquals("RUN ERROR", ConsoleReporter.runLine(errorResult));
+
+        RunResult failedResult = RunResult.completedCases(
+            "ci",
+            Collections.singletonList(resultCase("mod:Suite.requiredFailure", CaseResult.Status.FAILED, true, "bad")),
+            Collections.emptyList(),
+            "TEST.xml");
+        assertEquals("RUN FAILED", ConsoleReporter.runLine(failedResult));
+
+        RunResult passedResult = RunResult.completedCases(
+            "ci",
+            Collections
+                .singletonList(resultCase("mod:Suite.optionalFailure", CaseResult.Status.FAILED, false, "optional")),
+            Collections.emptyList(),
+            "TEST.xml");
+        assertEquals("RUN PASSED", ConsoleReporter.runLine(passedResult));
+    }
+
+    @Test
     public void atomicReportWriterFallsBackOnlyWhenAtomicMoveIsUnsupported() throws Exception {
         Path target = new File(temporaryFolder.getRoot(), "TEST-horizonqa.xml").toPath();
         AtomicInteger moveCount = new AtomicInteger();

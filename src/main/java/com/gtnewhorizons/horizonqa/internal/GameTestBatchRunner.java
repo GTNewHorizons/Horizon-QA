@@ -217,7 +217,6 @@ public class GameTestBatchRunner {
             LOG.error("Failed to write status JSON report: {}", e.getMessage());
             result = result.withAdditionalIssue(IssueResult.reporting("status", statusFile.getAbsolutePath(), e));
         }
-        ConsoleReporter.report(result);
 
         if (HorizonQAProperties.isCi()) {
             LOG.info(
@@ -226,6 +225,9 @@ public class GameTestBatchRunner {
                 result.requiredFailures(),
                 result.incomplete(),
                 result.infrastructureErrors());
+        }
+        ConsoleReporter.report(result);
+        if (HorizonQAProperties.isCi()) {
             FMLCommonHandler.instance()
                 .exitJava(result.exitCode(), false);
         }

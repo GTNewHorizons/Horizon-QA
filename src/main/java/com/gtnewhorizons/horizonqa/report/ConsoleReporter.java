@@ -1,6 +1,7 @@
 package com.gtnewhorizons.horizonqa.report;
 
 import java.util.List;
+import java.util.Locale;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -54,27 +55,51 @@ public final class ConsoleReporter {
         }
 
         LOG.info("-------------------------------------------------------");
-        LOG.info("  {} passed  {} failed  {} timed out", result.passed(), result.failed(), result.timedOut());
-        if (result.incomplete() > 0) {
-            LOG.warn("  {} test(s) did not complete", result.incomplete());
-        }
-        long caseInfrastructureErrors = result.infrastructureErrors() - result.issues()
-            .size();
-        if (caseInfrastructureErrors > 0) {
-            LOG.error("  {} test infrastructure error(s)", caseInfrastructureErrors);
-        }
-        if (result.diagnosticErrors() > 0) {
-            LOG.error("  {} diagnostic error(s)", result.diagnosticErrors());
-        }
-        if (result.optionalFailures() > 0) {
-            LOG.warn("  {} optional test failure(s)", result.optionalFailures());
-        }
-        if (result.passedRun()) {
-            LOG.info("  RUN PASSED");
-        } else {
-            LOG.error("  RUN FAILED");
-        }
+        LOG.info("  passed: {}", result.passed());
+        LOG.info("  required failed: {}", result.requiredFailed());
+        LOG.info("  required timed out: {}", result.requiredTimedOut());
+        LOG.info("  optional failed: {}", result.optionalFailed());
+        LOG.info("  optional timed out: {}", result.optionalTimedOut());
+        LOG.info("  skipped by setup: {}", result.skippedBySetup());
+        LOG.info("  infrastructure errors: {}", result.infrastructureErrors());
         LOG.info("=======================================================");
+        LOG.info(summaryLine(result));
+        if (result.passedRun()) {
+            LOG.info(runLine(result));
+        } else {
+            LOG.error(runLine(result));
+        }
+    }
+
+    static String summaryLine(RunResult result) {
+        return "HorizonQA RESULT status=" + statusToken(result)
+            + " exitCode="
+            + result.exitCode()
+            + " mode="
+            + result.mode()
+            + " passed="
+            + result.passed()
+            + " requiredFailed="
+            + result.requiredFailed()
+            + " requiredTimedOut="
+            + result.requiredTimedOut()
+            + " optionalFailed="
+            + result.optionalFailed()
+            + " optionalTimedOut="
+            + result.optionalTimedOut()
+            + " skippedBySetup="
+            + result.skippedBySetup()
+            + " infrastructureErrors="
+            + result.infrastructureErrors();
+    }
+
+    static String runLine(RunResult result) {
+        return "RUN " + statusToken(result);
+    }
+
+    private static String statusToken(RunResult result) {
+        return result.status()
+            .toUpperCase(Locale.ROOT);
     }
 
     private static void dumpOutputTail(CaseResult resultCase) {
