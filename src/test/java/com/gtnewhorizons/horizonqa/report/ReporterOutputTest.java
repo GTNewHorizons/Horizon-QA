@@ -22,6 +22,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.gtnewhorizons.horizonqa.api.GameTestHelper;
+import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
+
 public class ReporterOutputTest {
 
     @Rule
@@ -100,6 +103,32 @@ public class ReporterOutputTest {
         assertTrue(xml.contains("<skipped message=\"setup blocked\""));
         assertTrue(xml.contains("<error message=\"still running\""));
         assertTrue(xml.contains("<error message=\"missing selector\""));
+    }
+
+    @Test
+    public void templateErrorCasesAreJUnitErrors() throws Exception {
+        CaseResult resultCase = CaseResult.templateError(
+            templateDefinition("mod:Suite.badTemplate", "mod:missing"),
+            "Structure template resource not found: mod:missing",
+            new IOException("missing template"));
+        RunResult result = RunResult
+            .completedCases("ci", Collections.singletonList(resultCase), Collections.emptyList(), "TEST.xml");
+
+        assertEquals(CaseResult.Status.ERROR, resultCase.status());
+        assertEquals(CaseResult.TEMPLATE_ERROR, resultCase.failureType());
+        assertEquals(2, result.exitCode());
+        assertEquals(1, result.junitErrors());
+        assertEquals(0, result.junitFailures());
+
+        File output = temporaryFolder.newFile("template-error.xml");
+        JUnitXmlReporter.write(result, output);
+
+        String xml = read(output);
+        assertTrue(xml.contains("tests=\"1\" failures=\"0\" errors=\"1\" skipped=\"0\""));
+        assertTrue(
+            xml.contains(
+                "<error message=\"Structure template resource not found: mod:missing\" type=\"TEMPLATE_ERROR\""));
+        assertTrue(xml.contains("template=mod:missing"));
     }
 
     @Test
@@ -373,5 +402,21 @@ public class ReporterOutputTest {
             return CaseResult.CLEANUP_ERROR;
         }
         return "java.lang.AssertionError";
+    }
+
+    private static GameTestDefinition templateDefinition(String id, String template) throws Exception {
+        return new GameTestDefinition(
+            id,
+            TemplateDefinitions.class.getMethod("test", GameTestHelper.class),
+            template,
+            100,
+            "",
+            true,
+            0);
+    }
+
+    public static final class TemplateDefinitions {
+
+        public static void test(GameTestHelper helper) {}
     }
 }

@@ -34,6 +34,7 @@ import com.gtnewhorizons.horizonqa.report.StatusJsonReporter;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureLoader;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
 import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
+import com.gtnewhorizons.horizonqa.structure.TemplateException;
 
 import cpw.mods.fml.common.FMLCommonHandler;
 
@@ -116,18 +117,34 @@ public class GameTestBatchRunner {
         }
 
         for (PlannedTest p : planned) {
+            if (p.hasTemplateError()) {
+                continue;
+            }
             TestCellScanner
                 .preClearWithMargin(world, p.cellMinX, p.cellMinY, p.cellMinZ, p.cellMaxX, p.cellMaxY, p.cellMaxZ);
         }
 
-        for (PlannedTest p : planned) {
+        for (int i = 0; i < planned.size(); i++) {
+            PlannedTest p = planned.get(i);
+            if (p.hasTemplateError()) {
+                continue;
+            }
             if (p.template != null) {
-                StructurePlacer.place(p.template, world, p.originX, p.originY, p.originZ);
+                try {
+                    StructurePlacer
+                        .placeStrict(p.def.getTemplateName(), p.template, world, p.originX, p.originY, p.originZ);
+                } catch (TemplateException e) {
+                    planned.set(i, p.withTemplateError(templateErrorCase(p.def, e)));
+                }
             }
         }
 
         List<GameTestInstance> batchInstances = new ArrayList<>(planned.size());
         for (PlannedTest p : planned) {
+            if (p.hasTemplateError()) {
+                resultEntries.add(ResultEntry.result(p.templateError));
+                continue;
+            }
             GameTestInstance inst = new GameTestInstance(p.def, p.originX, p.originY, p.originZ);
             if (p.template != null) {
                 final String templateName = p.def.getTemplateName();
@@ -297,7 +314,12 @@ public class GameTestBatchRunner {
     }
 
     private PlannedTest plan(GameTestDefinition def, WorldServer world) {
-        HybridStructureTemplate template = loadTemplate(def);
+        HybridStructureTemplate template;
+        try {
+            template = loadTemplate(def);
+        } catch (IOException e) {
+            return PlannedTest.templateError(def, templateErrorCase(def, e));
+        }
 
         int sizeX = template != null ? template.getSizeX() : 0;
         int sizeY = template != null ? template.getSizeY() : 0;
@@ -315,7 +337,12 @@ public class GameTestBatchRunner {
         int cellMaxY = origin[1] + cellSizeY - 1;
         int cellMaxZ = origin[2] + cellSizeZ - 1;
 
-        HorizonQAMod.CHUNK_LOADER.forceChunks(world, cellMinX, cellMinY, cellMinZ, cellMaxX, cellMaxY, cellMaxZ);
+        try {
+            HorizonQAMod.CHUNK_LOADER
+                .forceChunksStrict(world, cellMinX, cellMinY, cellMinZ, cellMaxX, cellMaxY, cellMaxZ);
+        } catch (TemplateException e) {
+            return PlannedTest.templateError(def, templateErrorCase(def, e));
+        }
 
         return new PlannedTest(
             def,
@@ -331,22 +358,20 @@ public class GameTestBatchRunner {
             cellMinZ,
             cellMaxX,
             cellMaxY,
-            cellMaxZ);
+            cellMaxZ,
+            null);
     }
 
-    private static HybridStructureTemplate loadTemplate(GameTestDefinition def) {
+    private static HybridStructureTemplate loadTemplate(GameTestDefinition def) throws IOException {
         if (def.getTemplateName()
             .isEmpty()) return null;
-        try {
-            return HybridStructureLoader.load(def.getTemplateName());
-        } catch (IOException e) {
-            LOG.error(
-                "Failed to load template '{}' for test '{}' — test will run without a structure: {}",
-                def.getTemplateName(),
-                def.getTestId(),
-                e.getMessage());
-            return null;
-        }
+        return HybridStructureLoader.load(def.getTemplateName());
+    }
+
+    private static CaseResult templateErrorCase(GameTestDefinition def, Throwable error) {
+        String message = errorMessage(error);
+        LOG.error("Template setup failed for test '{}': {}", def.getTestId(), message, error);
+        return CaseResult.templateError(def, message, error);
     }
 
     private static List<Batch> buildBatches(List<GameTestDefinition> tests, Map<String, List<Method>> beforeMethods,
@@ -516,7 +541,34 @@ public class GameTestBatchRunner {
     @Desugar
     private record PlannedTest(GameTestDefinition def, HybridStructureTemplate template, int originX, int originY,
         int originZ, int tmplSizeX, int tmplSizeY, int tmplSizeZ, int cellMinX, int cellMinY, int cellMinZ,
-        int cellMaxX, int cellMaxY, int cellMaxZ) {
+        int cellMaxX, int cellMaxY, int cellMaxZ, CaseResult templateError) {
+
+        static PlannedTest templateError(GameTestDefinition def, CaseResult result) {
+            return new PlannedTest(def, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, result);
+        }
+
+        boolean hasTemplateError() {
+            return templateError != null;
+        }
+
+        PlannedTest withTemplateError(CaseResult result) {
+            return new PlannedTest(
+                def,
+                template,
+                originX,
+                originY,
+                originZ,
+                tmplSizeX,
+                tmplSizeY,
+                tmplSizeZ,
+                cellMinX,
+                cellMinY,
+                cellMinZ,
+                cellMaxX,
+                cellMaxY,
+                cellMaxZ,
+                result);
+        }
 
     }
 }

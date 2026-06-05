@@ -13,6 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
+import com.gtnewhorizons.horizonqa.structure.TemplateException;
 
 public final class GameTestChunkLoader implements ForgeChunkManager.OrderedLoadingCallback {
 
@@ -21,18 +22,30 @@ public final class GameTestChunkLoader implements ForgeChunkManager.OrderedLoadi
     private final List<Ticket> tickets = new ArrayList<>();
 
     public void forceChunks(World world, int x1, int y1, int z1, int x2, int y2, int z2) {
+        try {
+            forceChunksStrict(world, x1, y1, z1, x2, y2, z2);
+        } catch (TemplateException e) {
+            LOG.warn(e.getMessage());
+        }
+    }
+
+    public void forceChunksStrict(World world, int x1, int y1, int z1, int x2, int y2, int z2)
+        throws TemplateException {
         Ticket ticket = ForgeChunkManager.requestTicket(HorizonQAMod.instance, world, ForgeChunkManager.Type.NORMAL);
         if (ticket == null) {
-            LOG.warn(
-                "ForgeChunkManager refused ticket for bounding box "
-                    + "({},{},{})→({},{},{}) — chunks may unload during test",
-                x1,
-                y1,
-                z1,
-                x2,
-                y2,
-                z2);
-            return;
+            throw new TemplateException(
+                "ForgeChunkManager refused ticket for bounding box (" + x1
+                    + ","
+                    + y1
+                    + ","
+                    + z1
+                    + ") -> ("
+                    + x2
+                    + ","
+                    + y2
+                    + ","
+                    + z2
+                    + ")");
         }
         tickets.add(ticket);
 

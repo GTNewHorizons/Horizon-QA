@@ -18,6 +18,7 @@ public record CaseResult(String id, String classname, String name, Status status
     String blockedByIssueId) {
 
     public static final String CLEANUP_ERROR = "CLEANUP_ERROR";
+    public static final String TEMPLATE_ERROR = "TEMPLATE_ERROR";
     private static final double TICKS_PER_SECOND = 20.0;
 
     public CaseResult {
@@ -97,6 +98,27 @@ public record CaseResult(String id, String classname, String name, Status status
             "",
             Collections.emptyList(),
             blockedByIssueId);
+    }
+
+    public static CaseResult templateError(GameTestDefinition definition, String message, Throwable cause) {
+        String testId = definition.getTestId();
+        String failureMessage = message == null || message.isEmpty() ? "Template setup failed" : message;
+        List<String> output = new ArrayList<>();
+        output.add("template=" + definition.getTemplateName());
+        output.add("error=" + failureMessage);
+        return new CaseResult(
+            testId,
+            classname(testId),
+            name(testId),
+            Status.ERROR,
+            definition.isRequired(),
+            0,
+            0.0,
+            failureMessage,
+            TEMPLATE_ERROR,
+            cause != null ? stackTrace(cause) : "",
+            output,
+            "");
     }
 
     public boolean passed() {

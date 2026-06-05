@@ -30,7 +30,7 @@ public final class HybridStructureLoader {
     public static HybridStructureTemplate load(String templateName) throws IOException {
         String[] parts = templateName.split(":", 2);
         if (parts.length != 2) {
-            throw new IOException("Invalid template name (expected 'namespace:path'): " + templateName);
+            throw new TemplateException("Invalid template name (expected 'namespace:path'): " + templateName);
         }
         String namespace = parts[0];
         String path = parts[1];
@@ -40,7 +40,7 @@ public final class HybridStructureLoader {
 
         InputStream jsonStream = HybridStructureLoader.class.getResourceAsStream(jsonResource);
         if (jsonStream == null) {
-            throw new IOException("Structure template resource not found: " + jsonResource);
+            throw new TemplateException("Structure template resource not found: " + jsonResource);
         }
 
         int sizeX, sizeY, sizeZ;
@@ -50,22 +50,25 @@ public final class HybridStructureLoader {
 
         try (InputStreamReader reader = new InputStreamReader(jsonStream, StandardCharsets.UTF_8)) {
             JsonObject root = GSON.fromJson(reader, JsonObject.class);
+            if (root == null) {
+                throw malformed(templateName, "root JSON object is empty");
+            }
 
-            JsonArray sizeArr = root.getAsJsonArray("size");
+            JsonArray sizeArr = requiredArray(root, "size", templateName);
+            if (sizeArr.size() != 3) {
+                throw malformed(templateName, "'size' must contain exactly three numbers");
+            }
             sizeX = sizeArr.get(0)
                 .getAsInt();
             sizeY = sizeArr.get(1)
                 .getAsInt();
             sizeZ = sizeArr.get(2)
                 .getAsInt();
-
-            JsonElement paletteElement = root.get("palette");
-            if (paletteElement == null || !paletteElement.isJsonObject()) {
-                throw new IOException(
-                    "Template '" + templateName
-                        + "' has missing or invalid 'palette' — expected a JSON object with character keys");
+            if (sizeX <= 0 || sizeY <= 0 || sizeZ <= 0) {
+                throw malformed(templateName, "'size' values must all be positive");
             }
-            JsonObject paletteObj = paletteElement.getAsJsonObject();
+
+            JsonObject paletteObj = requiredObject(root, "palette", templateName);
 
             List<HybridStructureTemplate.PaletteEntry> paletteList = new ArrayList<>();
             List<Character> keyList = new ArrayList<>();
@@ -81,10 +84,14 @@ public final class HybridStructureLoader {
                 if (keyStr.isEmpty()) continue;
                 char key = getKey(templateName, keyStr, keyToIndex);
 
-                JsonObject val = entry.getValue()
-                    .getAsJsonObject();
-                String name = val.get("name")
-                    .getAsString();
+                JsonElement paletteValue = entry.getValue();
+                if (paletteValue == null || !paletteValue.isJsonObject()) {
+                    throw malformed(
+                        templateName,
+                        "palette key '" + keyStr + "' must map to an object with a block name");
+                }
+                JsonObject val = paletteValue.getAsJsonObject();
+                String name = requiredString(val, "name", templateName, "palette key '" + keyStr + "'");
                 int meta = val.has("meta") ? val.get("meta")
                     .getAsInt() : 0;
                 String label = val.has("label") ? val.get("label")
@@ -102,14 +109,9 @@ public final class HybridStructureLoader {
                 paletteKeys[i] = keyList.get(i);
             }
 
-            if (!root.has("layers")) {
-                throw new IOException(
-                    "Template '" + templateName
-                        + "' is missing 'layers' array — ensure the template uses format_version 1");
-            }
-            JsonArray layersArr = root.getAsJsonArray("layers");
+            JsonArray layersArr = requiredArray(root, "layers", templateName);
             if (layersArr.size() != sizeY) {
-                throw new IOException(
+                throw new TemplateException(
                     "Template '" + templateName
                         + "' declares size Y="
                         + sizeY
@@ -121,10 +123,13 @@ public final class HybridStructureLoader {
             blockData = new int[sizeX][sizeY][sizeZ];
 
             for (int y = 0; y < sizeY; y++) {
-                JsonArray layer = layersArr.get(y)
-                    .getAsJsonArray();
+                JsonElement layerElement = layersArr.get(y);
+                if (layerElement == null || !layerElement.isJsonArray()) {
+                    throw malformed(templateName, "layer y=" + y + " must be an array of rows");
+                }
+                JsonArray layer = layerElement.getAsJsonArray();
                 if (layer.size() != sizeZ) {
-                    throw new IOException(
+                    throw new TemplateException(
                         "Template '" + templateName
                             + "' layer y="
                             + y
@@ -134,10 +139,13 @@ public final class HybridStructureLoader {
                             + sizeZ);
                 }
                 for (int z = 0; z < sizeZ; z++) {
-                    String row = layer.get(z)
-                        .getAsString();
+                    JsonElement rowElement = layer.get(z);
+                    if (rowElement == null || !rowElement.isJsonPrimitive()) {
+                        throw malformed(templateName, "layer y=" + y + " row z=" + z + " must be a string");
+                    }
+                    String row = rowElement.getAsString();
                     if (row.length() != sizeX) {
-                        throw new IOException(
+                        throw new TemplateException(
                             "Template '" + templateName
                                 + "' layer y="
                                 + y
@@ -152,7 +160,7 @@ public final class HybridStructureLoader {
                         char c = row.charAt(x);
                         Integer idx = keyToIndex.get(c);
                         if (idx == null) {
-                            throw new IOException(
+                            throw new TemplateException(
                                 "Unknown palette key '" + c
                                     + "' at ("
                                     + x
@@ -168,6 +176,8 @@ public final class HybridStructureLoader {
                     }
                 }
             }
+        } catch (RuntimeException e) {
+            throw new TemplateException("Malformed template '" + templateName + "': " + errorMessage(e), e);
         }
 
         NBTTagCompound tileData = null;
@@ -175,12 +185,14 @@ public final class HybridStructureLoader {
         if (nbtStream != null) {
             try {
                 tileData = CompressedStreamTools.readCompressed(nbtStream);
-            } catch (IOException e) {
-                LOG.warn(
-                    "Could not read tile data for template '{}' ({}): {}",
-                    templateName,
-                    nbtResource,
-                    e.getMessage());
+            } catch (IOException | RuntimeException e) {
+                throw new TemplateException(
+                    "Template '" + templateName
+                        + "' has unreadable tile entity data "
+                        + nbtResource
+                        + ": "
+                        + errorMessage(e),
+                    e);
             } finally {
                 try {
                     nbtStream.close();
@@ -199,19 +211,62 @@ public final class HybridStructureLoader {
     }
 
     private static char getKey(String templateName, String keyStr, Map<Character, Integer> keyToIndex)
-        throws IOException {
+        throws TemplateException {
         char key = keyStr.charAt(0);
 
         if (key == HybridStructureTemplate.AIR_KEY) {
-            throw new IOException(
+            throw new TemplateException(
                 "Template '" + templateName
                     + "' palette must not use reserved air key '"
                     + HybridStructureTemplate.AIR_KEY
                     + "'");
         }
         if (keyToIndex.containsKey(key)) {
-            throw new IOException("Template '" + templateName + "' has duplicate palette key '" + key + "'");
+            throw new TemplateException("Template '" + templateName + "' has duplicate palette key '" + key + "'");
         }
         return key;
+    }
+
+    private static JsonArray requiredArray(JsonObject root, String name, String templateName) throws TemplateException {
+        JsonElement element = root.get(name);
+        if (element == null || !element.isJsonArray()) {
+            throw malformed(templateName, "missing or invalid '" + name + "' array");
+        }
+        return element.getAsJsonArray();
+    }
+
+    private static JsonObject requiredObject(JsonObject root, String name, String templateName)
+        throws TemplateException {
+        JsonElement element = root.get(name);
+        if (element == null || !element.isJsonObject()) {
+            throw malformed(templateName, "missing or invalid '" + name + "' object");
+        }
+        return element.getAsJsonObject();
+    }
+
+    private static String requiredString(JsonObject root, String name, String templateName, String context)
+        throws TemplateException {
+        JsonElement element = root.get(name);
+        if (element == null || !element.isJsonPrimitive()) {
+            throw malformed(templateName, context + " is missing string field '" + name + "'");
+        }
+        String value = element.getAsString();
+        if (value == null || value.isEmpty()) {
+            throw malformed(templateName, context + " has empty string field '" + name + "'");
+        }
+        return value;
+    }
+
+    private static TemplateException malformed(String templateName, String message) {
+        return new TemplateException("Malformed template '" + templateName + "': " + message);
+    }
+
+    private static String errorMessage(Throwable error) {
+        if (error == null) {
+            return "unknown error";
+        }
+        String message = error.getMessage();
+        return message == null || message.isEmpty() ? error.getClass()
+            .getName() : message;
     }
 }
