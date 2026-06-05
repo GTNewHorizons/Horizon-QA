@@ -208,7 +208,7 @@ public class GameTestBatchRunner {
                 result.exitCode(),
                 result.requiredFailures(),
                 result.incomplete(),
-                result.diagnosticErrors());
+                result.infrastructureErrors());
             FMLCommonHandler.instance()
                 .exitJava(result.exitCode(), false);
         }

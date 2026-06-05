@@ -98,6 +98,22 @@ public class RunResultTest {
     }
 
     @Test
+    public void cleanupErrorsUseInfrastructureExitCodeWithoutRequiredFailure() {
+        RunResult result = RunResult.completedCases(
+            "ci",
+            Collections.singletonList(resultCase("mod:Suite.cleanup", CaseResult.Status.ERROR, true)),
+            Collections.emptyList(),
+            "TEST.xml");
+
+        assertEquals(2, result.exitCode());
+        assertEquals("error", result.status());
+        assertEquals(0, result.requiredFailures());
+        assertEquals(1, result.infrastructureErrors());
+        assertEquals(1, result.junitErrors());
+        assertEquals(0, result.junitFailures());
+    }
+
+    @Test
     public void junitAggregateCountsUseCiSemantics() {
         RunResult result = RunResult.completedCases(
             "ci",
@@ -106,6 +122,7 @@ public class RunResultTest {
                 resultCase("mod:Suite.requiredTimeout", CaseResult.Status.TIMED_OUT, true),
                 resultCase("mod:Suite.optionalFailure", CaseResult.Status.FAILED, false),
                 resultCase("mod:Suite.optionalTimeout", CaseResult.Status.TIMED_OUT, false),
+                resultCase("mod:Suite.cleanupError", CaseResult.Status.ERROR, true),
                 resultCase("mod:Suite.setupBlocked", CaseResult.Status.NOT_STARTED, true),
                 resultCase("mod:Suite.running", CaseResult.Status.RUNNING, true)),
             Collections.singletonList(issue("selection:fatal", true)),
@@ -116,9 +133,9 @@ public class RunResultTest {
         assertEquals(1, result.optionalFailed());
         assertEquals(1, result.optionalTimedOut());
         assertEquals(1, result.skippedBySetup());
-        assertEquals(2, result.infrastructureErrors());
+        assertEquals(3, result.infrastructureErrors());
         assertEquals(2, result.junitFailures());
-        assertEquals(2, result.junitErrors());
+        assertEquals(3, result.junitErrors());
         assertEquals(3, result.junitSkipped());
     }
 
@@ -136,7 +153,7 @@ public class RunResultTest {
             20,
             1.0,
             status == CaseResult.Status.PASSED ? "" : "broken",
-            "java.lang.AssertionError",
+            status == CaseResult.Status.ERROR ? CaseResult.CLEANUP_ERROR : "java.lang.AssertionError",
             "trace",
             output);
     }

@@ -223,6 +223,7 @@ public final class StatusJsonReporter {
         return switch (status) {
             case PASSED -> "passed";
             case FAILED -> "failed";
+            case ERROR -> "error";
             case TIMED_OUT -> "timedOut";
             case NOT_STARTED -> "notStarted";
             case RUNNING -> "running";
