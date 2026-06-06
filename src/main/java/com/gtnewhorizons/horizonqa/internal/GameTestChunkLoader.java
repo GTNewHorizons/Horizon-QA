@@ -31,48 +31,67 @@ public final class GameTestChunkLoader implements ForgeChunkManager.OrderedLoadi
 
     public void forceChunksStrict(World world, int x1, int y1, int z1, int x2, int y2, int z2)
         throws TemplateException {
-        Ticket ticket = ForgeChunkManager.requestTicket(HorizonQAMod.instance, world, ForgeChunkManager.Type.NORMAL);
-        if (ticket == null) {
-            throw new TemplateException(
-                "ForgeChunkManager refused ticket for bounding box (" + x1
-                    + ","
-                    + y1
-                    + ","
-                    + z1
-                    + ") -> ("
-                    + x2
-                    + ","
-                    + y2
-                    + ","
-                    + z2
-                    + ")");
-        }
-        tickets.add(ticket);
+        String description = "bounding box (" + x1 + "," + y1 + "," + z1 + ") -> (" + x2 + "," + y2 + "," + z2 + ")";
 
-        int chunkX1 = x1 >> 4;
-        int chunkZ1 = z1 >> 4;
-        int chunkX2 = x2 >> 4;
-        int chunkZ2 = z2 >> 4;
+        int chunkX1 = Math.min(x1, x2) >> 4;
+        int chunkZ1 = Math.min(z1, z2) >> 4;
+        int chunkX2 = Math.max(x1, x2) >> 4;
+        int chunkZ2 = Math.max(z1, z2) >> 4;
 
         ChunkProviderServer cps = world.getChunkProvider() instanceof ChunkProviderServer
             ? (ChunkProviderServer) world.getChunkProvider()
             : null;
 
-        for (int cx = chunkX1; cx <= chunkX2; cx++) {
-            for (int cz = chunkZ1; cz <= chunkZ2; cz++) {
-                if (cps != null) {
-                    cps.loadChunk(cx, cz);
+        List<Ticket> requestTickets = new ArrayList<>();
+        try {
+            int cx = chunkX1;
+            int cz = chunkZ1;
+            while (cx <= chunkX2) {
+                Ticket ticket = requestTicketStrict(world, description);
+                requestTickets.add(ticket);
+                int maxChunks = ticket.getChunkListDepth();
+                int chunkBudget = maxChunks > 0 ? maxChunks : Integer.MAX_VALUE;
+
+                for (int forced = 0; forced < chunkBudget && cx <= chunkX2; forced++) {
+                    if (cps != null) {
+                        cps.loadChunk(cx, cz);
+                    }
+                    ForgeChunkManager.forceChunk(ticket, new ChunkCoordIntPair(cx, cz));
+
+                    cz++;
+                    if (cz > chunkZ2) {
+                        cz = chunkZ1;
+                        cx++;
+                    }
                 }
-                ForgeChunkManager.forceChunk(ticket, new ChunkCoordIntPair(cx, cz));
             }
+            tickets.addAll(requestTickets);
+        } catch (RuntimeException e) {
+            releaseTickets(requestTickets);
+            throw e;
+        } catch (TemplateException e) {
+            releaseTickets(requestTickets);
+            throw e;
         }
     }
 
     public void releaseAll() {
+        releaseTickets(tickets);
+        tickets.clear();
+    }
+
+    private static Ticket requestTicketStrict(World world, String description) throws TemplateException {
+        Ticket ticket = ForgeChunkManager.requestTicket(HorizonQAMod.instance, world, ForgeChunkManager.Type.NORMAL);
+        if (ticket == null) {
+            throw new TemplateException("ForgeChunkManager refused ticket for " + description);
+        }
+        return ticket;
+    }
+
+    private static void releaseTickets(List<Ticket> tickets) {
         for (Ticket t : tickets) {
             releaseTicketSafe(t);
         }
-        tickets.clear();
     }
 
     private static void releaseTicketSafe(Ticket t) {

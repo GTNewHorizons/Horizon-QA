@@ -149,11 +149,21 @@ public class HorizonQACommand extends CommandBase {
                         + "'. Use /horizonqa runall to list available tests."));
             return;
         }
-        InteractiveTestSession.get()
+        int launched = InteractiveTestSession.get()
             .launchTest(def);
-        sender.addChatMessage(
-            new ChatComponentText(
-                EnumChatFormatting.GREEN + "Launched: " + EnumChatFormatting.YELLOW + def.getTestId()));
+        if (launched > 0) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.GREEN + "Launched: " + EnumChatFormatting.YELLOW + def.getTestId()));
+        } else {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + "Could not launch '"
+                        + EnumChatFormatting.YELLOW
+                        + def.getTestId()
+                        + EnumChatFormatting.RED
+                        + "'. Check the server log for details."));
+        }
     }
 
     private void handleRunAll(ICommandSender sender, String[] args) {
@@ -181,15 +191,21 @@ public class HorizonQACommand extends CommandBase {
                 return;
             }
         }
-        InteractiveTestSession.get()
+        int launched = InteractiveTestSession.get()
             .launchTests(tests);
-        sender.addChatMessage(
-            new ChatComponentText(
-                EnumChatFormatting.GREEN + "Launched "
-                    + EnumChatFormatting.YELLOW
-                    + tests.size()
-                    + EnumChatFormatting.GREEN
-                    + " test(s)."));
+        if (launched > 0) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.GREEN + "Launched "
+                        + EnumChatFormatting.YELLOW
+                        + launched
+                        + EnumChatFormatting.GREEN
+                        + " test(s)."));
+        } else {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + "Could not launch tests. The full test area could not be loaded."));
+        }
     }
 
     private void handleRunFailed(ICommandSender sender, String[] args) {
@@ -212,15 +228,21 @@ public class HorizonQACommand extends CommandBase {
                         + "were they unloaded?"));
             return;
         }
-        InteractiveTestSession.get()
+        int launched = InteractiveTestSession.get()
             .launchTests(defs);
-        sender.addChatMessage(
-            new ChatComponentText(
-                EnumChatFormatting.GREEN + "Re-running "
-                    + EnumChatFormatting.YELLOW
-                    + defs.size()
-                    + EnumChatFormatting.GREEN
-                    + " failed test(s)."));
+        if (launched > 0) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.GREEN + "Re-running "
+                        + EnumChatFormatting.YELLOW
+                        + launched
+                        + EnumChatFormatting.GREEN
+                        + " failed test(s)."));
+        } else {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + "Could not re-run failed tests. The full test area could not be loaded."));
+        }
     }
 
     private void handleRunThis(ICommandSender sender, String[] args) {
@@ -272,11 +294,21 @@ public class HorizonQACommand extends CommandBase {
                 new ChatComponentText(EnumChatFormatting.RED + "Definition not found for '" + cell.testId + "'."));
             return;
         }
-        InteractiveTestSession.get()
+        boolean launched = InteractiveTestSession.get()
             .relaunchAtCell(def);
-        sender.addChatMessage(
-            new ChatComponentText(
-                EnumChatFormatting.GREEN + "Re-running: " + EnumChatFormatting.YELLOW + def.getTestId()));
+        if (launched) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.GREEN + "Re-running: " + EnumChatFormatting.YELLOW + def.getTestId()));
+        } else {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + "Could not re-run '"
+                        + EnumChatFormatting.YELLOW
+                        + def.getTestId()
+                        + EnumChatFormatting.RED
+                        + "'. Check the server log for details."));
+        }
     }
 
     private void handlePos(ICommandSender sender, String[] args) {
