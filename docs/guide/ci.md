@@ -1,6 +1,6 @@
 ---
 title: CI & JUnit reports
-description: TEST-horizonqa.xml format, event traces in CI, and a sketch of Gradle / GitHub Actions wiring.
+description: Headless CI mode, JUnit XML, status JSON, selectors, exit codes, and GitHub Actions wiring.
 tags:
   - guides
   - ci
@@ -8,91 +8,214 @@ tags:
 
 # CI & JUnit reports
 
-Batch execution writes **`TEST-horizonqa.xml`** and **`horizonqa-result.json`** in the server working directory when `/horizonqa runall` (or a headless batch entrypoint) completes. The XML uses the standard JUnit schema, so any JUnit-aware result publisher will pick it up unchanged.
+Horizon-QA CI runs are normal dedicated-server runs with the Horizon-QA mode set on the **Minecraft server JVM**:
 
-## Report contents
+```text
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci"
+```
+
+`--mcJvmArgs` is provided by Retrofuturagradle (RFG). Do not pass `-Dhorizonqa.mode=ci` directly to Gradle; that sets the property on the Gradle daemon, where the Minecraft server cannot read it.
+
+In `horizonqa.mode=ci`, Horizon-QA discovers tests, runs the selected batch automatically after the server is ready, writes reports, and exits the process with a deterministic status code. Local authoring should use `horizonqa.mode=interactive` or omit the mode property, because interactive is the default.
+
+## Report files
+
+By default reports are written in the server process working directory:
+
+```text
+TEST-horizonqa.xml
+horizonqa-result.json
+```
+
+For CI, send them to a predictable artifact directory:
+
+```text
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
+```
+
+Report path flags:
+
+| Property               | Meaning                                                                            |
+|------------------------|------------------------------------------------------------------------------------|
+| `horizonqa.reportDir`  | Directory containing `TEST-horizonqa.xml` and, by default, `horizonqa-result.json` |
+| `horizonqa.reportFile` | Exact JUnit XML output path; takes precedence over `horizonqa.reportDir`           |
+| `horizonqa.statusFile` | Exact status JSON output path                                                      |
+
+Relative paths resolve from the server process working directory. When `horizonqa.reportDir` is set and `horizonqa.statusFile` is not set, the status JSON is written to `horizonqa-result.json` in that same directory.
+
+## JUnit XML
+
+`TEST-horizonqa.xml` uses a standard JUnit-style `<testsuite>`:
 
 ```xml
-<testsuite name="horizonqa" tests="…" failures="…" errors="…" skipped="…" …>
-  <testcase name="methodName" classname="namespace:ClassName" time="…">
-    <!-- failure / error / system-out elements as appropriate -->
+<testsuite name="horizonqa" tests="..." failures="..." errors="..." skipped="..." ...>
+  <testcase name="methodName" classname="namespace:ClassName" time="...">
+    <!-- failure, error, skipped, and system-out elements as appropriate -->
   </testcase>
 </testsuite>
 ```
 
-| Field        | Meaning                                                    |
-|--------------|------------------------------------------------------------|
-| `classname`  | Test id prefix (`namespace:ClassName`)                     |
-| `name`       | Method name                                                |
-| `time`       | Duration in seconds (`testTicks / 20`)                     |
+| Field        | Meaning                                |
+|--------------|----------------------------------------|
+| `classname`  | Test id prefix, for example `mymod:AssemblerTests` |
+| `name`       | Method name                            |
+| `time`       | Duration in seconds (`testTicks / 20`) |
 
-Failed tests include stack traces. Passing tests with warnings or recorded events also emit `<system-out>` blocks.
+Required assertion failures and timeouts are emitted as `<failure>`. Infrastructure problems such as cleanup, template, configuration, selection, report-path, and reporting failures are emitted as `<error>`. Optional failures are emitted as `<skipped>` so JUnit publishers can show them without failing the suite aggregate.
 
-`horizonqa-result.json` is the compact automation surface. It contains the schema version, final status and exit code, effective configuration, aggregate counts, report paths, infrastructure issues, and concise per-test outcomes. It includes infrastructure stack traces when available, but leaves full normal test event logs in the JUnit report.
+When event recording is enabled, each `<testcase>` may include ordered `[t=NNN] [category] summary` lines in `<system-out>`. The server console also prints a compact failure tail.
 
-## Event log in CI
-
-When event recording is enabled (default), each `<testcase>` can include the ordered `[t=NNN] [category] summary` log. The same log is mirrored to the server console (last 20 lines on failure) so a Jenkins console snippet is enough to triage most recipe, EU, and maintenance failures without a local rerun.
-
-Disable for perf-sensitive jobs only — you lose the main failure diagnostic:
+Disable event recording only for performance investigations:
 
 ```text
 -Dhorizonqa.events=off
 ```
 
-Full catalog: [Test event log](../reference/events.md).
+## Status JSON schema
 
-## CI pipeline shape
+`horizonqa-result.json` is the compact automation surface. Schema version `1` has this top-level shape:
 
-```mermaid
-flowchart LR
-    A[Start dedicated server<br/>with -Dhorizonqa.mode=ci] --> B[Headless batch entrypoint]
-    B --> C[Server writes<br/>TEST-horizonqa.xml<br/>horizonqa-result.json]
-    C --> D[Archive as<br/>build artifact]
-    D --> E[Publish via JUnit-aware<br/>action / plugin]
+```json
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "exitCode": 0,
+  "configuration": {
+    "mode": "ci",
+    "rawMode": "ci",
+    "tests": null,
+    "selectsAllTests": true,
+    "allowNoTests": false,
+    "eventsEnabled": true,
+    "reportFile": null,
+    "reportDir": "build/horizonqa",
+    "statusFile": null
+  },
+  "counts": {
+    "selectedTests": 1,
+    "passed": 1,
+    "failed": 0,
+    "timedOut": 0,
+    "incomplete": 0,
+    "requiredFailures": 0,
+    "optionalFailures": 0,
+    "issues": 0,
+    "diagnosticErrors": 0,
+    "junitFailures": 0,
+    "junitErrors": 0,
+    "junitSkipped": 0
+  },
+  "reports": {
+    "junit": "build/horizonqa/TEST-horizonqa.xml",
+    "status": "build/horizonqa/horizonqa-result.json"
+  },
+  "issues": [],
+  "tests": []
+}
 ```
 
-In words:
+Each `issues[]` entry contains `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` / `stackTrace`. Each `tests[]` entry contains `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`, optional `blockedByIssueId`, and optional `failure` details.
 
-1. Start a dedicated server with `-Dhorizonqa.mode=ci`.
-2. Horizon-QA discovers tests and starts the batch once the world is ready.
-3. Archive `TEST-horizonqa.xml` and `horizonqa-result.json` as build artifacts.
-4. Point Jenkins / GitHub Actions `publish-unit-test-result` (or your equivalent) at the XML.
+Status values are:
 
-To run only part of the suite, pass `-Dhorizonqa.tests=<selector>`. A token without `:` selects a namespace, while a token with `:` must be an exact test id. For example, `-Dhorizonqa.tests=horizonqaexamples` runs that namespace and `-Dhorizonqa.tests=horizonqaexamples:BasicTests.simplePass` runs one test.
+| JSON `status` | Exit code | Meaning                                                                                                      |
+|---------------|-----------|--------------------------------------------------------------------------------------------------------------|
+| `passed`      | `0`       | No required failures and no infrastructure errors                                                            |
+| `failed`      | `1`       | At least one required test failed or timed out                                                               |
+| `error`       | `2`       | Infrastructure, configuration, selection, template, cleanup, reporting, report-path, or incomplete-run error |
 
-Invalid selector syntax, including empty tokens and `*`, aborts before execution. Valid selectors that match no valid tests are reported as infrastructure issues; any other matched tests still run.
+## Selectors
 
-If no valid tests are selected, CI still writes `TEST-horizonqa.xml` and `horizonqa-result.json`. By default this is a diagnostic error and exit code `2`; set `-Dhorizonqa.allowNoTests=true` only for jobs where an empty selection is expected.
+Use `horizonqa.tests` to limit automatic CI execution:
 
-CI exit codes are deterministic:
+```text
+-Dhorizonqa.tests=mymod
+-Dhorizonqa.tests=mymod:AssemblerTests.processesOneRecipe
+-Dhorizonqa.tests=mymod,compatmod:BridgeTests.basic
+```
 
-| Code | Meaning                                                                                                     |
-|------|-------------------------------------------------------------------------------------------------------------|
-| `0`  | The run passed. Optional test failures do not fail the process.                                             |
-| `1`  | At least one required test failed or timed out.                                                             |
-| `2`  | Infrastructure, configuration, discovery, selection, template, cleanup, reporting, or incomplete-run error. |
+Selector grammar:
 
-This repository's docs site build ([`.github/workflows/publish.yml`](https://github.com/GTNewHorizons/Horizon-QA/blob/master/.github/workflows/publish.yml)) runs `mkdocs build` and `./gradlew :javadoc` on push to `master`. Consumer mods wire their own game-test CI on top of the same shape.
+```text
+selectors := selector ("," selector)*
+selector  := namespace | exact-test-id
+namespace := token-without-colon
+exact-test-id := namespace ":" class-and-method
+```
 
-## `required = false` and skipped semantics
+Rules:
 
-Optional tests that fail may be reported without failing the suite aggregate. Reserve this for genuinely quarantined cases — required tests should gate merges, and a permanent failing-optional test is a maintenance leak.
+- unset or empty `horizonqa.tests` selects all valid tests,
+- a namespace selector matches every valid test id that starts with `namespace:`,
+- an exact selector must contain exactly one `:` and match the full test id,
+- whitespace around comma-separated tokens is trimmed,
+- empty tokens such as `a,,b` are invalid,
+- `*` is not supported; omit the property or set it to an empty value to run everything,
+- duplicate selections are de-duplicated while preserving discovery order.
+
+Invalid selector syntax aborts before tests run and exits `2`. A syntactically valid selector that matches no valid tests is reported as a CI infrastructure issue; if other selectors match valid tests, those tests still run and the final result still includes the selector issue.
+
+If no valid tests are selected, CI still writes `TEST-horizonqa.xml` and `horizonqa-result.json`. By default this exits `2`. Set `-Dhorizonqa.allowNoTests=true` only for jobs where an empty selection is expected and there are no selector infrastructure issues.
+
+## Optional tests
+
+`@GameTest(required = false)` marks a test as optional. Optional tests still run, appear in JUnit XML, and appear in `tests[]` in the status JSON with `required: false`.
+
+An optional failure or timeout:
+
+- increments `counts.optionalFailures`,
+- is represented as `<skipped>` in JUnit XML,
+- does not make the process exit non-zero by itself.
+
+Use optional tests for genuinely quarantined, experimental, or environment-specific coverage. Required tests should gate merges.
+
+## GitHub Actions handling
+
+Always upload reports with `if: always()` so failed tests still leave artifacts. Publish JUnit XML from a later `always()` step, then let the original `runServer` exit code fail the job.
+
+```yaml
+name: Horizon-QA
+
+on:
+  pull_request:
+  push:
+    branches: [ master, main ]
+
+jobs:
+  gametest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version-file: .java-version
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Horizon-QA
+        run: >
+          ./gradlew runServer
+          --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
+
+      - name: Upload Horizon-QA reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: horizonqa-reports
+          path: |
+            build/horizonqa/TEST-horizonqa.xml
+            build/horizonqa/horizonqa-result.json
+```
+
+If your workflow uses a JUnit publishing action, run it after the upload step with `if: always()` and point it at `build/horizonqa/TEST-horizonqa.xml`.
 
 ## Local iteration loop
 
 ```text
-edit test → runServer → /horizonqa run <id>   → inspect overlay + XML
-         → /horizonqa runfailed              → re-run only the failures
+edit test -> runServer -> /horizonqa run <id> -> inspect overlay + XML
+          -> /horizonqa runfailed            -> re-run only failures
 ```
 
-## Publishing these docs
-
-Documentation is published to GitHub Pages from `master`. To preview locally:
-
-```bash
-pip install -r requirements.txt
-mkdocs serve
-```
-
-Open `http://127.0.0.1:8000` for live-reload preview.
+Use CI mode for automation and interactive mode for in-world debugging.

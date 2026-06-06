@@ -10,7 +10,7 @@ tags:
 
 ## Gradle dependency
 
-Add Horizon-QA to your mod's `dependencies.gradle` (or equivalent). It belongs on the **dev / CI classpath only** — release jars of gameplay mods should not bundle it.
+Add Horizon-QA to your mod's `dependencies.gradle` (or equivalent). It belongs on the **dev / CI classpath only**; release jars of gameplay mods should not bundle it.
 
 ```groovy
 dependencies {
@@ -25,29 +25,15 @@ Pin the version to the same Horizon-QA build your pack or meta-repo uses. The `e
 
 Local server runs use interactive mode by default, so no JVM flag is required for `/horizonqa` commands, discovery, and visual debugging.
 
-Automated server runs should use CI mode:
+Automated server runs should use CI mode on the Minecraft server JVM:
 
 ```text
--Dhorizonqa.mode=ci
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
 ```
 
-=== "Gradle (Kotlin DSL)"
+`--mcJvmArgs` is provided by Retrofuturagradle. Passing `-Dhorizonqa.mode=ci` directly to Gradle, or wiring it as ordinary Gradle JVM arguments, sets it on the wrong JVM.
 
-    ```kotlin
-    tasks.named<JavaExec>("runServer") {
-        jvmArgs("-Dhorizonqa.mode=ci")
-    }
-    ```
-
-=== "Gradle (Groovy DSL)"
-
-    ```groovy
-    runServer {
-        jvmArgs '-Dhorizonqa.mode=ci'
-    }
-    ```
-
-Use `-Dhorizonqa.mode=off` only when you want the mod on the classpath without commands, discovery, runner behavior, or test visuals. Batch execution and JUnit XML are server-side.
+Use `-Dhorizonqa.mode=off` only when you want the mod on the classpath without commands, discovery, runner behavior, or test visuals. Batch execution, JUnit XML, and status JSON are server-side.
 
 ## Source layout
 
@@ -55,8 +41,8 @@ Recommended layout for a mod named `mymod`:
 
 ```text
 src/main/java/.../tests/
-  multiblock/<machine>/             ← single-mod multiblock tests
-  compatibility/<modA>_<modB>/      ← cross-mod scenarios
+  multiblock/<machine>/             # single-mod multiblock tests
+  compatibility/<modA>_<modB>/      # cross-mod scenarios
 src/main/resources/assets/mymod/horizonqastructures/
   ebf.json
   ebf_tiles.nbt
@@ -71,7 +57,7 @@ src/main/resources/assets/mymod/horizonqastructures/
 Discovery is ASM-based at server start:
 
 - Every class annotated `@GameTestHolder` is scanned.
-- Every **static** method annotated `@GameTest` with signature `void name(GameTestHelper)` is registered.
+- Every **public static** method annotated `@GameTest` with signature `void name(GameTestHelper)` is registered.
 - Test id format: `<holder.value>:<SimpleClassName>.<methodName>`
 
 There is no manual registration list and no service-file step.
@@ -91,9 +77,9 @@ Templates load from the classpath:
 
 The `examples` subproject is the canonical reference:
 
-- `BasicTests` — assertions, sequences, optional tests.
-- `GTNHExampleTests` — EBF formation, EU supply, maintenance gating, synthetic recipes.
-- `StructureTests` — template placement and block-level assertions.
+- `BasicTests` - assertions, sequences, optional tests.
+- `GTNHExampleTests` - EBF formation, EU supply, maintenance gating, synthetic recipes.
+- `StructureTests` - template placement and block-level assertions.
 
 Run `./gradlew :examples:runServer` to iterate against them.
 

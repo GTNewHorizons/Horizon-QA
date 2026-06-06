@@ -22,9 +22,9 @@ public class AssemblerTests {
 }
 ```
 
-Rules enforced at discovery — invalid methods are skipped with a log warning, not a crash:
+Rules enforced at discovery; invalid methods are skipped with a log warning, not a crash:
 
-- Method must be **`static`**.
+- Method must be **`public static`**.
 - Exactly one parameter: **`GameTestHelper`**.
 - Return type **`void`**.
 
@@ -36,7 +36,7 @@ Every test receives a stable id:
 <@GameTestHolder value>:<ClassSimpleName>.<methodName>
 ```
 
-Example: `mymod:AssemblerTests.processesOneRecipe`. Use this id with `/gametest run` and as the `classname` / `name` pair in JUnit XML.
+Example: `mymod:AssemblerTests.processesOneRecipe`. Use this id with `/horizonqa run` and as the `classname` / `name` pair in JUnit XML.
 
 ## Template attribute
 
@@ -58,11 +58,11 @@ public static void warmCaches() { /* no args */ }
 public static void tearDown() { /* no args */ }
 ```
 
-Batch methods must be **static** and take **no parameters**. They run on the server thread before/after every test in that batch.
+Batch methods must be **public static void** and take **no parameters**. They run on the server thread before/after every test in that batch.
 
 ## `required = false`
 
-Tests marked `required = false` may fail without failing the overall run. Use it for experimental coverage or genuinely version-specific cases.
+Tests marked `required = false` may fail or time out without failing the overall run. CI still reports them in JUnit XML and status JSON; see [CI & JUnit reports](ci.md#optional-tests) for the exact reporting semantics.
 
 !!! danger "Do not use `required = false` as a permanent mute"
 
@@ -70,13 +70,13 @@ Tests marked `required = false` may fail without failing the overall run. Use it
 
 ## Rotation
 
-`rotation` on `@GameTest` is `0–3`: none, 90°, 180°, 270° clockwise around Y, matching structure placement conventions. Setting it to a non-zero value is the cheapest way to catch templates that quietly hardcoded a facing.
+`rotation` on `@GameTest` is `0..3`: none, 90 degrees, 180 degrees, 270 degrees clockwise around Y, matching structure placement conventions. Setting it to a non-zero value is the cheapest way to catch templates that quietly hardcoded a facing.
 
-If a test only passes at `rotation = 0`, document the reason in the method body — usually it indicates a coordinate that should have been a role-based lookup.
+If a test only passes at `rotation = 0`, document the reason in the method body; usually it indicates a coordinate that should have been a role-based lookup.
 
 ## Cleanup and isolation
 
-Follow [Design principle 6 — Leave no trace](../contributing/principles.md):
+Follow [Design principle 6 - Leave no trace](../contributing/principles.md):
 
 - Call `gtnh.withTestRecipe(...)` for synthetic recipes; cleanup runs automatically at end of test via `afterTest`.
 - Register `helper.afterTest(() -> { ... })` for any manual registry or world mutation outside framework helpers.
@@ -93,7 +93,7 @@ helper.assertEquals(64, actualCount,
     "Output bus should contain 64 copper plates after recipe");
 ```
 
-Avoid messages like `"wrong count"` or `"assertion failed"` — they force the reader to open the JUnit XML to learn anything.
+Avoid messages like `"wrong count"` or `"assertion failed"`; they force the reader to open the JUnit XML to learn anything.
 
 ## Imperative vs fluent GT API
 
@@ -119,7 +119,7 @@ Two styles are supported. Both compile to the same calls; pick by what is most l
     gtnh.assertItemInBus(outputBus, stack);
     ```
 
-Prefer **role-based** hatch indices (`inputBus(0)`) over raw coordinates when using `Multiblock`. Coordinates belong in the template — not throughout the test method.
+Prefer **role-based** hatch indices (`inputBus(0)`) over raw coordinates when using `Multiblock`. Coordinates belong in the template, not throughout the test method.
 
 ## Further reading
 

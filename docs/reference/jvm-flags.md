@@ -1,6 +1,6 @@
 ---
 title: JVM & system properties
-description: Properties that gate Horizon-QA activation and event recording.
+description: Horizon-QA server JVM properties for interactive authoring, CI execution, reports, selectors, and event recording.
 tags:
   - reference
   - jvm
@@ -8,7 +8,13 @@ tags:
 
 # JVM & system properties
 
-Horizon-QA reads system properties from the Minecraft server JVM. With Retrofuturagradle `runServer`, pass these through `--mcJvmArgs`; passing them directly to Gradle sets them on the Gradle daemon instead.
+Horizon-QA reads Java system properties from the Minecraft **server** JVM. With Retrofuturagradle `runServer`, pass them through RFG's `--mcJvmArgs` option:
+
+```text
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
+```
+
+Passing `-Dhorizonqa.mode=ci` directly to Gradle sets the property on the Gradle daemon, where the server never sees it.
 
 ## `horizonqa.mode`
 
@@ -16,57 +22,61 @@ Horizon-QA reads system properties from the Minecraft server JVM. With Retrofutu
 |------------------|------------------------------|---------------|
 | `horizonqa.mode` | `off` / `interactive` / `ci` | `interactive` |
 
-Controls Horizon-QA runtime behavior:
-
-`off`
-:   The mod loads, but commands, discovery, runner behavior, and test visuals remain inert.
+Controls Horizon-QA runtime behavior.
 
 `interactive`
-:   Enables `/horizonqa` commands, discovery, and client-side test visuals for local authoring.
+:   Enables `/horizonqa` commands, discovery, and client-side test visuals for local authoring. This is the default when the property is unset.
 
 `ci`
-:   Enables deterministic headless execution: void world, no network bind, no spawns/nether, automatic test run, report writing, and server exit.
+:   Enables deterministic headless execution: void world registration, CI-oriented server behavior, automatic selected-test execution, report writing, and server exit.
 
-No mode property is required for local test authoring because `interactive` is the default. You can still set it explicitly:
+`off`
+:   Loads the mod while leaving commands, discovery, runner behavior, and test visuals inert.
 
-```text
--Dhorizonqa.mode=interactive
-```
-
-Use `ci` for automated runs:
+Examples:
 
 ```text
--Dhorizonqa.mode=ci
-```
-
-Use `off` to load the mod without Horizon-QA commands, discovery, runner behavior, or test visuals:
-
-```text
--Dhorizonqa.mode=off
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=interactive"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=off"
 ```
 
 ## `horizonqa.tests`
 
-| Property          | Values                         | Default         |
-|-------------------|--------------------------------|-----------------|
-| `horizonqa.tests` | comma-separated selectors      | all valid tests |
+| Property          | Values                    | Default         |
+|-------------------|---------------------------|-----------------|
+| `horizonqa.tests` | comma-separated selectors | all valid tests |
 
-Limits automatic CI execution to selected tests:
+Limits automatic CI execution to selected tests.
+
+Selector grammar:
+
+```text
+selectors := selector ("," selector)*
+selector  := namespace | exact-test-id
+namespace := token-without-colon
+exact-test-id := namespace ":" class-and-method
+```
+
+Rules:
 
 - unset or empty selects all valid tests,
 - `namespace` selects every valid test whose id starts with `namespace:`,
-- `namespace:Class.method` selects one exact test id.
+- `namespace:Class.method` selects one exact test id,
+- tokens are trimmed around commas,
+- empty tokens such as `a,,b` are invalid,
+- `*` is not supported,
+- exact test ids must contain exactly one `:`.
 
-Empty selector tokens are invalid, so `a,,b` aborts CI before tests run. The `*` wildcard is not supported; omit the property or set it to an empty value to run all valid tests.
-
-Selectors that are syntactically valid but match no valid tests are reported as CI infrastructure issues. If at least one selector matches valid tests, those tests still run and the infrastructure issue is included in the final CI result.
-
-When no valid tests are selected and `horizonqa.allowNoTests=false`, CI writes a diagnostic JUnit report and exits with code `2`.
+Examples:
 
 ```text
 -Dhorizonqa.tests=horizonqaexamples
 -Dhorizonqa.tests=horizonqaexamples:BasicTests.simplePass
+-Dhorizonqa.tests=horizonqaexamples,othermod:SmokeTests.boots
 ```
+
+Invalid selector syntax is a fatal CI configuration issue and exits `2`. Selectors that are syntactically valid but match no valid tests are reported as CI infrastructure issues; any other matched tests still run.
 
 ## `horizonqa.allowNoTests`
 
@@ -74,64 +84,82 @@ When no valid tests are selected and `horizonqa.allowNoTests=false`, CI writes a
 |--------------------------|------------------|---------|
 | `horizonqa.allowNoTests` | `true` / `false` | `false` |
 
-Allows a CI run with no selected valid tests to pass. This only applies when there are no selector or discovery-selection infrastructure issues.
+Allows a CI run with no selected valid tests to pass. This only applies when the empty selection is otherwise clean; selector/configuration infrastructure issues still fail CI.
+
+```text
+-Dhorizonqa.allowNoTests=true
+```
 
 ## `horizonqa.events`
 
-| Property           | Values                            | Default |
-|--------------------|-----------------------------------|---------|
-| `horizonqa.events` | `on` / `off`                      | `on`    |
+| Property           | Values       | Default |
+|--------------------|--------------|---------|
+| `horizonqa.events` | `on` / `off` | `on`    |
 
-Controls the event recorder behind `EventLog`:
+Controls the event recorder behind `EventLog`.
 
 `on`
-:   Record typed events. Each `<testcase>` in the JUnit XML may include the event log under `<system-out>`.
+:   Records typed events. Each JUnit `<testcase>` may include the event log under `<system-out>`.
 
 `off`
-:   Recording is a no-op. Emit sites use `Supplier` instances that are never invoked, so payload allocation work is skipped.
+:   Disables recording. Emit sites use suppliers that are never invoked, so payload allocation work is skipped.
 
 ```text
 -Dhorizonqa.events=off
 ```
 
-!!! warning "`off` removes your main failure diagnostic"
+Disable event recording only for performance investigations; it is the primary CI failure diagnostic.
 
-    Disable event recording only for performance micro-benchmarks, not for normal CI. The event log is the canonical source of "what happened" on a failing test.
+## Report paths
 
-## CI Gradle example
-
-```kotlin
-tasks.named<JavaExec>("runServer") {
-    jvmArgs(
-        "-Dhorizonqa.mode=ci",
-        // "-Dhorizonqa.events=off",  // micro-benchmarks only
-    )
-}
-```
-
-## Reports
-
-JUnit output defaults to the server process working directory:
+Default outputs:
 
 ```text
 TEST-horizonqa.xml
 horizonqa-result.json
 ```
 
-Override the JUnit path with either an exact file or an output directory:
+| Property               | Meaning                                                   |
+|------------------------|-----------------------------------------------------------|
+| `horizonqa.reportFile` | Exact JUnit XML output path                               |
+| `horizonqa.reportDir`  | Directory containing `TEST-horizonqa.xml`                 |
+| `horizonqa.statusFile` | Exact status JSON output path                             |
 
-| Property               | Meaning                                                                           |
-|------------------------|-----------------------------------------------------------------------------------|
-| `horizonqa.reportFile` | Exact JUnit XML file path                                                         |
-| `horizonqa.reportDir`  | Directory containing `TEST-horizonqa.xml`                                         |
-| `horizonqa.statusFile` | Exact status JSON file path                                                       |
+`horizonqa.reportFile` wins over `horizonqa.reportDir` for the JUnit XML path. When `horizonqa.reportDir` is set and `horizonqa.statusFile` is not set, status JSON defaults to `horizonqa-result.json` in that same directory. Relative paths resolve from the server process working directory.
 
-`horizonqa.reportFile` wins over `horizonqa.reportDir`. When `horizonqa.reportDir` is set, the status JSON defaults to `horizonqa-result.json` in the same directory. Relative paths resolve from the server process working directory.
+Recommended CI form:
 
-The status JSON is a concise machine-readable summary with `schemaVersion`, `status`, `exitCode`, `configuration`, `counts`, `reports`, `issues`, and `tests`. It includes infrastructure issue stack traces when available, but it does not duplicate the full per-test event logs already present in JUnit XML.
+```text
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
+```
 
-CI process exit codes are fixed by outcome category: `0` for passed, `1` for required test failure or timeout, and `2` for infrastructure, configuration, discovery, selection, template, cleanup, reporting, or incomplete-run errors.
+## Status JSON
+
+The status JSON is a concise machine-readable summary. Schema version `1` contains:
+
+| Top-level field | Meaning                                                                        |
+|-----------------|--------------------------------------------------------------------------------|
+| `schemaVersion` | Integer schema version, currently `1`                                          |
+| `status`        | `passed`, `failed`, or `error`                                                 |
+| `exitCode`      | Process exit code Horizon-QA requests                                          |
+| `configuration` | Effective property values and defaults                                         |
+| `counts`        | Aggregate selected, passed, failed, timeout, optional, issue, and JUnit counts |
+| `reports`       | JUnit and status report paths                                                  |
+| `issues`        | Infrastructure/configuration/selection/reporting issues                        |
+| `tests`         | Per-test status and optional failure details                                   |
+
+Issue entries contain `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` / `stackTrace`. Test entries contain `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`, optional `blockedByIssueId`, and optional `failure`.
+
+## Exit codes
+
+| Code | Status   | Meaning                                                                                                                |
+|------|----------|------------------------------------------------------------------------------------------------------------------------|
+| `0`  | `passed` | No required test failures and no infrastructure errors                                                                 |
+| `1`  | `failed` | At least one required test failed or timed out                                                                         |
+| `2`  | `error`  | Infrastructure, configuration, discovery-selection, template, cleanup, report-path, reporting, or incomplete-run error |
+
+Optional failures do not change the process exit code by themselves. They are counted in status JSON and represented as skipped in JUnit XML.
 
 !!! warning "Use lowercase property values"
 
-    CI property parsing is strict. Use `ci`, `true`, `false`, `on`, and `off` exactly as documented.
+    CI property parsing is strict. Use `ci`, `interactive`, `true`, `false`, `on`, and `off` exactly as documented.
