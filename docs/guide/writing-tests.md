@@ -40,11 +40,11 @@ Example: `mymod:AssemblerTests.processesOneRecipe`. Use this id with `/horizonqa
 
 ## Template attribute
 
-| Form                                  | Resolves to                                                      |
-|---------------------------------------|------------------------------------------------------------------|
-| `template = ""`                       | Empty void cell (no structure placement)                         |
-| `template = "ebf"`                    | `<holder>:ebf`, or `<holder>:<prefix>/ebf` when `templatePrefix` is set |
-| `template = "other:path/to/cell"`     | Used verbatim as a fully qualified `namespace:path`              |
+| Form                              | Resolves to                                                             |
+|-----------------------------------|-------------------------------------------------------------------------|
+| `template = ""`                   | Empty void cell (no structure placement)                                |
+| `template = "ebf"`                | `<holder>:ebf`, or `<holder>:<prefix>/ebf` when `templatePrefix` is set |
+| `template = "other:path/to/cell"` | Used verbatim as a fully qualified `namespace:path`                     |
 
 ## Batches
 

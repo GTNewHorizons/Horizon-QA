@@ -53,13 +53,13 @@ For a CI-style example run:
 
 In-game (operator permission level **2**):
 
-| Command                           | Purpose                                                              |
-|-----------------------------------|----------------------------------------------------------------------|
-| `/horizonqa runall`               | Run every discovered test                                            |
-| `/horizonqa runall <namespace>`   | Run tests whose id starts with `<namespace>:`                        |
-| `/horizonqa run <testId>`         | Run one test by id, e.g. `horizonqaexamples:BasicTests.passImmediately` |
-| `/horizonqa runfailed`            | Re-run only the tests that failed in the last batch                  |
-| `/qa`                             | Alias for `/horizonqa`                                               |
+| Command                         | Purpose                                                                 |
+|---------------------------------|-------------------------------------------------------------------------|
+| `/horizonqa runall`             | Run every discovered test                                               |
+| `/horizonqa runall <namespace>` | Run tests whose id starts with `<namespace>:`                           |
+| `/horizonqa run <testId>`       | Run one test by id, e.g. `horizonqaexamples:BasicTests.passImmediately` |
+| `/horizonqa runfailed`          | Re-run only the tests that failed in the last batch                     |
+| `/qa`                           | Alias for `/horizonqa`                                                  |
 
 After a batch completes, the server writes **`TEST-horizonqa.xml`** and **`horizonqa-result.json`** in the working directory unless report paths are overridden. See [CI & JUnit reports](../guide/ci.md).
 

@@ -26,21 +26,21 @@ One sequence per test. For an immediate pass use `helper.succeed()` directly.
 
 ## Methods
 
-| Method                                     | Phase | What it does                                    |
-|--------------------------------------------|-------|-------------------------------------------------|
-| `thenIdle(n)`                              |       | Skip `n` ticks                                  |
-| `thenExecute(Runnable)`                    | END   | Run once at scheduled tick                      |
-| `thenExecuteAtStart(Runnable)`             | START | Run once at scheduled tick, before world tick   |
-| `thenExecuteAtEnd(Runnable)`               | END   | Alias of `thenExecute`                          |
-| `thenExecuteFor(n, Runnable)`              | END   | Run every tick for `n` ticks                    |
-| `thenExecuteForAtStart(n, Runnable)`       | START | Same, before world tick                         |
-| `thenExecuteForAtEnd(n, Runnable)`         | END   | Alias of `thenExecuteFor`                       |
-| `thenWaitUntil(Runnable)`                  | END   | Retry each tick until runnable does not throw   |
-| `thenWaitUntilAtStart(Runnable)`           | START | Same, before world tick                         |
-| `thenWaitUntil(maxTicks, Runnable)`        | END   | Same, reserve up to `maxTicks` ticks             |
-| `thenWaitUntilAtStart(maxTicks, Runnable)` | START | Same, before world tick                         |
-| `thenSucceed()`                            | END   | Pass the test                                   |
-| `thenFail(msg)`                            | END   | Fail the test                                   |
+| Method                                     | Phase | What it does                                  |
+|--------------------------------------------|-------|-----------------------------------------------|
+| `thenIdle(n)`                              |       | Skip `n` ticks                                |
+| `thenExecute(Runnable)`                    | END   | Run once at scheduled tick                    |
+| `thenExecuteAtStart(Runnable)`             | START | Run once at scheduled tick, before world tick |
+| `thenExecuteAtEnd(Runnable)`               | END   | Alias of `thenExecute`                        |
+| `thenExecuteFor(n, Runnable)`              | END   | Run every tick for `n` ticks                  |
+| `thenExecuteForAtStart(n, Runnable)`       | START | Same, before world tick                       |
+| `thenExecuteForAtEnd(n, Runnable)`         | END   | Alias of `thenExecuteFor`                     |
+| `thenWaitUntil(Runnable)`                  | END   | Retry each tick until runnable does not throw |
+| `thenWaitUntilAtStart(Runnable)`           | START | Same, before world tick                       |
+| `thenWaitUntil(maxTicks, Runnable)`        | END   | Same, reserve up to `maxTicks` ticks          |
+| `thenWaitUntilAtStart(maxTicks, Runnable)` | START | Same, before world tick                       |
+| `thenSucceed()`                            | END   | Pass the test                                 |
+| `thenFail(msg)`                            | END   | Fail the test                                 |
 
 ## Tick phases
 
