@@ -31,6 +31,14 @@ public class GameTestBatchRunnerTest {
     }
 
     @Test
+    public void batchNamesNormalizeNullAndEmptyToDefault() {
+        assertEquals("default", GameTestBatchRunner.batchName(null));
+        assertEquals("default", GameTestBatchRunner.batchName(""));
+        assertEquals("assembler", GameTestBatchRunner.batchName("assembler"));
+        assertEquals("default", GameTestBatchRunner.batchId(""));
+    }
+
+    @Test
     public void beforeHookFailureCreatesOneRootIssueAndSkippedCases() throws Exception {
         Method shouldNotRun = BeforeHooks.class.getMethod("shouldNotRun");
         Method failFirst = BeforeHooks.class.getMethod("failFirst");

@@ -2,6 +2,7 @@ package com.gtnewhorizons.horizonqa.report;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,6 +52,46 @@ public class RunResultTest {
                 .get(0)
                 .outputLines()
                 .add("blocked"));
+    }
+
+    @Test
+    public void nullInputsNormalizeToEmptyCountsAndStrings() {
+        RunResult result = RunResult.completedCases(null, null, null, null);
+
+        assertEquals("", result.mode());
+        assertEquals("", result.junitReport());
+        assertTrue(
+            result.cases()
+                .isEmpty());
+        assertTrue(
+            result.issues()
+                .isEmpty());
+        assertEquals(0, result.selectedTests());
+        assertEquals(0, result.passed());
+        assertEquals(0, result.failed());
+        assertEquals(0, result.timedOut());
+        assertEquals(0, result.incomplete());
+        assertEquals(0, result.infrastructureErrors());
+        assertEquals(0, result.requiredFailures());
+        assertEquals(0, result.optionalFailures());
+        assertEquals(0, result.exitCode());
+        assertEquals("passed", result.status());
+    }
+
+    @Test
+    public void optionalFailuresDoNotChangeSuccessfulExitCode() {
+        RunResult result = RunResult.completedCases(
+            "ci",
+            Arrays.asList(
+                resultCase("mod:Suite.optionalFailure", CaseResult.Status.FAILED, false),
+                resultCase("mod:Suite.optionalTimeout", CaseResult.Status.TIMED_OUT, false)),
+            Collections.emptyList(),
+            "TEST.xml");
+
+        assertEquals(0, result.exitCode());
+        assertEquals("passed", result.status());
+        assertEquals(2, result.optionalFailures());
+        assertEquals(0, result.requiredFailures());
     }
 
     @Test

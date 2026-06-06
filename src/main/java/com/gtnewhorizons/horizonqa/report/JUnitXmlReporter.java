@@ -161,7 +161,7 @@ public final class JUnitXmlReporter {
      *
      * @param s string to sanitize
      */
-    private static String sanitizeAttr(String s) {
+    static String sanitizeAttr(String s) {
         if (s == null) return "";
         StringBuilder out = new StringBuilder(s.length() + 16);
         for (int offset = 0; offset < s.length();) {
@@ -189,7 +189,7 @@ public final class JUnitXmlReporter {
      *
      * @param s string to sanitize
      */
-    private static String escapeBody(String s) {
+    static String escapeBody(String s) {
         if (s == null) return "";
         StringBuilder out = new StringBuilder(s.length() + 16);
         for (int offset = 0; offset < s.length();) {

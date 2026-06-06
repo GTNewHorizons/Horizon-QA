@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 
 import com.github.bsideup.jabel.Desugar;
 
@@ -96,27 +97,35 @@ public final class HorizonQAProperties {
     }
 
     public static File junitReportFile() {
-        if (PARSED.reportFile() != null) {
-            return resolveServerFile(PARSED.reportFile());
+        return junitReportFile(PARSED, new File(System.getProperty("user.dir", ".")));
+    }
+
+    static File junitReportFile(ParsedProperties parsed, File workingDirectory) {
+        if (parsed.reportFile() != null) {
+            return resolveServerFile(workingDirectory, parsed.reportFile());
         }
-        if (PARSED.reportDir() != null) {
-            return new File(resolveServerFile(PARSED.reportDir()), DEFAULT_JUNIT_REPORT).toPath()
+        if (parsed.reportDir() != null) {
+            return new File(resolveServerFile(workingDirectory, parsed.reportDir()), DEFAULT_JUNIT_REPORT).toPath()
                 .normalize()
                 .toFile();
         }
-        return resolveServerFile(DEFAULT_JUNIT_REPORT);
+        return resolveServerFile(workingDirectory, DEFAULT_JUNIT_REPORT);
     }
 
     public static File statusReportFile() {
-        if (PARSED.statusFile() != null) {
-            return resolveServerFile(PARSED.statusFile());
+        return statusReportFile(PARSED, new File(System.getProperty("user.dir", ".")));
+    }
+
+    static File statusReportFile(ParsedProperties parsed, File workingDirectory) {
+        if (parsed.statusFile() != null) {
+            return resolveServerFile(workingDirectory, parsed.statusFile());
         }
-        if (PARSED.reportDir() != null) {
-            return new File(resolveServerFile(PARSED.reportDir()), DEFAULT_STATUS_REPORT).toPath()
+        if (parsed.reportDir() != null) {
+            return new File(resolveServerFile(workingDirectory, parsed.reportDir()), DEFAULT_STATUS_REPORT).toPath()
                 .normalize()
                 .toFile();
         }
-        return resolveServerFile(DEFAULT_STATUS_REPORT);
+        return resolveServerFile(workingDirectory, DEFAULT_STATUS_REPORT);
     }
 
     public static boolean eventsEnabled() {
@@ -149,29 +158,46 @@ public final class HorizonQAProperties {
     }
 
     private static ParsedProperties parse() {
+        return parse(System::getProperty);
+    }
+
+    static ParsedProperties parse(Properties properties) {
+        if (properties == null) {
+            return parse(property -> null);
+        }
+        return parse(properties::getProperty);
+    }
+
+    private static ParsedProperties parse(PropertySource properties) {
         List<PropertyIssue> issues = new ArrayList<>();
 
-        String rawMode = System.getProperty(MODE_PROPERTY);
+        String rawMode = properties.getProperty(MODE_PROPERTY);
         ModeParseResult mode = parseMode(rawMode);
         if (mode.issue() != null) {
             issues.add(mode.issue());
         }
 
-        String rawTests = System.getProperty(TESTS_PROPERTY);
+        String rawTests = properties.getProperty(TESTS_PROPERTY);
         SelectorParseResult selectors = parseSelectors(rawTests);
         issues.addAll(selectors.issues());
 
-        String rawAllowNoTests = System.getProperty(ALLOW_NO_TESTS_PROPERTY);
+        String rawAllowNoTests = properties.getProperty(ALLOW_NO_TESTS_PROPERTY);
         BooleanParseResult allowNoTests = parseStrictBoolean(ALLOW_NO_TESTS_PROPERTY, rawAllowNoTests, false);
         if (allowNoTests.issue() != null) {
             issues.add(allowNoTests.issue());
         }
 
-        String reportFile = parsePathProperty(REPORT_FILE_PROPERTY, System.getProperty(REPORT_FILE_PROPERTY), issues);
-        String reportDir = parsePathProperty(REPORT_DIR_PROPERTY, System.getProperty(REPORT_DIR_PROPERTY), issues);
-        String statusFile = parsePathProperty(STATUS_FILE_PROPERTY, System.getProperty(STATUS_FILE_PROPERTY), issues);
+        String reportFile = parsePathProperty(
+            REPORT_FILE_PROPERTY,
+            properties.getProperty(REPORT_FILE_PROPERTY),
+            issues);
+        String reportDir = parsePathProperty(REPORT_DIR_PROPERTY, properties.getProperty(REPORT_DIR_PROPERTY), issues);
+        String statusFile = parsePathProperty(
+            STATUS_FILE_PROPERTY,
+            properties.getProperty(STATUS_FILE_PROPERTY),
+            issues);
 
-        String rawEvents = System.getProperty(EVENTS_PROPERTY);
+        String rawEvents = properties.getProperty(EVENTS_PROPERTY);
         EventsParseResult events = parseEvents(rawEvents);
         if (events.issue() != null) {
             issues.add(events.issue());
@@ -219,7 +245,7 @@ public final class HorizonQAProperties {
                 true));
     }
 
-    private static SelectorParseResult parseSelectors(String raw) {
+    static SelectorParseResult parseSelectors(String raw) {
         if (raw == null || raw.isEmpty()) {
             return new SelectorParseResult(true, Collections.emptyList(), Collections.emptyList());
         }
@@ -394,7 +420,7 @@ public final class HorizonQAProperties {
     }
 
     @Desugar
-    private record ParsedProperties(String rawMode, Mode mode, PropertyIssue modeIssue, String rawTests,
+    record ParsedProperties(String rawMode, Mode mode, PropertyIssue modeIssue, String rawTests,
         boolean selectsAllTests, List<TestSelector> testSelectors, String rawAllowNoTests, boolean allowNoTests,
         String reportFile, String reportDir, String statusFile, String rawEvents, boolean eventsEnabled,
         List<PropertyIssue> issues) {
@@ -407,7 +433,7 @@ public final class HorizonQAProperties {
     }
 
     @Desugar
-    private record SelectorParseResult(boolean selectsAll, List<TestSelector> selectors, List<PropertyIssue> issues) {
+    record SelectorParseResult(boolean selectsAll, List<TestSelector> selectors, List<PropertyIssue> issues) {
 
     }
 
@@ -419,5 +445,10 @@ public final class HorizonQAProperties {
     @Desugar
     private record EventsParseResult(boolean enabled, PropertyIssue issue) {
 
+    }
+
+    private interface PropertySource {
+
+        String getProperty(String property);
     }
 }
