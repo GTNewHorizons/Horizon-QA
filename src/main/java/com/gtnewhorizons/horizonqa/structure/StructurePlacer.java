@@ -6,6 +6,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.gen.ChunkProviderServer;
+import net.minecraftforge.common.util.ForgeDirection;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,13 +14,30 @@ import org.apache.logging.log4j.Logger;
 public final class StructurePlacer {
 
     private static final Logger LOG = LogManager.getLogger("GameTest");
+    private static final TileEntityNbtRotator NO_TILE_ENTITY_NBT_ROTATION = (nbt, rotation) -> {};
 
     private StructurePlacer() {}
 
+    @FunctionalInterface
+    public interface TileEntityNbtRotator {
+
+        void rotate(NBTTagCompound nbt, int rotation);
+    }
+
     public static void place(HybridStructureTemplate template, WorldServer world, int originX, int originY,
         int originZ) {
+        place(template, world, originX, originY, originZ, 0);
+    }
+
+    public static void place(HybridStructureTemplate template, WorldServer world, int originX, int originY, int originZ,
+        int rotation) {
+        place(template, world, originX, originY, originZ, rotation, NO_TILE_ENTITY_NBT_ROTATION);
+    }
+
+    public static void place(HybridStructureTemplate template, WorldServer world, int originX, int originY, int originZ,
+        int rotation, TileEntityNbtRotator tileNbtRotator) {
         try {
-            placeInternal("unknown", template, world, originX, originY, originZ, false);
+            placeInternal("unknown", template, world, originX, originY, originZ, rotation, tileNbtRotator, false);
         } catch (TemplateException e) {
             LOG.warn("StructurePlacer: {}", e.getMessage());
         }
@@ -27,19 +45,50 @@ public final class StructurePlacer {
 
     public static void placeStrict(String templateName, HybridStructureTemplate template, WorldServer world,
         int originX, int originY, int originZ) throws TemplateException {
-        placeInternal(templateName, template, world, originX, originY, originZ, true);
+        placeStrict(templateName, template, world, originX, originY, originZ, 0);
+    }
+
+    public static void placeStrict(String templateName, HybridStructureTemplate template, WorldServer world,
+        int originX, int originY, int originZ, int rotation) throws TemplateException {
+        placeStrict(templateName, template, world, originX, originY, originZ, rotation, NO_TILE_ENTITY_NBT_ROTATION);
+    }
+
+    public static void placeStrict(String templateName, HybridStructureTemplate template, WorldServer world,
+        int originX, int originY, int originZ, int rotation, TileEntityNbtRotator tileNbtRotator)
+        throws TemplateException {
+        placeInternal(templateName, template, world, originX, originY, originZ, rotation, tileNbtRotator, true);
+    }
+
+    public static int placedSizeX(HybridStructureTemplate template, int rotation) {
+        if (template == null) {
+            return 0;
+        }
+        return placedSizeX(template.getSizeX(), template.getSizeZ(), normalizeRotation(rotation));
+    }
+
+    public static int placedSizeZ(HybridStructureTemplate template, int rotation) {
+        if (template == null) {
+            return 0;
+        }
+        return placedSizeZ(template.getSizeX(), template.getSizeZ(), normalizeRotation(rotation));
     }
 
     private static void placeInternal(String templateName, HybridStructureTemplate template, WorldServer world,
-        int originX, int originY, int originZ, boolean strict) throws TemplateException {
+        int originX, int originY, int originZ, int rotation, TileEntityNbtRotator tileNbtRotator, boolean strict)
+        throws TemplateException {
+
+        int rotationSteps = normalizeRotation(rotation);
+        TileEntityNbtRotator rotator = tileNbtRotator != null ? tileNbtRotator : NO_TILE_ENTITY_NBT_ROTATION;
 
         HybridStructureTemplate.PaletteEntry[] palette = template.getPalette();
         Block[] resolvedPalette = resolvePalette(templateName, palette, strict);
         int sizeX = template.getSizeX();
         int sizeY = template.getSizeY();
         int sizeZ = template.getSizeZ();
+        int placedSizeX = placedSizeX(sizeX, sizeZ, rotationSteps);
+        int placedSizeZ = placedSizeZ(sizeX, sizeZ, rotationSteps);
 
-        ensureChunksLoaded(world, originX, originY, originZ, sizeX, sizeY, sizeZ);
+        ensureChunksLoaded(world, originX, originZ, placedSizeX, placedSizeZ);
 
         int notifyClients = 2;
         for (int x = 0; x < sizeX; x++) {
@@ -51,9 +100,9 @@ public final class StructurePlacer {
                     if (block == null) {
                         continue;
                     }
-                    int wx = originX + x;
+                    int wx = originX + rotatedLocalX(x, z, sizeX, sizeZ, rotationSteps);
                     int wy = originY + y;
-                    int wz = originZ + z;
+                    int wz = originZ + rotatedLocalZ(x, z, sizeX, sizeZ, rotationSteps);
                     try {
                         world.setBlock(wx, wy, wz, block, entry.meta, notifyClients);
                     } catch (RuntimeException e) {
@@ -73,54 +122,111 @@ public final class StructurePlacer {
                     }
 
                     NBTTagCompound teNbt = template.getTileEntity(x, y, z);
-                    if (teNbt == null && !block.hasTileEntity(entry.meta)) {
-                        continue;
-                    }
+                    if (teNbt != null || block.hasTileEntity(entry.meta)) {
+                        TileEntity te = ensureTileEntity(world, wx, wy, wz, block, entry, strict);
+                        if (te == null) {
+                            if (teNbt != null) {
+                                handleTemplateError(
+                                    strict,
+                                    "No TileEntity at (" + wx
+                                        + ","
+                                        + wy
+                                        + ","
+                                        + wz
+                                        + ") after placing block '"
+                                        + entry.name
+                                        + "' from template '"
+                                        + templateName
+                                        + "'; cannot inject tile entity NBT",
+                                    null);
+                            }
+                        } else if (teNbt != null) {
+                            NBTTagCompound patchedNbt = (NBTTagCompound) teNbt.copy();
+                            patchedNbt.setInteger("x", wx);
+                            patchedNbt.setInteger("y", wy);
+                            patchedNbt.setInteger("z", wz);
+                            rotator.rotate(patchedNbt, rotationSteps);
 
-                    TileEntity te = ensureTileEntity(world, wx, wy, wz, block, entry, strict);
-                    if (te == null) {
-                        if (teNbt != null) {
-                            handleTemplateError(
-                                strict,
-                                "No TileEntity at (" + wx
-                                    + ","
-                                    + wy
-                                    + ","
-                                    + wz
-                                    + ") after placing block '"
-                                    + entry.name
-                                    + "' from template '"
-                                    + templateName
-                                    + "'; cannot inject tile entity NBT",
-                                null);
-                        }
-                        continue;
-                    }
-
-                    if (teNbt != null) {
-                        NBTTagCompound patchedNbt = (NBTTagCompound) teNbt.copy();
-                        patchedNbt.setInteger("x", wx);
-                        patchedNbt.setInteger("y", wy);
-                        patchedNbt.setInteger("z", wz);
-
-                        try {
-                            te.readFromNBT(patchedNbt);
-                            world.markBlockForUpdate(wx, wy, wz);
-                        } catch (RuntimeException e) {
-                            throw new TemplateException(
-                                "Failed to inject tile entity NBT for template '" + templateName
-                                    + "' at ("
-                                    + wx
-                                    + ","
-                                    + wy
-                                    + ","
-                                    + wz
-                                    + "): "
-                                    + errorMessage(e),
-                                e);
+                            try {
+                                te.readFromNBT(patchedNbt);
+                                world.markBlockForUpdate(wx, wy, wz);
+                            } catch (RuntimeException e) {
+                                throw new TemplateException(
+                                    "Failed to inject tile entity NBT for template '" + templateName
+                                        + "' at ("
+                                        + wx
+                                        + ","
+                                        + wy
+                                        + ","
+                                        + wz
+                                        + "): "
+                                        + errorMessage(e),
+                                    e);
+                            }
                         }
                     }
+
+                    rotatePlacedBlock(block, world, wx, wy, wz, entry.name, rotationSteps, strict);
                 }
+            }
+        }
+    }
+
+    static int rotatedLocalX(int x, int z, int sizeX, int sizeZ, int rotation) {
+        return switch (rotation) {
+            case 1 -> sizeZ - 1 - z;
+            case 2 -> sizeX - 1 - x;
+            case 3 -> z;
+            default -> x;
+        };
+    }
+
+    static int rotatedLocalZ(int x, int z, int sizeX, int sizeZ, int rotation) {
+        return switch (rotation) {
+            case 1 -> x;
+            case 2 -> sizeZ - 1 - z;
+            case 3 -> sizeX - 1 - x;
+            default -> z;
+        };
+    }
+
+    private static int placedSizeX(int sizeX, int sizeZ, int rotation) {
+        return (rotation & 1) == 0 ? sizeX : sizeZ;
+    }
+
+    private static int placedSizeZ(int sizeX, int sizeZ, int rotation) {
+        return (rotation & 1) == 0 ? sizeZ : sizeX;
+    }
+
+    private static int normalizeRotation(int rotation) {
+        if (rotation < 0 || rotation > 3) {
+            throw new IllegalArgumentException("Structure rotation must be between 0 and 3: " + rotation);
+        }
+        return rotation;
+    }
+
+    private static void rotatePlacedBlock(Block block, WorldServer world, int wx, int wy, int wz, String blockName,
+        int rotation, boolean strict) throws TemplateException {
+        if (rotation == 0) {
+            return;
+        }
+        for (int i = 0; i < rotation; i++) {
+            try {
+                block.rotateBlock(world, wx, wy, wz, ForgeDirection.UP);
+            } catch (RuntimeException e) {
+                handleTemplateError(
+                    strict,
+                    "Failed to rotate block '" + blockName
+                        + "' at ("
+                        + wx
+                        + ","
+                        + wy
+                        + ","
+                        + wz
+                        + "): "
+                        + errorMessage(e),
+                    e);
+                return;
             }
         }
     }
@@ -142,16 +248,14 @@ public final class StructurePlacer {
         return blocks;
     }
 
-    private static void ensureChunksLoaded(WorldServer world, int originX, int originY, int originZ, int sizeX,
-        int sizeY, int sizeZ) {
+    private static void ensureChunksLoaded(WorldServer world, int originX, int originZ, int sizeX, int sizeZ) {
 
         int chunkMinX = originX >> 4;
         int chunkMaxX = (originX + sizeX - 1) >> 4;
         int chunkMinZ = originZ >> 4;
         int chunkMaxZ = (originZ + sizeZ - 1) >> 4;
 
-        if (world.getChunkProvider() instanceof ChunkProviderServer) {
-            ChunkProviderServer cps = (ChunkProviderServer) world.getChunkProvider();
+        if (world.getChunkProvider() instanceof ChunkProviderServer cps) {
             for (int cx = chunkMinX; cx <= chunkMaxX; cx++) {
                 for (int cz = chunkMinZ; cz <= chunkMaxZ; cz++) {
                     cps.loadChunk(cx, cz);

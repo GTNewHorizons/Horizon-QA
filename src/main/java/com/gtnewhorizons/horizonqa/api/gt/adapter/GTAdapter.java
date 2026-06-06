@@ -1,5 +1,6 @@
 package com.gtnewhorizons.horizonqa.api.gt.adapter;
 
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.chunk.Chunk;
 
 import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
@@ -83,4 +84,7 @@ public interface GTAdapter {
 
     /** N-th fluid output hatch in canonical multiblock ordering; {@code null} if out of range or empty. */
     IGregTechTileEntity getOutputHatchTE(IMetaTileEntity mte, int index);
+
+    /** Rotate GT tile entity fields stored in exported structure NBT. */
+    void rotateStructureTileNbt(NBTTagCompound nbt, int rotation);
 }

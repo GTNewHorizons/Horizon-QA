@@ -2,6 +2,7 @@ package com.gtnewhorizons.horizonqa.api.gt;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -24,6 +25,7 @@ import com.gtnewhorizons.horizonqa.api.gt.adapter.GT5UnofficialAdapter;
 import com.gtnewhorizons.horizonqa.api.gt.adapter.GTAdapter;
 import com.gtnewhorizons.horizonqa.internal.TestEventRecorder;
 
+import cpw.mods.fml.common.Loader;
 import gregtech.api.interfaces.IConfigurationCircuitSupport;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
@@ -48,8 +50,6 @@ import gregtech.api.util.GTUtility;
  */
 @Experimental
 public class GTNHGameTestHelper {
-
-    private static final GTAdapter GT = new GT5UnofficialAdapter();
 
     /** Blocks in each axis from the test origin included in the fast-forward region. */
     private static final int DEFAULT_WARP_RANGE = 32;
@@ -82,7 +82,22 @@ public class GTNHGameTestHelper {
 
     /** Adapter used to read GT-internal state through one quarantined seam. */
     public GTAdapter adapter() {
-        return GT;
+        return gtAdapter();
+    }
+
+    public static void rotateStructureTileNbt(NBTTagCompound nbt, int rotation) {
+        if (Loader.isModLoaded("gregtech")) {
+            gtAdapter().rotateStructureTileNbt(nbt, rotation);
+        }
+    }
+
+    private static GTAdapter gtAdapter() {
+        return AdapterHolder.INSTANCE;
+    }
+
+    private static final class AdapterHolder {
+
+        private static final GTAdapter INSTANCE = new GT5UnofficialAdapter();
     }
 
     int originX() {
@@ -165,6 +180,7 @@ public class GTNHGameTestHelper {
      * {@link com.gtnewhorizons.horizonqa.api.event.TestEvent}s into the per-test recorder.
      */
     public void fastForwardTicks(int ticks, java.util.List<TestPos> watchedControllersAbs) {
+        GTAdapter gt = gtAdapter();
         TimeWarpHandler.fastForward(
             world,
             originX,
@@ -177,7 +193,7 @@ public class GTNHGameTestHelper {
             dynamo,
             null,
             recorder,
-            GT,
+            gt,
             watchedControllersAbs);
     }
 
@@ -188,6 +204,7 @@ public class GTNHGameTestHelper {
      */
     public void runUntilMachineIdle(TestPos relPos, int timeoutTicks) {
         TestPos abs = base.absolute(relPos.x(), relPos.y(), relPos.z());
+        GTAdapter gt = gtAdapter();
         int simulated = TimeWarpHandler.fastForward(
             world,
             originX,
@@ -200,14 +217,14 @@ public class GTNHGameTestHelper {
             dynamo,
             () -> {
                 TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
-                return !(te instanceof IGregTechTileEntity igte) || !GT.isActive(igte.getMetaTileEntity());
+                return !(te instanceof IGregTechTileEntity igte) || !gt.isActive(igte.getMetaTileEntity());
             },
             recorder,
-            GT,
+            gt,
             java.util.Collections.singletonList(abs));
 
         TileEntity te = world.getTileEntity(abs.x(), abs.y(), abs.z());
-        if (te instanceof IGregTechTileEntity igte && GT.isActive(igte.getMetaTileEntity())) {
+        if (te instanceof IGregTechTileEntity igte && gt.isActive(igte.getMetaTileEntity())) {
             throw error(
                 "Machine at " + relPos
                     + " is still active after "
@@ -248,7 +265,7 @@ public class GTNHGameTestHelper {
      */
     public void assertEUStored(TestPos relPos, long expectedEU) {
         IGregTechTileEntity igte = requireGTTE(relPos);
-        long stored = GT.getStoredEU(igte.getMetaTileEntity());
+        long stored = gtAdapter().getStoredEU(igte.getMetaTileEntity());
         if (stored < expectedEU) {
             throw error("Expected >= " + expectedEU + " EU stored at " + relPos + " but found " + stored, relPos);
         }
@@ -473,7 +490,7 @@ public class GTNHGameTestHelper {
         IMetaTileEntity mte = igte.getMetaTileEntity();
         int efficiency;
         try {
-            efficiency = GT.getEfficiency(mte);
+            efficiency = gtAdapter().getEfficiency(mte);
         } catch (IllegalStateException | IllegalArgumentException e) {
             throw error(
                 "TE at " + relPos
@@ -587,6 +604,6 @@ public class GTNHGameTestHelper {
     }
 
     private long getPollutionAtOrigin() {
-        return GT.getPollution(world.getChunkFromBlockCoords(originX, originZ));
+        return gtAdapter().getPollution(world.getChunkFromBlockCoords(originX, originZ));
     }
 }

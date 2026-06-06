@@ -16,6 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
+import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureLoader;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
@@ -162,8 +163,8 @@ public class InteractiveTestSession {
         List<PlannedTest> planned = new ArrayList<>(defs.size());
         for (GameTestDefinition def : defs) {
             HybridStructureTemplate template = loadTemplate(def);
-            int sizeX = template != null ? template.getSizeX() : 0;
-            int sizeZ = template != null ? template.getSizeZ() : 0;
+            int sizeX = template != null ? StructurePlacer.placedSizeX(template, def.getRotation()) : 0;
+            int sizeZ = template != null ? StructurePlacer.placedSizeZ(template, def.getRotation()) : 0;
             int[] origin = grid.allocateOrigin(sizeX, sizeZ);
             planned.add(planTestAt(def, origin[0], origin[1], origin[2], template));
         }
@@ -176,9 +177,9 @@ public class InteractiveTestSession {
 
     private PlannedTest planTestAt(GameTestDefinition def, int originX, int originY, int originZ,
         HybridStructureTemplate template) {
-        int sizeX = template != null ? template.getSizeX() : 0;
+        int sizeX = template != null ? StructurePlacer.placedSizeX(template, def.getRotation()) : 0;
         int sizeY = template != null ? template.getSizeY() : 0;
-        int sizeZ = template != null ? template.getSizeZ() : 0;
+        int sizeZ = template != null ? StructurePlacer.placedSizeZ(template, def.getRotation()) : 0;
 
         int cellSizeX = sizeX > 0 ? sizeX : GameTestGridLayout.DEFAULT_CELL_SIZE;
         int cellSizeY = sizeY > 0 ? sizeY : GameTestGridLayout.DEFAULT_CELL_SIZE;
@@ -261,7 +262,14 @@ public class InteractiveTestSession {
             plannedTest.cellMaxZ);
 
         if (template != null) {
-            StructurePlacer.place(template, world, originX, originY, originZ);
+            StructurePlacer.place(
+                template,
+                world,
+                originX,
+                originY,
+                originZ,
+                def.getRotation(),
+                GTNHGameTestHelper::rotateStructureTileNbt);
         }
 
         CellRecord cell = new CellRecord(

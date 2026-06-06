@@ -24,6 +24,7 @@ import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.event.StructurePlaced;
+import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook.HookPhase;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
@@ -131,8 +132,15 @@ public class GameTestBatchRunner {
             }
             if (p.template != null) {
                 try {
-                    StructurePlacer
-                        .placeStrict(p.def.getTemplateName(), p.template, world, p.originX, p.originY, p.originZ);
+                    StructurePlacer.placeStrict(
+                        p.def.getTemplateName(),
+                        p.template,
+                        world,
+                        p.originX,
+                        p.originY,
+                        p.originZ,
+                        p.def.getRotation(),
+                        GTNHGameTestHelper::rotateStructureTileNbt);
                 } catch (TemplateException e) {
                     planned.set(i, p.withTemplateError(templateErrorCase(p.def, e)));
                 }
@@ -323,9 +331,9 @@ public class GameTestBatchRunner {
             return PlannedTest.templateError(def, templateErrorCase(def, e));
         }
 
-        int sizeX = template != null ? template.getSizeX() : 0;
+        int sizeX = template != null ? StructurePlacer.placedSizeX(template, def.getRotation()) : 0;
         int sizeY = template != null ? template.getSizeY() : 0;
-        int sizeZ = template != null ? template.getSizeZ() : 0;
+        int sizeZ = template != null ? StructurePlacer.placedSizeZ(template, def.getRotation()) : 0;
         int[] origin = grid.allocateOrigin(sizeX, sizeZ);
 
         int cellSizeX = Math.max(sizeX, GameTestGridLayout.DEFAULT_CELL_SIZE);
