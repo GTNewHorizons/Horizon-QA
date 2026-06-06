@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a static method run once after all tests in the same {@link GameTest#batch()}.
+ * Marks a public static void method run once after all tests in the same {@link GameTest#batch()}.
  */
 @Experimental
 @Retention(RetentionPolicy.RUNTIME)

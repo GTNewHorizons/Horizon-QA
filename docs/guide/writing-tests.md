@@ -24,7 +24,7 @@ public class AssemblerTests {
 
 Rules enforced at discovery — invalid methods are skipped with a log warning, not a crash:
 
-- Method must be **`static`**.
+- Method must be **`public static`**.
 - Exactly one parameter: **`GameTestHelper`**.
 - Return type **`void`**.
 
@@ -36,15 +36,15 @@ Every test receives a stable id:
 <@GameTestHolder value>:<ClassSimpleName>.<methodName>
 ```
 
-Example: `mymod:AssemblerTests.processesOneRecipe`. Use this id with `/gametest run` and as the `classname` / `name` pair in JUnit XML.
+Example: `mymod:AssemblerTests.processesOneRecipe`. Use this id with `/horizonqa run` and as the `classname` / `name` pair in JUnit XML.
 
 ## Template attribute
 
-| Form                                  | Resolves to                                                      |
-|---------------------------------------|------------------------------------------------------------------|
-| `template = ""`                       | Empty void cell (no structure placement)                         |
-| `template = "ebf"`                    | `<holder>:ebf`, or `<holder>:<prefix>/ebf` when `templatePrefix` is set |
-| `template = "other:path/to/cell"`     | Used verbatim as a fully qualified `namespace:path`              |
+| Form                              | Resolves to                                                             |
+|-----------------------------------|-------------------------------------------------------------------------|
+| `template = ""`                   | Empty void cell (no structure placement)                                |
+| `template = "ebf"`                | `<holder>:ebf`, or `<holder>:<prefix>/ebf` when `templatePrefix` is set |
+| `template = "other:path/to/cell"` | Used verbatim as a fully qualified `namespace:path`                     |
 
 ## Batches
 
@@ -58,11 +58,11 @@ public static void warmCaches() { /* no args */ }
 public static void tearDown() { /* no args */ }
 ```
 
-Batch methods must be **static** and take **no parameters**. They run on the server thread before/after every test in that batch.
+Batch methods must be **public static void** and take **no parameters**. They run on the server thread before/after every test in that batch.
 
 ## `required = false`
 
-Tests marked `required = false` may fail without failing the overall run. Use it for experimental coverage or genuinely version-specific cases.
+Tests marked `required = false` may fail or time out without failing the overall run. CI still reports them in JUnit XML and status JSON; see [CI & JUnit reports](ci.md#optional-tests) for the exact reporting semantics.
 
 !!! danger "Do not use `required = false` as a permanent mute"
 

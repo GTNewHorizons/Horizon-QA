@@ -15,12 +15,10 @@ Horizon-QA starts in **interactive** mode by default. Adding the mod to a worksp
 Set `horizonqa.mode` on the **server** JVM when you need a mode other than the default:
 
 ```text
--Dhorizonqa.mode=off
--Dhorizonqa.mode=interactive
--Dhorizonqa.mode=ci
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=interactive"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=off"
 ```
-
-`off` loads the mod but disables commands, discovery, runner behavior, and test visuals.
 
 `interactive` enables commands, overlays, and manual test runs. It is the default when `horizonqa.mode` is not set.
 
@@ -28,8 +26,10 @@ Set `horizonqa.mode` on the **server** JVM when you need a mode other than the d
 
 - The dedicated **GameTest** world type is registered.
 - ASM-based discovery runs across every `@GameTestHolder` class on the classpath.
-- All discovered tests run automatically.
-- A JUnit report is written before the server exits.
+- Selected tests run automatically.
+- `TEST-horizonqa.xml` and `horizonqa-result.json` are written before the server exits.
+
+`off` loads the mod but disables commands, discovery, runner behavior, and test visuals.
 
 !!! tip "Pick the mode for the job"
 
@@ -43,19 +43,25 @@ From the repository root, with GTNH caches already configured:
 ./gradlew --info --stacktrace :examples:runServer
 ```
 
-`runServer` is provided by Retrofuturagradle. When you do need to pass a JVM flag, such as CI mode, forward it to the Minecraft server via `--mcJvmArgs`. Passing `-Dhorizonqa.mode=ci` directly to Gradle sets it on the Gradle daemon, where the runner never sees it.
+`runServer` is provided by Retrofuturagradle. When you need to pass a JVM flag, forward it to the Minecraft server via `--mcJvmArgs`. Passing `-Dhorizonqa.mode=ci` directly to Gradle sets it on the Gradle daemon, where the runner never sees it.
+
+For a CI-style example run:
+
+```bash
+./gradlew --info --stacktrace :examples:runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
+```
 
 In-game (operator permission level **2**):
 
-| Command                           | Purpose                                                              |
-|-----------------------------------|----------------------------------------------------------------------|
-| `/horizonqa runall`               | Run every discovered test                                            |
-| `/horizonqa runall <namespace>`   | Run tests whose id starts with `<namespace>:`                        |
-| `/horizonqa run <testId>`         | Run one test by id, e.g. `horizonqaexamples:BasicTests.passImmediately` |
-| `/horizonqa runfailed`            | Re-run only the tests that failed in the last batch                  |
-| `/qa`                             | Alias for `/horizonqa`                                               |
+| Command                         | Purpose                                                                 |
+|---------------------------------|-------------------------------------------------------------------------|
+| `/horizonqa runall`             | Run every discovered test                                               |
+| `/horizonqa runall <namespace>` | Run tests whose id starts with `<namespace>:`                           |
+| `/horizonqa run <testId>`       | Run one test by id, e.g. `horizonqaexamples:BasicTests.passImmediately` |
+| `/horizonqa runfailed`          | Re-run only the tests that failed in the last batch                     |
+| `/qa`                           | Alias for `/horizonqa`                                                  |
 
-After a batch completes, the server writes **`TEST-horizonqa.xml`** and **`horizonqa-result.json`** in the working directory (typically the run folder). See [CI & JUnit reports](../guide/ci.md).
+After a batch completes, the server writes **`TEST-horizonqa.xml`** and **`horizonqa-result.json`** in the working directory unless report paths are overridden. See [CI & JUnit reports](../guide/ci.md).
 
 ## Horizon Wand
 
@@ -73,7 +79,7 @@ After `/horizonqa runall`, failed cells **stay placed** on the grid with their o
 
 | Command               | Purpose                                                                                |
 |-----------------------|----------------------------------------------------------------------------------------|
-| `/horizonqa pos`      | Print world + test-relative coordinates; click-to-copy `helper.absolute(x, y, z)`      |
+| `/horizonqa pos`      | Print world + test-relative coordinates; suggest `helper.absolute(x, y, z)`            |
 | `/horizonqa runthis`  | Re-run the test cell you are looking at                                                |
 | `/horizonqa runthat`  | Re-run the nearest test cell                                                           |
 | `/horizonqa clearall` | Remove placed test cells and overlays                                                  |

@@ -10,15 +10,15 @@ tags:
 
 ## `@GameTest`
 
-Marks a static test method with signature `void name(GameTestHelper helper)`.
+Marks a public static test method with signature `void name(GameTestHelper helper)`.
 
-| Attribute       | Type      | Default | Description                                                              |
-|-----------------|-----------|---------|--------------------------------------------------------------------------|
-| `template`      | `String`  | `""`    | Structure name; see [Structure templates](../guide/structures.md)        |
-| `timeoutTicks`  | `int`     | `100`   | Full server ticks the test may observe before timing out                 |
-| `batch`         | `String`  | `""`    | Batch group name for ordering and `@BeforeBatch` / `@AfterBatch` hooks   |
-| `required`      | `boolean` | `true`  | If `false`, a failure may not fail the overall run                       |
-| `rotation`      | `int`     | `0`     | Structure rotation `0–3` (90° steps clockwise around Y)                  |
+| Attribute       | Type      | Default | Description                                                            |
+|-----------------|-----------|---------|------------------------------------------------------------------------|
+| `template`      | `String`  | `""`    | Structure name; see [Structure templates](../guide/structures.md)      |
+| `timeoutTicks`  | `int`     | `100`   | Full server ticks the test may observe before timing out               |
+| `batch`         | `String`  | `""`    | Batch group name for ordering and `@BeforeBatch` / `@AfterBatch` hooks |
+| `required`      | `boolean` | `true`  | If `false`, a failure may not fail the overall run                     |
+| `rotation`      | `int`     | `0`     | Structure rotation `0-3` (90° steps clockwise around Y)                |
 
 `timeoutTicks = N` allows the test to observe ticks `1..N`. Timeout is reported after the END phase of tick `N`. END-phase sequence actions scheduled on that boundary run before timeout is reported, so a sequence can still pass at `timeoutTicks`.
 
@@ -37,7 +37,7 @@ Stability: `@Experimental`.
 
 ## `@BeforeBatch` / `@AfterBatch`
 
-Static no-arg methods that run once before/after every test sharing a `batch` value on `@GameTest`.
+Public static void no-arg methods that run once before/after every test sharing a `batch` value on `@GameTest`.
 
 | Attribute | Type     | Description                                            |
 |-----------|----------|--------------------------------------------------------|
@@ -63,4 +63,4 @@ Expect breaking API refinements in 0.x.x; pin versions and budget for updates un
 <holder.value>:<ClassSimpleName>.<methodName>
 ```
 
-Used in commands, JUnit XML (`classname` / `name`), batch summaries, and logs.
+Used in commands, JUnit XML (`classname` / `name`), batch summaries, selectors, and logs.

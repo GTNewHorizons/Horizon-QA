@@ -325,6 +325,20 @@ public final class GameTestRegistry {
                             .getName()
                         + "': must be public static."));
         }
+        if (method.getReturnType() != Void.TYPE) {
+            issues.add(
+                issue(
+                    "discovery:invalidHook:" + phase.name()
+                        .toLowerCase() + ":" + methodRef(method) + ":returnType",
+                    KIND_DISCOVERY_ERROR,
+                    "Skipping " + annotationName
+                        + " method '"
+                        + method.getName()
+                        + "' in '"
+                        + method.getDeclaringClass()
+                            .getName()
+                        + "': must return void."));
+        }
         if (method.getParameterCount() != 0) {
             issues.add(
                 issue(
