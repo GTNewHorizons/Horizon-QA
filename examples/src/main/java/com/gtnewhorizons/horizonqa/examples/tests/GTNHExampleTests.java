@@ -19,7 +19,7 @@ import gregtech.api.util.GTRecipeBuilder;
 @GameTestHolder(ExamplesMod.MODID)
 public class GTNHExampleTests {
 
-    @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh", rotation = 1)
+    @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
     public static void testTitaniumSmelting(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
         Multiblock ebf = gtnh.multiblock(at(1, 0, 0));
