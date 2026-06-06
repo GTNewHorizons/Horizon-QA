@@ -10,7 +10,7 @@ tags:
 
 ## Gradle dependency
 
-Add Horizon-QA to your mod's `dependencies.gradle` (or equivalent). It belongs on the **dev / CI classpath only**; release jars of gameplay mods should not bundle it.
+Add Horizon-QA to your mod's `dependencies.gradle` (or equivalent). It belongs on the **dev / CI classpath only** — release jars of gameplay mods should not bundle it.
 
 ```groovy
 dependencies {
@@ -41,8 +41,8 @@ Recommended layout for a mod named `mymod`:
 
 ```text
 src/main/java/.../tests/
-  multiblock/<machine>/             # single-mod multiblock tests
-  compatibility/<modA>_<modB>/      # cross-mod scenarios
+  multiblock/<machine>/             ← single-mod multiblock tests
+  compatibility/<modA>_<modB>/      ← cross-mod scenarios
 src/main/resources/assets/mymod/horizonqastructures/
   ebf.json
   ebf_tiles.nbt
@@ -77,9 +77,9 @@ Templates load from the classpath:
 
 The `examples` subproject is the canonical reference:
 
-- `BasicTests` - assertions, sequences, optional tests.
-- `GTNHExampleTests` - EBF formation, EU supply, maintenance gating, synthetic recipes.
-- `StructureTests` - template placement and block-level assertions.
+- `BasicTests` — assertions, sequences, optional tests.
+- `GTNHExampleTests` — EBF formation, EU supply, maintenance gating, synthetic recipes.
+- `StructureTests` — template placement and block-level assertions.
 
 Run `./gradlew :examples:runServer` to iterate against them.
 

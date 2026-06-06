@@ -67,9 +67,9 @@ After a batch completes, the server writes **`TEST-horizonqa.xml`** and **`horiz
 
 A creative-tab item used to define export bounds.
 
-1. ++left-button++ a block -> position 1.
-2. ++right-button++ a block -> position 2.
-3. `/horizonqa export <name>` -> writes `horizonqastructures/<name>.json` and `<name>_tiles.nbt` under the server directory.
+1. ++left-button++ a block → position 1.
+2. ++right-button++ a block → position 2.
+3. `/horizonqa export <name>` → writes `horizonqastructures/<name>.json` and `<name>_tiles.nbt` under the server directory.
 
 Move the exported files into `src/main/resources/assets/<modid>/horizonqastructures/` in your mod. Full export details: [Structure templates](../guide/structures.md).
 

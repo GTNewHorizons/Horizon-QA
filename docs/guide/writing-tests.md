@@ -22,7 +22,7 @@ public class AssemblerTests {
 }
 ```
 
-Rules enforced at discovery; invalid methods are skipped with a log warning, not a crash:
+Rules enforced at discovery — invalid methods are skipped with a log warning, not a crash:
 
 - Method must be **`public static`**.
 - Exactly one parameter: **`GameTestHelper`**.
@@ -70,13 +70,13 @@ Tests marked `required = false` may fail or time out without failing the overall
 
 ## Rotation
 
-`rotation` on `@GameTest` is `0..3`: none, 90 degrees, 180 degrees, 270 degrees clockwise around Y, matching structure placement conventions. Setting it to a non-zero value is the cheapest way to catch templates that quietly hardcoded a facing.
+`rotation` on `@GameTest` is `0–3`: none, 90°, 180°, 270° clockwise around Y, matching structure placement conventions. Setting it to a non-zero value is the cheapest way to catch templates that quietly hardcoded a facing.
 
-If a test only passes at `rotation = 0`, document the reason in the method body; usually it indicates a coordinate that should have been a role-based lookup.
+If a test only passes at `rotation = 0`, document the reason in the method body — usually it indicates a coordinate that should have been a role-based lookup.
 
 ## Cleanup and isolation
 
-Follow [Design principle 6 - Leave no trace](../contributing/principles.md):
+Follow [Design principle 6 — Leave no trace](../contributing/principles.md):
 
 - Call `gtnh.withTestRecipe(...)` for synthetic recipes; cleanup runs automatically at end of test via `afterTest`.
 - Register `helper.afterTest(() -> { ... })` for any manual registry or world mutation outside framework helpers.
@@ -93,7 +93,7 @@ helper.assertEquals(64, actualCount,
     "Output bus should contain 64 copper plates after recipe");
 ```
 
-Avoid messages like `"wrong count"` or `"assertion failed"`; they force the reader to open the JUnit XML to learn anything.
+Avoid messages like `"wrong count"` or `"assertion failed"` — they force the reader to open the JUnit XML to learn anything.
 
 ## Imperative vs fluent GT API
 
@@ -119,7 +119,7 @@ Two styles are supported. Both compile to the same calls; pick by what is most l
     gtnh.assertItemInBus(outputBus, stack);
     ```
 
-Prefer **role-based** hatch indices (`inputBus(0)`) over raw coordinates when using `Multiblock`. Coordinates belong in the template, not throughout the test method.
+Prefer **role-based** hatch indices (`inputBus(0)`) over raw coordinates when using `Multiblock`. Coordinates belong in the template — not throughout the test method.
 
 ## Further reading
 

@@ -48,8 +48,8 @@ Relative paths resolve from the server process working directory. When `horizonq
 `TEST-horizonqa.xml` uses a standard JUnit-style `<testsuite>`:
 
 ```xml
-<testsuite name="horizonqa" tests="..." failures="..." errors="..." skipped="..." ...>
-  <testcase name="methodName" classname="namespace:ClassName" time="...">
+<testsuite name="horizonqa" tests="…" failures="…" errors="…" skipped="…" …>
+  <testcase name="methodName" classname="namespace:ClassName" time="…">
     <!-- failure, error, skipped, and system-out elements as appropriate -->
   </testcase>
 </testsuite>
@@ -214,8 +214,8 @@ If your workflow uses a JUnit publishing action, run it after the upload step wi
 ## Local iteration loop
 
 ```text
-edit test -> runServer -> /horizonqa run <id> -> inspect overlay + XML
-          -> /horizonqa runfailed            -> re-run only failures
+edit test → runServer → /horizonqa run <id> → inspect overlay + XML
+          → /horizonqa runfailed            → re-run only failures
 ```
 
 Use CI mode for automation and interactive mode for in-world debugging.
