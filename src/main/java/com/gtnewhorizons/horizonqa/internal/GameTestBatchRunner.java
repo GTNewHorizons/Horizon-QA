@@ -474,11 +474,11 @@ public class GameTestBatchRunner {
         return phase == HookPhase.BEFORE ? "BeforeBatch" : "AfterBatch";
     }
 
-    private static String batchName(String batch) {
+    static String batchName(String batch) {
         return batch == null || batch.isEmpty() ? "default" : batch;
     }
 
-    private static String batchId(String batch) {
+    static String batchId(String batch) {
         return batchName(batch);
     }
 
