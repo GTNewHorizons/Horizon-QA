@@ -25,6 +25,7 @@ import com.gtnewhorizons.horizonqa.api.gt.adapter.GT5UnofficialAdapter;
 import com.gtnewhorizons.horizonqa.api.gt.adapter.GTAdapter;
 import com.gtnewhorizons.horizonqa.internal.TestEventRecorder;
 
+import cpw.mods.fml.common.Loader;
 import gregtech.api.interfaces.IConfigurationCircuitSupport;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
@@ -33,8 +34,6 @@ import gregtech.api.recipe.RecipeMap;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTRecipeBuilder;
 import gregtech.api.util.GTUtility;
-
-import cpw.mods.fml.common.Loader;
 
 /**
  * GT-specific test helper returned by {@link GameTestHelper#gtnh()}.
@@ -97,6 +96,7 @@ public class GTNHGameTestHelper {
     }
 
     private static final class AdapterHolder {
+
         private static final GTAdapter INSTANCE = new GT5UnofficialAdapter();
     }
 
