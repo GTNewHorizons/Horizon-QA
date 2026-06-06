@@ -6,7 +6,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.chunk.Chunk;
+import net.minecraftforge.common.util.ForgeDirection;
 
 import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 import com.gtnewhorizons.horizonqa.api.event.state.HatchTopology;
@@ -24,6 +26,7 @@ import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 public final class GT5UnofficialAdapter implements GTAdapter {
 
     private static final String POLLUTION_CLASS = "gregtech.common.pollution.Pollution";
+    private static final String FACING_NBT_KEY = "mFacing";
 
     private final Method pollutionMethod;
     private final Field processingLogicField;
@@ -243,6 +246,17 @@ public final class GT5UnofficialAdapter implements GTAdapter {
         if (index < 0 || index >= multi.mOutputHatches.size()) return null;
         MTEHatchOutput h = multi.mOutputHatches.get(index);
         return h != null ? h.getBaseMetaTileEntity() : null;
+    }
+
+    @Override
+    public void rotateStructureTileNbt(NBTTagCompound nbt, int rotation) {
+        if (rotation == 0 || !nbt.hasKey(FACING_NBT_KEY)) return;
+
+        ForgeDirection facing = ForgeDirection.getOrientation(nbt.getShort(FACING_NBT_KEY));
+        for (int i = 0; i < rotation; i++) {
+            facing = facing.getRotation(ForgeDirection.UP);
+        }
+        nbt.setShort(FACING_NBT_KEY, (short) facing.ordinal());
     }
 
     private static int countOutputHatches(MTEMultiBlockBase multi) {
