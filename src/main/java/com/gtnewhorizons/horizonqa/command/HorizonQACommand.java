@@ -24,9 +24,11 @@ import net.minecraft.world.WorldServer;
 
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
+import com.gtnewhorizons.horizonqa.internal.DiscoveryIssue;
 import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
+import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.structure.StructureExporter;
 
@@ -106,9 +108,9 @@ public class HorizonQACommand extends CommandBase {
         }
         if (args.length == 2) {
             if ("run".equals(args[0])) {
-                List<GameTestDefinition> all = GameTestRegistry.getAllTests();
-                String[] ids = new String[all.size()];
-                for (int i = 0; i < all.size(); i++) ids[i] = all.get(i)
+                List<GameTestDefinition> runnable = GameTestRegistry.getAllTests();
+                String[] ids = new String[runnable.size()];
+                for (int i = 0; i < runnable.size(); i++) ids[i] = runnable.get(i)
                     .getTestId();
                 return getListOfStringsMatchingLastWord(args, ids);
             }
@@ -133,6 +135,11 @@ public class HorizonQACommand extends CommandBase {
         String testId = args[1];
         GameTestDefinition def = findDefinition(testId);
         if (def == null) {
+            InvalidTestDefinition invalidTest = findInvalidTest(testId);
+            if (invalidTest != null) {
+                reportInvalidTest(sender, invalidTest);
+                return;
+            }
             sender.addChatMessage(
                 new ChatComponentText(
                     EnumChatFormatting.RED + "Unknown test: '"
@@ -414,6 +421,32 @@ public class HorizonQACommand extends CommandBase {
         }
     }
 
+    private static void reportInvalidTest(ICommandSender sender, InvalidTestDefinition invalidTest) {
+        sender.addChatMessage(
+            new ChatComponentText(
+                EnumChatFormatting.RED + "Invalid test: '"
+                    + EnumChatFormatting.YELLOW
+                    + invalidTest.intendedTestId()
+                    + EnumChatFormatting.RED
+                    + "' was excluded during discovery."));
+
+        List<DiscoveryIssue> issues = invalidTest.issues();
+        if (!issues.isEmpty()) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + "Reason: "
+                        + issues.get(0)
+                            .message()));
+            if (issues.size() > 1) {
+                sender.addChatMessage(
+                    new ChatComponentText(
+                        EnumChatFormatting.GRAY + "Also has "
+                            + (issues.size() - 1)
+                            + " other discovery issue(s). Check the server log for details."));
+            }
+        }
+    }
+
     private void handleClear(ICommandSender sender, String[] args) {
         EntityPlayer player = requirePlayer(sender);
         if (player == null) return;
@@ -436,6 +469,14 @@ public class HorizonQACommand extends CommandBase {
         for (GameTestDefinition def : GameTestRegistry.getAllTests()) {
             if (def.getTestId()
                 .equals(testId)) return def;
+        }
+        return null;
+    }
+
+    private static InvalidTestDefinition findInvalidTest(String testId) {
+        for (InvalidTestDefinition invalidTest : GameTestRegistry.getInvalidTests()) {
+            if (invalidTest.intendedTestId()
+                .equals(testId)) return invalidTest;
         }
         return null;
     }
