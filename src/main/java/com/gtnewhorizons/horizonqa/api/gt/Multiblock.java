@@ -48,7 +48,7 @@ public final class Multiblock {
     }
 
     /**
-     * Asserts the controller is fully formed. Runs {@link MTEMultiBlockBase#checkStructure(boolean)} with
+     * Asserts the controller is fully formed. Runs {@link MTEMultiBlockBase#checkStructure(boolean, IGregTechTileEntity)} with
      * {@code forceReset = true} once if the structure is not yet valid, then fails if still unformed.
      *
      * <p>
@@ -67,7 +67,7 @@ public final class Multiblock {
         boolean wasFormed = multi.mMachine;
         boolean ranCheck = false;
         if (!multi.mMachine) {
-            multi.checkStructure(true);
+            multi.checkStructure(true, multi.getBaseMetaTileEntity());
             ranCheck = true;
             final boolean nowFormed = multi.mMachine;
             TestEventRecorder rec = helper.recorder();
