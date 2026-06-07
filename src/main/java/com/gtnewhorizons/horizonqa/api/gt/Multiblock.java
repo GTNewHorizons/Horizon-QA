@@ -48,7 +48,8 @@ public final class Multiblock {
     }
 
     /**
-     * Asserts the controller is fully formed. Runs {@link MTEMultiBlockBase#checkStructure(boolean, IGregTechTileEntity)} with
+     * Asserts the controller is fully formed. Runs
+     * {@link MTEMultiBlockBase#checkStructure(boolean, IGregTechTileEntity)} with
      * {@code forceReset = true} once if the structure is not yet valid, then fails if still unformed.
      *
      * <p>
