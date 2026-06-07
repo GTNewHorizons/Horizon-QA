@@ -16,9 +16,19 @@ Horizon-QA is aimed at tests that assert a bad state **never** occurs over a tic
 @GameTest(template = "ebf_no_coils", timeoutTicks = 60)
 public static void doesNotFormWithoutCoils(GameTestHelper helper) {
     Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0));
-    helper.onEachTick(() -> helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
-    helper.succeedAtTimeout();
+    ebf.assertNeverForms("EBF formed without coils");
 }
+```
+
+For GT multiblock formation tests, `assertNeverForms(...)` forces a structure check immediately, registers a per-tick
+negative invariant, and succeeds at timeout. That forced first check matters when you mutate an exported valid template:
+the controller may otherwise still hold a stale `mMachine=true` value from placement.
+
+The equivalent generic pattern is:
+
+```java
+helper.onEachTick(() -> helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
+helper.succeedAtTimeout();
 ```
 
 | Call                                              | Role                                                                  |

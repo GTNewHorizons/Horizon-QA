@@ -208,8 +208,7 @@ public class GTNHExampleTests {
     public static void doesNotFormWithoutCoils(GameTestHelper helper) {
         Multiblock ebf = helper.gtnh()
             .multiblock(at(1, 0, 0));
-        helper.onEachTick(() -> helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
-        helper.succeedAtTimeout();
+        ebf.assertNeverForms("EBF formed without coils");
     }
 
     @GameTest(template = "cleanroom", timeoutTicks = 4600)

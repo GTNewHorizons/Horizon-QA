@@ -48,6 +48,27 @@ public final class BusGroup {
             controllerPos.z());
     }
 
+    /** Passes when no slot in any bus contains {@code stack} (item, damage, and NBT match; stack size ignored). */
+    public void assertNotContains(ItemStack stack) {
+        assertNotContains(ItemMatcher.of(stack));
+    }
+
+    /** Passes when no slot in any bus matches {@code matcher}. */
+    public void assertNotContains(ItemMatcher matcher) {
+        for (Bus bus : buses) {
+            for (int i = 0; i < bus.size(); i++) {
+                ItemStack slot = bus.slot(i);
+                if (matcher.matches(slot)) {
+                    throw new GameTestAssertException(
+                        label + " unexpectedly contains " + matcher + " in one of its buses",
+                        controllerPos.x(),
+                        controllerPos.y(),
+                        controllerPos.z());
+                }
+            }
+        }
+    }
+
     public void assertEmpty() {
         for (Bus bus : buses) {
             bus.assertEmpty();

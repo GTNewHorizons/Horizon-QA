@@ -79,6 +79,36 @@ gtnh.assertFluidInHatch(pos, "nitrogen", 2000);
 
 Bus insert and assert helpers exist symmetrically on `GameTestHelper` and on `Multiblock` bus groups.
 
+For negative item assertions, use `assertNotContains`:
+
+```java
+ebf.outputBus(0).assertNotContains(Materials.Gold.getIngots(1));
+ebf.outputs().assertNotContains(Materials.Gold.getIngots(1));
+```
+
+For fixture setup, a `Bus` can write slots directly. This bypasses normal insertion rules, so it is useful for cases
+like pre-filling an output bus:
+
+```java
+ebf.outputBus(0).fillAllSlots(Materials.Stone.getDust(64));
+ebf.outputBus(0).setSlot(0, Materials.Stone.getDust(64));
+```
+
+Use `insert(...)` when the test should simulate normal insertion behavior.
+
+## Structure checks
+
+`assertFormed()` is the normal positive assertion. For invalid-template tests, use the negative helpers:
+
+```java
+Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0));
+ebf.assertNeverForms("EBF formed without coils");
+```
+
+`assertNeverForms(...)` forces a structure check immediately, asserts the machine is unformed on every tick, and
+succeeds at timeout. If you mutate a valid template inside Java, use `assertNotFormed(...)` or
+`forceStructureCheck()` to invalidate stale controller state before reading `isFormed()`.
+
 ## Synthetic recipes
 
 Register a temporary recipe for the rest of the test; it is removed automatically when the test ends:
@@ -99,6 +129,16 @@ Cleanup is registered via `afterTest` — no try-with-resources required. Inject
 ## GT internals boundary
 
 Every direct GT field read goes through `GT5UnofficialAdapter`. If GT5 renames an internal field, exactly one file fails to compile; event record types do not import `gregtech.*`. GT bumps are handled in that one class.
+
+When the facade does not cover an exotic case yet, `GTNHGameTestHelper` exposes low-level escape hatches:
+
+```java
+gtnh.gtTile(pos);
+gtnh.metaTileEntity(pos);
+gtnh.multiBlockController(pos);
+```
+
+Prefer role-based methods first; these are intentionally closer to GregTech internals.
 
 ## Javadoc
 

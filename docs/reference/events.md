@@ -69,7 +69,7 @@ Records live in `com.gtnewhorizons.horizonqa.api.event`. All are Java records, a
 | `MachineDeformed`    | `mMachine` flipped to false while the controller TE is still present         |
 | `MachineExploded`    | Controller TE is gone, or `assertMachineExploded` passes                     |
 | `MachineDisabled`    | Active machine stops without finishing a recipe                              |
-| `StructureCheckRan`  | `assertFormed` fell back to `checkStructure(true)`                           |
+| `StructureCheckRan`  | A multiblock helper ran `checkStructure(...)`                                |
 
 `MachineFormed.cause` distinguishes "template loaded already formed" from "assertion forced it" from "formed mid-warp":
 

@@ -68,17 +68,8 @@ public final class Multiblock {
         boolean wasFormed = multi.mMachine;
         boolean ranCheck = false;
         if (!multi.mMachine) {
-            multi.checkStructure(true, multi.getBaseMetaTileEntity());
+            runStructureCheck(multi, true);
             ranCheck = true;
-            final boolean nowFormed = multi.mMachine;
-            TestEventRecorder rec = helper.recorder();
-            rec.record(
-                () -> new StructureCheckRan(
-                    rec.clock()
-                        .tick(),
-                    absPos,
-                    true,
-                    nowFormed));
         }
         if (!multi.mMachine) {
             throw error(
@@ -100,6 +91,71 @@ public final class Multiblock {
                 cause,
                 helper.adapter()
                     .snapshotHatches(multi)));
+    }
+
+    /**
+     * Forces the controller to run {@link MTEMultiBlockBase#checkStructure(boolean, IGregTechTileEntity)} with
+     * {@code forceReset = true}, then returns whether it reports formed.
+     *
+     * <p>
+     * Use this after mutating a placed template when you need to invalidate a stale {@code mMachine=true} flag.
+     */
+    public boolean forceStructureCheck() {
+        return checkStructure(true);
+    }
+
+    /**
+     * Runs the controller's structure check and returns whether it reports formed afterward.
+     *
+     * <p>
+     * Passing {@code forceReset = true} clears and rebuilds hatch lists even when the controller currently reports
+     * formed. Passing {@code false} mirrors GregTech's normal "only if changed" behavior.
+     */
+    public boolean checkStructure(boolean forceReset) {
+        MTEMultiBlockBase multi = resolveController();
+        return runStructureCheck(multi, forceReset);
+    }
+
+    /** Forces a structure check and fails if the controller reports formed afterward. */
+    public void assertNotFormed() {
+        assertNotFormed("Multiblock at " + absPos + " unexpectedly formed");
+    }
+
+    /** Forces a structure check and fails with {@code message} if the controller reports formed afterward. */
+    public void assertNotFormed(String message) {
+        if (forceStructureCheck()) {
+            throw error(message);
+        }
+    }
+
+    /**
+     * Negative invariant helper for invalid templates. Asserts unformed immediately, then on every game-test tick,
+     * and marks the test successful at timeout.
+     *
+     * <p>
+     * Pair this with a finite {@code @GameTest(timeoutTicks = ...)}.
+     */
+    public void assertNeverForms() {
+        assertNeverForms("Multiblock at " + absPos + " unexpectedly formed");
+    }
+
+    /**
+     * Negative invariant helper for invalid templates. Asserts unformed immediately, then on every game-test tick,
+     * and marks the test successful at timeout.
+     *
+     * <p>
+     * Pair this with a finite {@code @GameTest(timeoutTicks = ...)}.
+     */
+    public void assertNeverForms(String message) {
+        assertNotFormed(message);
+        helper.base()
+            .onEachTick(() -> {
+                if (isFormed()) {
+                    throw error(message);
+                }
+            });
+        helper.base()
+            .succeedAtTimeout();
     }
 
     /** Whether the controller reports a formed structure. */
@@ -395,6 +451,20 @@ public final class Multiblock {
                     + ")");
         }
         return multi;
+    }
+
+    private boolean runStructureCheck(MTEMultiBlockBase multi, boolean forceReset) {
+        multi.checkStructure(forceReset, multi.getBaseMetaTileEntity());
+        final boolean nowFormed = multi.mMachine;
+        TestEventRecorder rec = helper.recorder();
+        rec.record(
+            () -> new StructureCheckRan(
+                rec.clock()
+                    .tick(),
+                absPos,
+                forceReset,
+                nowFormed));
+        return nowFormed;
     }
 
     private TestPos relPos() {

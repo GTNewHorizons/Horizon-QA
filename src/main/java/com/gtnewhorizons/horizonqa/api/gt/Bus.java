@@ -136,6 +136,26 @@ public final class Bus {
             te.getZCoord());
     }
 
+    /** Passes when no slot contains {@code stack} (item, damage, and NBT match; stack size ignored). */
+    public void assertNotContains(ItemStack stack) {
+        assertNotContains(ItemMatcher.of(stack));
+    }
+
+    /** Passes when no slot matches {@code matcher}. */
+    public void assertNotContains(ItemMatcher matcher) {
+        IInventory inv = inventory();
+        for (int i = 0; i < inv.getSizeInventory(); i++) {
+            ItemStack slot = inv.getStackInSlot(i);
+            if (matcher.matches(slot)) {
+                throw new GameTestAssertException(
+                    label + " unexpectedly contains " + matcher + " in slot " + i,
+                    te.getXCoord(),
+                    te.getYCoord(),
+                    te.getZCoord());
+            }
+        }
+    }
+
     public void assertEmpty() {
         IInventory inv = inventory();
         if (!InventoryHelper.isEmpty(inv)) {
@@ -150,15 +170,52 @@ public final class Bus {
      */
     public ItemStack slot(int index) {
         IInventory inv = inventory();
-        if (index < 0 || index >= inv.getSizeInventory()) {
-            throw new IndexOutOfBoundsException(
-                "Slot " + index + " out of range for " + label + " (size=" + inv.getSizeInventory() + ")");
-        }
+        checkSlotIndex(inv, index);
         return inv.getStackInSlot(index);
+    }
+
+    /**
+     * Directly sets a bus slot for test setup, bypassing normal insertion rules.
+     *
+     * <p>
+     * This is intended for fixture setup such as pre-filling an output bus. Use {@link #insert(ItemStack...)} when the
+     * test needs to simulate normal item insertion.
+     */
+    public Bus setSlot(int index, ItemStack stack) {
+        IInventory inv = inventory();
+        checkSlotIndex(inv, index);
+        inv.setInventorySlotContents(index, stack == null ? null : stack.copy());
+        return this;
+    }
+
+    /** Directly fills every slot with a copy of {@code stack}, bypassing normal insertion rules. */
+    public Bus fillAllSlots(ItemStack stack) {
+        if (stack == null) throw new IllegalArgumentException("stack must not be null");
+        IInventory inv = inventory();
+        for (int i = 0; i < inv.getSizeInventory(); i++) {
+            inv.setInventorySlotContents(i, stack.copy());
+        }
+        return this;
+    }
+
+    /** Directly clears every slot, bypassing normal extraction rules. */
+    public Bus clear() {
+        IInventory inv = inventory();
+        for (int i = 0; i < inv.getSizeInventory(); i++) {
+            inv.setInventorySlotContents(i, null);
+        }
+        return this;
     }
 
     int size() {
         return inventory().getSizeInventory();
+    }
+
+    private void checkSlotIndex(IInventory inv, int index) {
+        if (index < 0 || index >= inv.getSizeInventory()) {
+            throw new IndexOutOfBoundsException(
+                "Slot " + index + " out of range for " + label + " (size=" + inv.getSizeInventory() + ")");
+        }
     }
 
     private IInventory inventory() {

@@ -80,9 +80,45 @@ public class GTNHGameTestHelper {
         return recorder;
     }
 
+    GameTestHelper base() {
+        return base;
+    }
+
     /** Adapter used to read GT-internal state through one quarantined seam. */
     public GTAdapter adapter() {
         return gtAdapter();
+    }
+
+    /**
+     * Low-level escape hatch: the GregTech tile entity at {@code relPos}.
+     *
+     * <p>
+     * Prefer role-based helpers such as {@link #multiblock(TestPos)}, {@link Multiblock#inputBus(int)}, and
+     * {@link Multiblock#energyHatch(int)} when they cover the case under test.
+     */
+    public IGregTechTileEntity gtTile(TestPos relPos) {
+        return requireGTTE(relPos);
+    }
+
+    /**
+     * Low-level escape hatch: the meta tile entity at {@code relPos}.
+     *
+     * <p>
+     * Prefer role-based helpers when possible. This is useful for exotic hatch paths or direct fixture setup that the
+     * facade does not model yet.
+     */
+    public IMetaTileEntity metaTileEntity(TestPos relPos) {
+        return requireMetaTileEntity(relPos);
+    }
+
+    /**
+     * Low-level escape hatch: the multiblock controller meta tile entity at {@code relPos}.
+     *
+     * <p>
+     * Prefer {@link #multiblock(TestPos)} for normal tests.
+     */
+    public MTEMultiBlockBase multiBlockController(TestPos relPos) {
+        return requireMultiBlock(relPos);
     }
 
     public static void rotateStructureTileNbt(NBTTagCompound nbt, int rotation) {
@@ -412,8 +448,7 @@ public class GTNHGameTestHelper {
         if (circuit == null) {
             throw new IllegalArgumentException("GTUtility.getIntegratedCircuit returned null for config " + config);
         }
-        IGregTechTileEntity igte = requireGTTE(relPos);
-        IMetaTileEntity mte = igte.getMetaTileEntity();
+        IMetaTileEntity mte = requireMetaTileEntity(relPos);
         if (!(mte instanceof IConfigurationCircuitSupport circuitSupport)) {
             throw error(
                 "TE at " + relPos
@@ -486,8 +521,7 @@ public class GTNHGameTestHelper {
      * {@code expectedEfficiency} (0–10000, representing 0–100.00 %).
      */
     public void assertCleanroomStatus(TestPos relPos, int expectedEfficiency) {
-        IGregTechTileEntity igte = requireGTTE(relPos);
-        IMetaTileEntity mte = igte.getMetaTileEntity();
+        IMetaTileEntity mte = requireMetaTileEntity(relPos);
         int efficiency;
         try {
             efficiency = gtAdapter().getEfficiency(mte);
@@ -583,9 +617,17 @@ public class GTNHGameTestHelper {
         return igte;
     }
 
-    private MTEMultiBlockBase requireMultiBlock(TestPos relPos) {
+    private IMetaTileEntity requireMetaTileEntity(TestPos relPos) {
         IGregTechTileEntity igte = requireGTTE(relPos);
         IMetaTileEntity mte = igte.getMetaTileEntity();
+        if (mte == null) {
+            throw error("GT tile entity at " + relPos + " has no meta tile entity", relPos);
+        }
+        return mte;
+    }
+
+    private MTEMultiBlockBase requireMultiBlock(TestPos relPos) {
+        IMetaTileEntity mte = requireMetaTileEntity(relPos);
         if (!(mte instanceof MTEMultiBlockBase multi)) {
             throw error(
                 "TE at " + relPos
