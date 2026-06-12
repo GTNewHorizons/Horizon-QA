@@ -8,7 +8,14 @@ tags:
 
 # GTNH multiblock API
 
-`helper.gtnh()` returns `GTNHGameTestHelper`, the GregTech-facing entry point. Prefer **`Multiblock`** for readable tests; the imperative helpers are appropriate when prototyping or when no hatch roles are mapped yet.
+`helper.gtnh()` returns `GTNHGameTestHelper`, the GregTech-facing entry point. Two styles drive the same machinery:
+
+| Style                                  | Reach for it when                                                                  |
+|----------------------------------------|-------------------------------------------------------------------------------------|
+| Fluent (`Multiblock` and its hatches)  | The default. The template has hatch roles and the test should read as a scenario   |
+| Imperative (`GTNHGameTestHelper`)      | Prototyping, one-off calls, or positions not yet mapped to roles                   |
+
+Both appear side by side in [Writing tests](writing-tests.md#imperative-vs-fluent-gt-api). Tests that settle on the fluent style survive template re-exports and rotations better, because positions stay out of the test body.
 
 ## Multiblock roles
 
@@ -32,7 +39,7 @@ ebf.outputs().assertContains(Materials.NickelAluminide.getIngots(4));
 
 1.  Controller position, test-relative. The `Multiblock` façade resolves hatch roles from the template's tile entity table.
 2.  Maintenance gates recipes even when EU and inputs are present. Most tests want it satisfied up front.
-3.  Voltage × amperage × duration in ticks. Over-tier supply explodes hatches — that is intentional, and the event log records the cause.
+3.  Voltage × amperage × duration in ticks. Over-tier supply explodes hatches. That is intentional, and the event log records the cause.
 4.  Time-warps until the controller reports idle, auto-registering it with the recorder so recipe events appear in the log.
 
 Hatch indices are **logical roles** defined by your template layout, not world coordinates. Re-export the template if you change hatch ordering.
@@ -49,7 +56,7 @@ Long recipes are not waited out at 20 TPS. The framework **simulates ticks** ins
 
 !!! note "Event ticks inside a warp"
 
-    Events inside a warp use **simulated** tick counters — a 200-tick recipe shows `t=200` even though the warp completed in milliseconds. See [Test event log](../reference/events.md).
+    Events inside a warp use **simulated** tick counters: a 200-tick recipe shows `t=200` even though the warp completed in milliseconds. See [Test event log](../reference/events.md).
 
 ## EU supply
 
@@ -59,7 +66,7 @@ ebf.energyHatch(0).supply(TierEU.EV, 1, durationTicks);
 gtnh.supplyEU(hatchPos, voltage, amperage, durationTicks);
 ```
 
-Supply satisfies preconditions; it does not replace recipe validation. Over-tier supply explodes hatches — see `HatchVoltageMismatch` and `EUBufferOverflow` in the event log.
+Supply satisfies preconditions; it does not replace recipe validation. Over-tier supply explodes hatches; see `HatchVoltageMismatch` and `EUBufferOverflow` in the event log.
 
 ## Maintenance
 
@@ -124,7 +131,7 @@ gtnh.withTestRecipe(ebf, synthetic);
 // Lead → gold for this test only; global recipe maps remain untouched.
 ```
 
-Cleanup is registered via `afterTest` — no try-with-resources required. Injection and end-of-test removal emit `TestRecipeInjected` and `TestRecipeRemoved`. See [Design principle 6 — Leave no trace](../contributing/principles.md).
+Cleanup is registered via `afterTest`; no try-with-resources required. Injection and end-of-test removal emit `TestRecipeInjected` and `TestRecipeRemoved`. See [Design principle 6, "Leave no trace"](../contributing/principles.md).
 
 ## GT internals boundary
 

@@ -12,7 +12,7 @@ This section is for **framework contributors** and reviewers. Mod authors adopti
 ## Before you open a PR
 
 1. Read [Design principles](principles.md). If a change conflicts with one of them, cite the principle number in the PR description and explain why.
-2. Read the [Clean-room policy](legal.md) — **no modern Minecraft decompiled source** under any circumstances.
+2. Read the [Clean-room policy](legal.md): **no modern Minecraft decompiled source** under any circumstances.
 3. Run the relevant tests via `examples`.
 4. Update the documentation if you change author-facing behaviour (annotations, commands, events, JVM flags).
 
@@ -43,7 +43,7 @@ The site is served at `http://127.0.0.1:8000` with live reload.
 
 ## Edit documentation
 
-Every page has an **Edit this page** action (Material `content.action.edit`) pointing at `docs/` on GitHub. Use it — the PR diff is the review surface.
+Every page has an **Edit this page** action (Material `content.action.edit`) pointing at `docs/` on GitHub. Use it; the PR diff is the review surface.
 
 ## Related links
 

@@ -84,7 +84,7 @@ Invalid selector syntax is a fatal CI configuration issue and exits `2`. Selecto
 |--------------------------|------------------|---------|
 | `horizonqa.allowNoTests` | `true` / `false` | `false` |
 
-Allows a CI run with no selected valid tests to pass. This only applies when the empty selection is otherwise clean — selector/configuration infrastructure issues still fail CI.
+Allows a CI run with no selected valid tests to pass. This only applies when the empty selection is otherwise clean; selector/configuration infrastructure issues still fail CI.
 
 ```text
 -Dhorizonqa.allowNoTests=true
@@ -108,7 +108,7 @@ Controls the event recorder behind `EventLog`.
 -Dhorizonqa.events=off
 ```
 
-Disable event recording only for performance investigations — it is the primary CI failure diagnostic.
+Disable event recording only for performance investigations; it is the primary CI failure diagnostic.
 
 ## Report paths
 

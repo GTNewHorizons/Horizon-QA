@@ -1,6 +1,6 @@
 ---
 title: Examples mod
-description: The examples/ Gradle subproject — runnable reference and regression coverage for the framework.
+description: The examples/ Gradle subproject, a runnable reference and regression coverage for the framework.
 tags:
   - contributing
   - examples
@@ -12,7 +12,7 @@ The `examples/` Gradle subproject demonstrates end-to-end usage against GT5-Unof
 
 - **Runnable reference** for test authors.
 - **Regression coverage** for the framework itself.
-- **Source for documentation snippets** — the code on these pages is real.
+- **Source for documentation snippets**: the code on these pages is real.
 
 It is **not** a template to copy wholesale into a gameplay mod. See [Package layout](../reference/package-layout.md).
 
@@ -25,6 +25,7 @@ examples/
   src/main/java/.../examples/tests/
     BasicTests.java
     HelperApiTests.java
+    SequencePhaseTests.java
     StructureTests.java
     GTNHExampleTests.java
   src/main/resources/assets/horizonqaexamples/horizonqastructures/
@@ -50,8 +51,9 @@ Then, in-game:
 
 | Class                | Focus                                                              |
 |----------------------|--------------------------------------------------------------------|
-| `BasicTests`         | Pass / fail / timeout, optional `required = false`                 |
-| `HelperApiTests`     | `GameTestHelper` blocks, items, fluids, sequences                  |
+| `BasicTests`         | Pass / fail / timeout, optional `required = false`, batch hooks    |
+| `HelperApiTests`     | `GameTestHelper` blocks, items, fluids, redstone, fake players     |
+| `SequencePhaseTests` | START/END tick phases, ordering rules, timeout-boundary behavior   |
 | `StructureTests`     | Template loading and block-level assertions                        |
 | `GTNHExampleTests`   | EBF recipes, maintenance gating, EU supply, synthetic recipes, negative formation |
 
@@ -63,7 +65,7 @@ When introducing a new **author-facing** feature:
 2. Add or extend a structure template if needed.
 3. Link the new method from the relevant page under `docs/guide/`.
 
-Keep examples minimal — one concept per test method where you can.
+Keep examples minimal: one concept per test method where you can.
 
 ## Dependency on the root project
 

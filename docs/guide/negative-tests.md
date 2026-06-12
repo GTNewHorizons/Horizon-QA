@@ -1,6 +1,6 @@
 ---
 title: Negative assertions
-description: Assert that a bad state never occurs over a tick window — the framework's primary idiom.
+description: Assert that a bad state never occurs over a tick window, the framework's primary idiom.
 tags:
   - guides
   - negative
@@ -39,7 +39,7 @@ helper.succeedAtTimeout();
 
 The final allowed tick is still observed before `succeedAtTimeout()` passes.
 
-A transient formation fails on **that tick**, not at the end of the window — the framework does not need to wait out the full timeout to report the failure.
+A transient formation fails on **that tick**, not at the end of the window. The framework does not need to wait out the full timeout to report the failure.
 
 ## When to use `succeedWhen` instead
 
@@ -60,15 +60,15 @@ Combine multiple checks in a single callback so they share the same window:
 ```java
 helper.onEachTick(() -> {
     helper.assertFalse(ebf.isFormed(), "formed");
-    helper.assertFalse(ebf.isActive(), "started recipe");
+    helper.assertFalse(ebf.isProcessing(), "started recipe");
 });
 helper.succeedAtTimeout();
 ```
 
 ## Sequences vs. polling
 
-For staged scenarios — "insert items, then assert no recipe for 40 ticks, then supply EU" — prefer [Sequences & timing](sequences.md) over manual tick counters inside `onEachTick`. Sequences handle the scheduling; tick counters never quite do.
+For staged scenarios such as "insert items, then assert no recipe for 40 ticks, then supply EU", prefer [Sequences & timing](sequences.md) over manual tick counters inside `onEachTick`. Sequences handle the scheduling; tick counters never quite do.
 
 ## Design alignment
 
-Negative tests implement [Design principle 5 — Negative tests are load-bearing](../contributing/principles.md). Also see [Principle 4 — Wait on state, not ticks](../contributing/principles.md): tick counts on `@GameTest` are **timeouts**, never recipe-duration proxies.
+Negative tests implement [Design principle 5, "Negative tests are load-bearing"](../contributing/principles.md). Also see [Principle 4, "Wait on state, not ticks"](../contributing/principles.md): tick counts on `@GameTest` are **timeouts**, never recipe-duration proxies.

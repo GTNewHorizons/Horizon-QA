@@ -14,7 +14,7 @@ Reference this document in PR reviews. If a contribution conflicts with one of t
 
 ## 1. Functional tests, not unit tests
 
-A test boots a real server, places real blocks, and runs the real machine. We do not reimplement GT logic in mocks. If GT changes behaviour, our tests should catch it — not break silently because the mock has diverged.
+A test boots a real server, places real blocks, and runs the real machine. We do not reimplement GT logic in mocks. If GT changes behaviour, our tests should catch it, not break silently because the mock has diverged.
 
 ## 2. Mock supply, not validation
 
@@ -24,11 +24,11 @@ Tests may use any means necessary to satisfy a machine's input preconditions. Wh
 
 ## 3. Role-based addressing
 
-Tests reference *"the input bus"*, *"the energy hatch"* — never *"the block at `(1, 1, 2)`"* as the primary API. Positions live in the structure template. Tests that hardcode coordinates break on any structure rotation or layout change.
+Tests reference *"the input bus"* and *"the energy hatch"*, never *"the block at `(1, 1, 2)`"*, as the primary API. Positions live in the structure template. Tests that hardcode coordinates break on any structure rotation or layout change.
 
 ## 4. Wait on state, not ticks
 
-Assert against observable machine state: formed, processing, idle, exploded, stalled. Hardcoded tick counts are acceptable only as **timeout budgets** — the maximum you are willing to wait before failing — never as a proxy for "the recipe finished by now."
+Assert against observable machine state: formed, processing, idle, exploded, stalled. Hardcoded tick counts are acceptable only as **timeout budgets** (the maximum you are willing to wait before failing), never as a proxy for "the recipe finished by now."
 
 ## 5. Negative tests are load-bearing
 
@@ -46,6 +46,6 @@ See [Package layout](../reference/package-layout.md).
 
 ## 8. Failure output is part of the product
 
-A passing test is cheap. **Every failure must be diagnosable from the JUnit XML alone**: what went in, what state the machine was in, what was expected versus observed, and the event sequence leading up to the failure. If a contributor cannot identify the root cause from the XML report, the failure output is a bug — fix it before merging the feature.
+A passing test is cheap. **Every failure must be diagnosable from the JUnit XML alone**: what went in, what state the machine was in, what was expected versus observed, and the event sequence leading up to the failure. If a contributor cannot identify the root cause from the XML report, the failure output is a bug. Fix it before merging the feature.
 
 See [Test event log](../reference/events.md) and [CI & JUnit reports](../guide/ci.md).

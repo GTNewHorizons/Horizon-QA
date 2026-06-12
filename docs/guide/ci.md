@@ -211,11 +211,11 @@ jobs:
 
 If your workflow uses a JUnit publishing action, run it after the upload step with `if: always()` and point it at `build/horizonqa/TEST-horizonqa.xml`.
 
-## Local iteration loop
+## When CI fails
+
+Work from the artifacts before relaunching anything: the `<failure>` message, the event trace in `<system-out>`, and `issues[]` in the status JSON usually identify the cause on their own. The triage workflow, including a failure-signature table and the in-game reproduction loop, is in [Debugging failed tests](debugging.md).
 
 ```text
-edit test → runServer → /horizonqa run <id> → inspect overlay + XML
-          → /horizonqa runfailed            → re-run only failures
+read TEST-horizonqa.xml → runServer (interactive) → /horizonqa runfailed
+                        → fix → /horizonqa runthis → push
 ```
-
-Use CI mode for automation and interactive mode for in-world debugging.

@@ -46,16 +46,16 @@ flowchart LR
 ```
 
 1. Build the structure in a dev world with Horizon-QA enabled.
-2. Select bounds with the **Horizon Wand** — ++left-button++ for pos1, ++right-button++ for pos2.
+2. Select bounds with the **Horizon Wand**: ++left-button++ for pos1, ++right-button++ for pos2.
 3. Run `/horizonqa export <name>`. Allowed characters: letters, digits, `_`, `-`.
 4. The server writes to `<serverDir>/horizonqastructures/`:
-   - `<name>.json` — block palette and layers.
-   - `<name>_tiles.nbt` — tile entities, if any.
+   - `<name>.json` with the block palette and layers.
+   - `<name>_tiles.nbt` with tile entity data, if any.
 5. Move both files into your mod's `assets/<modid>/horizonqastructures/`.
 
 !!! tip "Use `/horizonqa pos` while authoring"
 
-    Stand inside the structure and run `/horizonqa pos`. The output gives you click-to-copy `helper.absolute(x, y, z)` snippets for controllers and hatch roles — much faster than translating world coordinates by hand.
+    Stand inside the structure and run `/horizonqa pos`. The output gives you click-to-copy `helper.absolute(x, y, z)` snippets for controllers and hatch roles, much faster than translating world coordinates by hand.
 
 ## Format
 
@@ -67,7 +67,7 @@ The batch runner places each test's template into a dedicated cell on the void w
 
 ## Rotation
 
-Set `rotation` on `@GameTest` (values `0–3`) to validate that role indices and `Multiblock` wiring still match after 90° steps. If a test only passes at `rotation = 0`, document why in a short comment — that asymmetry almost always points at a coordinate that should have been a role lookup.
+Set `rotation` on `@GameTest` (values `0-3`) to validate that role indices and `Multiblock` wiring still match after 90° steps. If a test only passes at `rotation = 0`, document why in a short comment; that asymmetry almost always points at a coordinate that should have been a role lookup.
 
 ## Empty templates
 
@@ -77,7 +77,7 @@ Omit `template` (or use `template = ""`) for tests that only need void space: bl
 
 Every test falls into one of two categories, and the right template strategy follows from which one you are writing.
 
-### Logic tests — empty template + `setBlock`
+### Logic tests: empty template + `setBlock`
 
 A **logic test** verifies behaviour that does not depend on a specific world layout. The test builds exactly the state it needs via `setBlock`, runs the logic under test, and asserts the outcome. No template file exists on disk.
 
@@ -95,7 +95,7 @@ public static void chestInsertAndAssert(GameTestHelper helper) {
 }
 ```
 
-The test owns every block it places. When the system under test changes, the test changes with it — there is no template to re-export.
+The test owns every block it places. When the system under test changes, the test changes with it; there is no template to re-export.
 
 Typical subjects:
 
@@ -104,7 +104,7 @@ Typical subjects:
 - Redstone or signal propagation with a handful of blocks.
 - Any scenario where the interesting part is the *sequence of actions*, not the structure they act on.
 
-### Structure tests — exported template
+### Structure tests: exported template
 
 A **structure test** validates behaviour that emerges from a pre-built world layout: formed multiblocks, multi-tile wiring, spatial relationships between hatches. The template is exported once with `/horizonqa export` and loaded at test time.
 
@@ -144,15 +144,17 @@ Typical subjects:
 | Test must survive cross-version block renames | `setBlock`            |
 | Rotation coverage is required                | Exported template     |
 
-When in doubt, ask: *"If the layout changed tomorrow, should this test break?"* If yes, the layout is load-bearing — export a template so the test guards it. If no, build the state inline so the test stays decoupled.
+When in doubt, ask: *"If the layout changed tomorrow, should this test break?"* If yes, the layout is load-bearing: export a template so the test guards it. If no, build the state inline so the test stays decoupled.
 
 ## Examples in this repo
 
-| Template                                | Purpose                       |
-|-----------------------------------------|-------------------------------|
-| `horizonqaexamples:single_stone`         | Single block                  |
-| `horizonqaexamples:stone_platform`       | Small platform                |
-| `horizonqaexamples:ebf`                  | Formed EBF with hatches       |
-| `horizonqaexamples:ebf_no_coils`         | Intentionally invalid EBF     |
+| Template                                      | Purpose                            |
+|-----------------------------------------------|------------------------------------|
+| `horizonqaexamples:single_stone`              | Single block                       |
+| `horizonqaexamples:stone_platform`            | Small platform                     |
+| `horizonqaexamples:ebf`                       | Formed EBF with hatches            |
+| `horizonqaexamples:ebf_no_coils`              | Intentionally invalid EBF          |
+| `horizonqaexamples:distillation_tower_4`      | Multi-output bus routing           |
+| `horizonqaexamples:cleanroom`                 | Cleanroom efficiency over time     |
 
 Source: `examples/src/main/resources/assets/horizonqaexamples/horizonqastructures/`.

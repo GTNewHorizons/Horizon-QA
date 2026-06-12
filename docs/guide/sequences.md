@@ -37,8 +37,10 @@ One sequence per test. For an immediate pass use `helper.succeed()` directly.
 | `thenExecuteForAtEnd(n, Runnable)`         | END   | Alias of `thenExecuteFor`                     |
 | `thenWaitUntil(Runnable)`                  | END   | Retry each tick until runnable does not throw |
 | `thenWaitUntilAtStart(Runnable)`           | START | Same, before world tick                       |
+| `thenWaitUntilAtEnd(Runnable)`             | END   | Alias of `thenWaitUntil`                      |
 | `thenWaitUntil(maxTicks, Runnable)`        | END   | Same, reserve up to `maxTicks` ticks          |
 | `thenWaitUntilAtStart(maxTicks, Runnable)` | START | Same, before world tick                       |
+| `thenWaitUntilAtEnd(maxTicks, Runnable)`   | END   | Alias of bounded `thenWaitUntil`              |
 | `thenSucceed()`                            | END   | Pass the test                                 |
 | `thenFail(msg)`                            | END   | Fail the test                                 |
 

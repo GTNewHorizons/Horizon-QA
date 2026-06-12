@@ -1,6 +1,6 @@
 ---
 title: Commands
-description: /gametest subcommand reference, permissions, and export requirements.
+description: /horizonqa subcommand reference, permissions, and export requirements.
 tags:
   - reference
   - commands

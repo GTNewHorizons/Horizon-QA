@@ -20,7 +20,7 @@ tags:
 !!! abstract "At a glance"
 
     - Forge **1.7.10**, Java **8** bytecode, interactive by default with explicit `ci` and `off` modes.
-    - Tests are plain `@GameTest` static methods on `@GameTestHolder` classes — discovered by ASM at server start.
+    - Tests are plain `@GameTest` static methods on `@GameTestHolder` classes, discovered by ASM at server start.
     - Each test runs in an isolated cell on a dedicated void world; failures stay placed for in-game triage.
     - Output is a single `TEST-horizonqa.xml` suitable for any JUnit-aware CI.
 
@@ -42,7 +42,7 @@ public static void doesNotFormWithoutCoils(GameTestHelper helper) {
 }
 ```
 
-1.  `template` resolves to `<holder>:ebf_no_coils` — a structure deliberately missing its heating coils.
+1.  `template` resolves to `<holder>:ebf_no_coils`, a structure deliberately missing its heating coils.
 2.  `onEachTick` re-runs the closure every test tick; a transient `true` fails immediately, on that tick.
 3.  `succeedAtTimeout` passes only if the full window elapses without any assertion firing.
 
@@ -74,7 +74,7 @@ See [Negative assertions](guide/negative-tests.md) for the rest of the pattern.
 
     ---
 
-    Ordered, tick-stamped events in JUnit `<system-out>` — diagnose CI failures without relaunching the game.
+    Ordered, tick-stamped events in JUnit `<system-out>`. Diagnose CI failures without relaunching the game.
 
 -   :material-eye:{ .lg .middle } **Visual debugging**
 
@@ -92,8 +92,8 @@ See [Negative assertions](guide/negative-tests.md) for the rest of the pattern.
 
 ## Where to go next
 
-[Getting started](getting-started/index.md) walks new authors from "I just cloned the mod" to "my first passing test." [Guides](guide/index.md) cover task-oriented topics: structures, sequences, the GTNH multiblock façade, CI wiring. [Reference](reference/index.md) collects the annotations, commands, JVM flags, and event catalog you will look up most often.
+[Getting started](getting-started/index.md) walks new authors from "I just cloned the mod" to "my first passing test." [Guides](guide/index.md) cover task-oriented topics: structures, sequences, the GTNH multiblock façade, CI wiring, and [failure triage](guide/debugging.md). [Reference](reference/index.md) collects the annotations, commands, JVM flags, and event catalog you will look up most often.
 
 !!! info "Legal note"
 
-    Horizon-QA is a **clean-room** implementation inspired by modern GameTest ergonomics, not a port of Mojang source. Do not submit decompiled modern Minecraft code in pull requests — see [Clean-room policy](contributing/legal.md).
+    Horizon-QA is a **clean-room** implementation inspired by modern GameTest ergonomics, not a port of Mojang source. Do not submit decompiled modern Minecraft code in pull requests; see [Clean-room policy](contributing/legal.md).

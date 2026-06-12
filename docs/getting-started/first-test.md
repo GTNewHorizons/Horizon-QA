@@ -26,7 +26,7 @@ public class SmokeTests {
 2.  Hard timeout. The runner fails the test if it has not finished by tick 20.
 3.  Marks the test passed immediately. Use this when every assertion is done in the first tick.
 
-Omitting `template` yields an empty void cell — useful for pure API smoke tests.
+Omitting `template` yields an empty void cell, useful for pure API smoke tests.
 
 ## Test with a structure
 
@@ -53,7 +53,7 @@ Pick exactly one. Mixing them is almost always a bug.
 |-----------------------------------------------|-------------------------------------------------------------------|
 | `helper.succeed()`                            | All assertions done in one tick                                   |
 | `helper.succeedWhen(() -> condition)`         | Pass on the first tick where `condition` is true                  |
-| `helper.succeedAtTimeout()`                   | **Negative tests** — pass only if nothing failed before timeout   |
+| `helper.succeedAtTimeout()`                   | **Negative tests**: pass only if nothing failed before timeout    |
 | `helper.startSequence()…thenSucceed()`        | Multi-step timed flows (see [Sequences & timing](../guide/sequences.md)) |
 
 !!! warning "One success path per test"
@@ -74,7 +74,7 @@ Common helpers on `GameTestHelper`:
 :   Block-level assertions at an absolute position (use `helper.absolute(x, y, z)`).
 
 `fail(String)`
-:   Immediate failure — throws `GameTestAssertException`.
+:   Immediate failure; throws `GameTestAssertException`.
 
 All failures include the test origin so the visual overlay can highlight the offending cell.
 
@@ -89,6 +89,6 @@ Use **test-relative** positions via `TestPos.at(x, y, z)` or `helper.absolute(..
 
 ## Next steps
 
-- [Writing tests](../guide/writing-tests.md) — batches, `required`, rotations, cleanup.
-- [Negative assertions](../guide/negative-tests.md) — `onEachTick` patterns.
-- [Annotations](../reference/annotations.md) — full `@GameTest` attribute list.
+- [Writing tests](../guide/writing-tests.md) for batches, `required`, rotations, cleanup.
+- [Negative assertions](../guide/negative-tests.md) for `onEachTick` patterns.
+- [Annotations](../reference/annotations.md) for the full `@GameTest` attribute list.

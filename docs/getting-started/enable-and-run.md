@@ -57,7 +57,7 @@ In-game (operator permission level **2**):
 |---------------------------------|-------------------------------------------------------------------------|
 | `/horizonqa runall`             | Run every discovered test                                               |
 | `/horizonqa runall <namespace>` | Run tests whose id starts with `<namespace>:`                           |
-| `/horizonqa run <testId>`       | Run one test by id, e.g. `horizonqaexamples:BasicTests.passImmediately` |
+| `/horizonqa run <testId>`       | Run one test by id, e.g. `horizonqaexamples:BasicTests.simplePass`      |
 | `/horizonqa runfailed`          | Re-run only the tests that failed in the last batch                     |
 | `/qa`                           | Alias for `/horizonqa`                                                  |
 
@@ -68,7 +68,7 @@ After a batch completes, the server writes **`TEST-horizonqa.xml`** and **`horiz
 A creative-tab item used to define export bounds.
 
 1. ++left-button++ a block → position 1.
-2. ++right-button++ a block → position 2.
+2. ++right-button++ a block → position 2. Right-click also works at range via the targeted block, and sneaking selects the adjacent (air) block instead, which is useful for capturing clearance above a multiblock.
 3. `/horizonqa export <name>` → writes `horizonqastructures/<name>.json` and `<name>_tiles.nbt` under the server directory.
 
 Move the exported files into `src/main/resources/assets/<modid>/horizonqastructures/` in your mod. Full export details: [Structure templates](../guide/structures.md).
@@ -87,6 +87,8 @@ After `/horizonqa runall`, failed cells **stay placed** on the grid with their o
 !!! tip "Iterate without restarting"
 
     Edit a test, recompile (hotswap or `gradlew classes`), then `/horizonqa runthis` on the failed cell. You do not need to restart the server for most code changes.
+
+The full triage workflow (reading the event trace, failure signatures, in-game reproduction) is in [Debugging failed tests](../guide/debugging.md).
 
 ## Disable event recording (optional)
 

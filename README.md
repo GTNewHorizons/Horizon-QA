@@ -2,9 +2,11 @@
 
 Horizon QA is an end-to-end testing framework for GTNH. It implements the modern Minecraft GameTest API on 1.7.10, providing a specialized environment to validate multiblocks, machine logic, and logistics.
 
+**📖 Documentation: <https://GTNewHorizons.github.io/Horizon-QA/>** with getting started, guides, the full command/property reference, and [Javadoc](https://GTNewHorizons.github.io/Horizon-QA/javadoc/index.html). This README is a summary; the website is the canonical documentation.
+
 ## Quick Example: Testing Negative Cases
 
-A key strength of Horizon QA is verifying that machines *don't* behave incorrectly. The snippet below checks that an Electric Blast Furnace fails to form when its coils are missing — exactly the kind of regression a unit test can't catch:
+A key strength of Horizon QA is verifying that machines *don't* behave incorrectly. The snippet below checks that an Electric Blast Furnace fails to form when its coils are missing, exactly the kind of regression a unit test can't catch:
 
 ```java
 @GameTest(template = "ebf_no_coils", timeoutTicks = 60)
@@ -23,14 +25,14 @@ public static void doesNotFormWithoutCoils(GameTestHelper helper) {
 * **Structure Support**: Tools to export, place, and verify multiblock structures via JSON or NBT.
 * **Visual Feedback**: In-game overlays, beacons, and ghost blocks to identify test failures visually.
 * **CI/CD Integration**: Generates JUnit-compatible XML reports for automated build pipelines.
-* **GameTest Wand**: An in-game tool to help with area selection and structure management.
+* **Horizon Wand**: An in-game tool to help with area selection and structure management.
 
 ## Usage
 
-1. Build your test structure in-game.
+1. Build your test structure in-game ([guide](https://GTNewHorizons.github.io/Horizon-QA/guide/structures/)).
 2. Select the area with the **Horizon Wand** and use `/qa export <name>` to create a template.
-3. Write a Java test class using `@GameTest` to define the logic and assertions.
-4. Run tests using the `/qa runall` command and view results in-game or in the build logs.
+3. Write a Java test class using `@GameTest` to define the logic and assertions ([first test](https://GTNewHorizons.github.io/Horizon-QA/getting-started/first-test/)).
+4. Run tests using the `/qa runall` command and view results in-game or in the build logs. For headless runs, pass `-Dhorizonqa.mode=ci` to the server JVM ([CI guide](https://GTNewHorizons.github.io/Horizon-QA/guide/ci/)).
 
 ## Legal Disclaimer & Clean-Room Implementation
 

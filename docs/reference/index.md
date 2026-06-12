@@ -12,7 +12,7 @@ Quick lookup for annotations, commands, JVM properties, event types, and reposit
 | Page                                                | Contents                                                          |
 |-----------------------------------------------------|-------------------------------------------------------------------|
 | [Annotations](annotations.md)                       | `@GameTest`, `@GameTestHolder`, batch hooks, stability markers    |
-| [Commands](commands.md)                             | `/gametest` subcommands and their permissions                     |
+| [Commands](commands.md)                             | `/horizonqa` subcommands and their permissions                    |
 | [JVM & system properties](jvm-flags.md)             | Enabling tests, toggling event recording                          |
 | [Test event log](events.md)                         | Event format, full catalog, differ quirks, programmatic access    |
 | [Package layout](package-layout.md)                 | Where tests and structures live in consumer mods                  |

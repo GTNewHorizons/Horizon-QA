@@ -47,6 +47,12 @@ Task-oriented documentation for authors writing and maintaining GameTests. Each 
 
     XML output, event traces in CI, Gradle and GitHub Actions wiring.
 
+-   :material-bug-outline:{ .lg .middle } **[Debugging failed tests](debugging.md)**
+
+    ---
+
+    Triage from the XML and event trace, reproduce in-game, iterate.
+
 </div>
 
-Lookup-style material — annotations, commands, JVM flags, event catalog — lives under [Reference](../reference/index.md).
+Lookup-style material (annotations, commands, JVM flags, event catalog) lives under [Reference](../reference/index.md).

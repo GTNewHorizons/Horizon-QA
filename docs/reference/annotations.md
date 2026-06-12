@@ -41,7 +41,7 @@ Public static void no-arg methods that run once before/after every test sharing 
 
 | Attribute | Type     | Description                                            |
 |-----------|----------|--------------------------------------------------------|
-| `value`   | `String` | Batch name — must match `GameTest.batch()` to bind     |
+| `value`   | `String` | Batch name; must match `GameTest.batch()` to bind      |
 
 Stability: `@Experimental`.
 

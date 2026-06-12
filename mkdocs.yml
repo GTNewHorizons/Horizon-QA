@@ -134,6 +134,7 @@ nav:
     - Negative assertions: guide/negative-tests.md
     - Sequences & timing: guide/sequences.md
     - CI & JUnit reports: guide/ci.md
+    - Debugging failed tests: guide/debugging.md
   - Reference:
     - reference/index.md
     - Annotations: reference/annotations.md
@@ -150,6 +151,12 @@ nav:
   - Javadoc API: https://GTNewHorizons.github.io/Horizon-QA/javadoc/index.html
 
 strict: true
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
 
 not_in_nav: |
   includes/*

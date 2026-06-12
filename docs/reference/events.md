@@ -9,7 +9,7 @@ tags:
 
 # Test event log
 
-Every test appends an ordered log of typed events. The same log is written to JUnit `<system-out>` for each `<testcase>` and to the server console (last 20 lines on failure). The goal is plain: **a CI failure must be diagnosable from the XML alone, without starting the client**.
+Every test appends an ordered log of typed events. The same log is written to JUnit `<system-out>` for each `<testcase>` and to the server console (last 20 lines on failure). The goal is plain: **a CI failure must be diagnosable from the XML alone, without starting the client**. For the workflow built on top of this log, see [Debugging failed tests](../guide/debugging.md).
 
 Set `-Dhorizonqa.events=off` on the server JVM to disable recording. Emit sites use `Supplier`; when recording is off those suppliers are not called and payload work is skipped. See [JVM & system properties](jvm-flags.md).
 
@@ -18,7 +18,7 @@ Set `-Dhorizonqa.events=off` on the server JVM to disable recording. Emit sites 
 Each line is `[t=NNN] [category] summary`. The tick is **simulated machine ticks** since test start, not wall-clock server ticks. A 200-tick recipe shows `t=200` even though the warp completed in milliseconds.
 
 ```text
-[FAIL] mymod.assembler.basic — Expected 64× copper plate but found 32×
+[FAIL] mymod.assembler.basic - Expected 64× copper plate but found 32×
        [t=0]   [lifecycle] Test started at TestPos{x=256, y=5, z=256}
        [t=0]   [structure] MTEAssemblyLine formed (OBSERVED_ON_FIRST_POLL, 2ib/1ob/1eh)
        [t=0]   [resource]  Inserted 64× Aluminium Plate
@@ -48,7 +48,9 @@ Records live in `com.gtnewhorizons.horizonqa.api.event`. All are Java records, a
 
 ### Lifecycle
 
-`TestStarted`, `TestFinished`, `StructurePlaced`, `WarpStarted`, `WarpFinished`.
+`TestStarted`, `TestFinished`, `StructurePlaced`, `WarpStarted`, `WarpFinished`, `BeforeBatchRan`, `AfterBatchRan`.
+
+`BeforeBatchRan` / `AfterBatchRan` carry the batch name and the hook method name, so a setup-order question can be answered from the trace.
 
 `WarpFinished.stopReason` is one of:
 
@@ -56,7 +58,7 @@ Records live in `com.gtnewhorizons.horizonqa.api.event`. All are Java records, a
 :   The warp ran for its full duration without a stop predicate intervening.
 
 `predicate`
-:   The warp's stop condition fired — typical for `runRecipe` ending when the machine returns to idle.
+:   The warp's stop condition fired, typical for `runRecipe` ending when the machine returns to idle.
 
 `timeout`
 :   The warp hit its `maxTicks` cap without the predicate triggering.
@@ -101,7 +103,7 @@ Records live in `com.gtnewhorizons.horizonqa.api.event`. All are Java records, a
 
 ### Energy
 
-`EUSupplyJobRegistered` (hatch, voltage, amperage, durationTicks) fires whenever you call `supplyEU` or `Hatch.supply`. `EUBufferOverflow` fires when a supply job tries to push more EU than the hatch can hold — you rarely want to see this in a test log. `HatchVoltageMismatch` is emitted alongside an explosion when the last supply job exceeded the hatch tier.
+`EUSupplyJobRegistered` (hatch, voltage, amperage, durationTicks) fires whenever you call `supplyEU` or `Hatch.supply`. `EUBufferOverflow` fires when a supply job tries to push more EU than the hatch can hold; you rarely want to see this in a test log. `HatchVoltageMismatch` is emitted alongside an explosion when the last supply job exceeded the hatch tier.
 
 ### Maintenance
 
@@ -109,7 +111,7 @@ Records live in `com.gtnewhorizons.horizonqa.api.event`. All are Java records, a
 
 ### Diagnostic
 
-`PollutionEmitted` (originChunk, amount, cumulative), `CleanroomEfficiencyChanged` (controller, efficiencyTenThousandths in `0–10000`, i.e. 0.00–100.00 %). `EventOverflow` is emitted at most once per test when the 10 000-event cap is exceeded.
+`PollutionEmitted` (originChunk, amount, cumulative), `CleanroomEfficiencyChanged` (controller, efficiencyTenThousandths in `0-10000`, i.e. 0.00 to 100.00 %). `EventOverflow` is emitted at most once per test when the 10 000-event cap is exceeded.
 
 ### Failure
 
@@ -148,7 +150,7 @@ public static void exactlyOneRecipeFinished(GameTestHelper helper) {
 
 With `-Dhorizonqa.events=off`, emit sites are `Supplier` instances that are never invoked: no payload work and no allocations.
 
-With recording enabled, each simulated tick during a warp performs one adapter read per watched controller — six `int` fields and a comparison. An event record is allocated only when the diff detects a change. Typical counts: about five events for a 200-tick recipe, about ten for a 20 000-tick fusion run.
+With recording enabled, each simulated tick during a warp performs one adapter read per watched controller: six `int` fields and a comparison. An event record is allocated only when the diff detects a change. Typical counts: about five events for a 200-tick recipe, about ten for a 20 000-tick fusion run.
 
 The per-test cap is **10 000 events** (`EventOverflow` is emitted at most once if you exceed it). Reaching the cap almost always means the test is emitting from a tight loop; file an issue if you have a genuine reason to go higher.
 
