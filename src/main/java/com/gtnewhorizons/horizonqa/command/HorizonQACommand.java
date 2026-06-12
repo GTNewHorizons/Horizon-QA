@@ -23,9 +23,9 @@ import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
 import net.minecraft.world.WorldServer;
 
+import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
-import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
 import com.gtnewhorizons.horizonqa.internal.DiscoveryIssue;
 import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
@@ -33,13 +33,13 @@ import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
+import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
 import com.gtnewhorizons.horizonqa.report.ReportPathPreflight;
-import com.gtnewhorizons.horizonqa.report.RunResult;
 import com.gtnewhorizons.horizonqa.report.RunReportWriter;
-import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
+import com.gtnewhorizons.horizonqa.report.RunResult;
 import com.gtnewhorizons.horizonqa.structure.StructureExporter;
 
 public class HorizonQACommand extends CommandBase {
@@ -297,7 +297,8 @@ public class HorizonQACommand extends CommandBase {
         return new LinkedHashSet<>(LAST_REPORTED_FAILED_IDS);
     }
 
-    private static void startReportedBatch(ICommandSender sender, List<GameTestDefinition> tests, String launchedMessage) {
+    private static void startReportedBatch(ICommandSender sender, List<GameTestDefinition> tests,
+        String launchedMessage) {
         if (reportBatchRunning) {
             reportBatchAlreadyRunning(sender);
             return;
@@ -332,10 +333,8 @@ public class HorizonQACommand extends CommandBase {
         if (!propertyIssues.isEmpty()) {
             logPropertyIssues(propertyIssues);
             File reportFile = HorizonQAProperties.junitReportFile();
-            RunResult result = RunResult.preRun(
-                HorizonQAProperties.modeName(),
-                toPropertyIssueResults(propertyIssues),
-                reportFile.getPath());
+            RunResult result = RunResult
+                .preRun(HorizonQAProperties.modeName(), toPropertyIssueResults(propertyIssues), reportFile.getPath());
             RunReportWriter.write(result, HorizonQAMod.LOG);
             sender.addChatMessage(
                 new ChatComponentText(
