@@ -16,11 +16,14 @@ Set `horizonqa.mode` on the **server** JVM when you need a mode other than the d
 
 ```text
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=interactive"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report"
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci"
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=off"
 ```
 
 `interactive` enables commands, overlays, and manual test runs. It is the default when `horizonqa.mode` is not set.
+
+`report` enables the CI-style void test world and manual test runs that write `TEST-horizonqa.xml` and `horizonqa-result.json`, but does not auto-run tests at startup and does not stop the server when the batch finishes.
 
 `ci` enables the deterministic headless path:
 
@@ -33,7 +36,7 @@ Set `horizonqa.mode` on the **server** JVM when you need a mode other than the d
 
 !!! tip "Pick the mode for the job"
 
-    Use the default `interactive` mode for local authoring and `ci` for automated server runs.
+    Use the default `interactive` mode for local authoring, `report` when you want report files from a manually-started batch, and `ci` for automated server runs.
 
 ## Run the examples
 
@@ -61,7 +64,7 @@ In-game (operator permission level **2**):
 | `/horizonqa runfailed`          | Re-run only the tests that failed in the last batch                     |
 | `/qa`                           | Alias for `/horizonqa`                                                  |
 
-After a batch completes, the server writes **`TEST-horizonqa.xml`** and **`horizonqa-result.json`** in the working directory unless report paths are overridden. See [CI & JUnit reports](../guide/ci.md).
+In `report` mode, `/horizonqa run`, `/horizonqa runall`, and `/horizonqa runfailed` write **`TEST-horizonqa.xml`** and **`horizonqa-result.json`** after the batch completes. The files are written in the working directory unless report paths are overridden. See [CI & JUnit reports](../guide/ci.md).
 
 ## Horizon Wand
 

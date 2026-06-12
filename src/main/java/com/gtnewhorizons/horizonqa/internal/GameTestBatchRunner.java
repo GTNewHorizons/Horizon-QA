@@ -12,6 +12,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
@@ -27,11 +28,9 @@ import com.gtnewhorizons.horizonqa.api.event.StructurePlaced;
 import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook.HookPhase;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
-import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
-import com.gtnewhorizons.horizonqa.report.JUnitXmlReporter;
 import com.gtnewhorizons.horizonqa.report.RunResult;
-import com.gtnewhorizons.horizonqa.report.StatusJsonReporter;
+import com.gtnewhorizons.horizonqa.report.RunReportWriter;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureLoader;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
 import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
@@ -52,17 +51,24 @@ public class GameTestBatchRunner {
     private final GameTestGridLayout grid;
     private final List<ResultEntry> resultEntries = new ArrayList<>();
     private final List<IssueResult> issues = new ArrayList<>();
+    private final Consumer<RunResult> onComplete;
 
     public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
         Map<String, List<Method>> afterBatchMethods) {
-        this(tests, beforeBatchMethods, afterBatchMethods, Collections.emptyList());
+        this(tests, beforeBatchMethods, afterBatchMethods, Collections.emptyList(), null);
     }
 
     public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
         Map<String, List<Method>> afterBatchMethods, List<IssueResult> issues) {
+        this(tests, beforeBatchMethods, afterBatchMethods, issues, null);
+    }
+
+    public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
+        Map<String, List<Method>> afterBatchMethods, List<IssueResult> issues, Consumer<RunResult> onComplete) {
         runner = new GameTestRunner();
         grid = new GameTestGridLayout();
         batches = buildBatches(tests, beforeBatchMethods, afterBatchMethods);
+        this.onComplete = onComplete;
         if (issues != null) {
             this.issues.addAll(issues);
         }
@@ -209,22 +215,7 @@ public class GameTestBatchRunner {
         RunResult result = RunResult
             .completedCases(HorizonQAProperties.modeName(), collectCaseResults(), issues, reportFile.getPath());
 
-        try {
-            JUnitXmlReporter.write(result, reportFile);
-            LOG.info("JUnit XML report written to {}", reportFile.getAbsolutePath());
-        } catch (IOException e) {
-            LOG.error("Failed to write JUnit XML report: {}", e.getMessage());
-            result = result.withAdditionalIssue(IssueResult.reporting("junit", reportFile.getAbsolutePath(), e));
-        }
-
-        File statusFile = HorizonQAProperties.statusReportFile();
-        try {
-            StatusJsonReporter.write(result, statusFile);
-            LOG.info("Status JSON report written to {}", statusFile.getAbsolutePath());
-        } catch (IOException e) {
-            LOG.error("Failed to write status JSON report: {}", e.getMessage());
-            result = result.withAdditionalIssue(IssueResult.reporting("status", statusFile.getAbsolutePath(), e));
-        }
+        result = RunReportWriter.write(result, LOG);
 
         if (HorizonQAProperties.isCi()) {
             LOG.info(
@@ -234,7 +225,9 @@ public class GameTestBatchRunner {
                 result.incomplete(),
                 result.infrastructureErrors());
         }
-        ConsoleReporter.report(result);
+        if (onComplete != null) {
+            onComplete.accept(result);
+        }
         if (HorizonQAProperties.isCi()) {
             FMLCommonHandler.instance()
                 .exitJava(result.exitCode(), false);

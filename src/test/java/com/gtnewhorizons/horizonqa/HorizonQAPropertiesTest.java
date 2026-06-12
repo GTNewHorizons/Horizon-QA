@@ -44,6 +44,20 @@ public class HorizonQAPropertiesTest {
     }
 
     @Test
+    public void reportModeParsesAsManualReportMode() {
+        Properties properties = new Properties();
+        properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "report");
+
+        HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(properties);
+
+        assertEquals(HorizonQAProperties.Mode.REPORT, parsed.mode());
+        assertEquals("report", parsed.rawMode());
+        assertTrue(
+            parsed.issues()
+                .isEmpty());
+    }
+
+    @Test
     public void propertyParsingTrimsPathsAndKeepsRawConfigurationValues() {
         Properties properties = new Properties();
         properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "ci");

@@ -18,14 +18,17 @@ Passing `-Dhorizonqa.mode=ci` directly to Gradle sets the property on the Gradle
 
 ## `horizonqa.mode`
 
-| Property         | Values                       | Default       |
-|------------------|------------------------------|---------------|
-| `horizonqa.mode` | `off` / `interactive` / `ci` | `interactive` |
+| Property         | Values                                  | Default       |
+|------------------|-----------------------------------------|---------------|
+| `horizonqa.mode` | `off` / `interactive` / `report` / `ci` | `interactive` |
 
 Controls Horizon-QA runtime behavior.
 
 `interactive`
 :   Enables `/horizonqa` commands, discovery, and client-side test visuals for local authoring. This is the default when the property is unset.
+
+`report`
+:   Enables the CI-style void test world plus manual `/horizonqa run`, `/horizonqa runall`, and `/horizonqa runfailed` batches that write JUnit XML and status JSON reports. The server does not auto-run tests at startup and does not exit after the batch completes.
 
 `ci`
 :   Enables deterministic headless execution: void world registration, CI-oriented server behavior, automatic selected-test execution, report writing, and server exit.
@@ -37,6 +40,7 @@ Examples:
 
 ```text
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=interactive"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci"
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=off"
 ```
@@ -47,7 +51,7 @@ Examples:
 |-------------------|---------------------------|-----------------|
 | `horizonqa.tests` | comma-separated selectors | all valid tests |
 
-Limits automatic CI execution to selected tests.
+Limits automatic CI execution to selected tests. `report` mode is manual and uses the command arguments instead.
 
 Selector grammar:
 
@@ -127,10 +131,11 @@ horizonqa-result.json
 
 `horizonqa.reportFile` wins over `horizonqa.reportDir` for the JUnit XML path. When `horizonqa.reportDir` is set and `horizonqa.statusFile` is not set, status JSON defaults to `horizonqa-result.json` in that same directory. Relative paths resolve from the server process working directory.
 
-Recommended CI form:
+Recommended CI and manual-report forms:
 
 ```text
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
 ```
 
 ## Status JSON
@@ -162,4 +167,4 @@ Optional failures do not change the process exit code by themselves. They are co
 
 !!! warning "Use lowercase property values"
 
-    CI property parsing is strict. Use `ci`, `interactive`, `true`, `false`, `on`, and `off` exactly as documented.
+    CI property parsing is strict. Use `ci`, `report`, `interactive`, `true`, `false`, `on`, and `off` exactly as documented.

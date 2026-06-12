@@ -1,7 +1,6 @@
 package com.gtnewhorizons.horizonqa;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,10 +18,9 @@ import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
-import com.gtnewhorizons.horizonqa.report.JUnitXmlReporter;
 import com.gtnewhorizons.horizonqa.report.ReportPathPreflight;
 import com.gtnewhorizons.horizonqa.report.RunResult;
-import com.gtnewhorizons.horizonqa.report.StatusJsonReporter;
+import com.gtnewhorizons.horizonqa.report.RunReportWriter;
 import com.gtnewhorizons.horizonqa.visual.SelectionBoxRenderer;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
@@ -31,6 +29,7 @@ import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
+import cpw.mods.fml.common.event.FMLServerStoppingEvent;
 import cpw.mods.fml.common.registry.GameRegistry;
 
 public class CommonProxy {
@@ -43,10 +42,10 @@ public class CommonProxy {
         HorizonQAMod.LOG.info("Mode (-D{}): {}", HorizonQAProperties.MODE_PROPERTY, HorizonQAProperties.modeName());
         if (HorizonQAProperties.hasModeError()) {
             HorizonQAMod.LOG.error(HorizonQAProperties.modeError());
-        } else if (HorizonQAProperties.isInteractive()) {
+        } else if (HorizonQAProperties.isInteractive() || HorizonQAProperties.isReport()) {
             logNonFatalPropertyIssues();
         }
-        if (HorizonQAProperties.isCi()) {
+        if (HorizonQAProperties.usesCiServerBehavior()) {
             HorizonQAMod.LOG.info(
                 "Void world registered as '{}' (Forge id {}).",
                 GameTestWorldType.INSTANCE.getWorldTypeName(),
@@ -138,6 +137,10 @@ public class CommonProxy {
         batchRunner.start();
     }
 
+    public void serverStopping(FMLServerStoppingEvent event) {
+        HorizonQACommand.resetReportBatchState();
+    }
+
     private static void logInfrastructureIssues(List<PropertyIssue> issues) {
         for (PropertyIssue issue : issues) {
             HorizonQAMod.LOG.error(
@@ -173,25 +176,7 @@ public class CommonProxy {
     }
 
     private static RunResult writePreRunReport(RunResult result) {
-        File reportFile = HorizonQAProperties.junitReportFile();
-        try {
-            JUnitXmlReporter.write(result, reportFile);
-            HorizonQAMod.LOG.info("JUnit XML report written to {}", reportFile.getAbsolutePath());
-        } catch (IOException e) {
-            HorizonQAMod.LOG.error("Failed to write JUnit XML report: {}", e.getMessage());
-            result = result.withAdditionalIssue(IssueResult.reporting("junit", reportFile.getAbsolutePath(), e));
-        }
-
-        File statusFile = HorizonQAProperties.statusReportFile();
-        try {
-            StatusJsonReporter.write(result, statusFile);
-            HorizonQAMod.LOG.info("Status JSON report written to {}", statusFile.getAbsolutePath());
-        } catch (IOException e) {
-            HorizonQAMod.LOG.error("Failed to write status JSON report: {}", e.getMessage());
-            result = result.withAdditionalIssue(IssueResult.reporting("status", statusFile.getAbsolutePath(), e));
-        }
-        ConsoleReporter.report(result);
-        return result;
+        return RunReportWriter.write(result, HorizonQAMod.LOG);
     }
 
     private static List<IssueResult> toIssueResults(List<SelectionIssue> issues) {
