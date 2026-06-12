@@ -260,9 +260,7 @@ public final class HorizonQAProperties {
             configIssue(
                 "config:" + MODE_PROPERTY,
                 MODE_PROPERTY,
-                "Invalid -D" + MODE_PROPERTY + "="
-                    + value
-                    + " (expected one of: off, interactive, report, ci)",
+                "Invalid -D" + MODE_PROPERTY + "=" + value + " (expected one of: off, interactive, report, ci)",
                 true));
     }
 
