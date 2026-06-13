@@ -31,7 +31,7 @@ public abstract class MixinDedicatedServer {
             value = "INVOKE",
             target = "Lnet/minecraft/world/WorldType;parseWorldType(Ljava/lang/String;)Lnet/minecraft/world/WorldType;"))
     private static WorldType gametest$forceLevelTypeProperty(String name) {
-        if (HorizonQAProperties.usesCiServerBehavior()) {
+        if (HorizonQAProperties.usesVoidTestWorld()) {
             return GameTestWorldType.INSTANCE;
         }
         return WorldType.parseWorldType(name);

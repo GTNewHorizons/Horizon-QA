@@ -17,6 +17,7 @@ public final class HorizonQAProperties {
     public static final String REPORT_DIR_PROPERTY = "horizonqa.reportDir";
     public static final String STATUS_FILE_PROPERTY = "horizonqa.statusFile";
     public static final String EVENTS_PROPERTY = "horizonqa.events";
+    public static final String STANDARD_WORLD_PROPERTY = "horizonqa.standardWorld";
 
     private static final String DEFAULT_JUNIT_REPORT = "TEST-horizonqa.xml";
     private static final String DEFAULT_STATUS_REPORT = "horizonqa-result.json";
@@ -64,6 +65,22 @@ public final class HorizonQAProperties {
 
     public static boolean usesCiServerBehavior() {
         return PARSED.mode() == Mode.REPORT || PARSED.mode() == Mode.CI;
+    }
+
+    /**
+     * Whether the CI-style server should generate the void GameTest world. This is the default for {@code report} and
+     * {@code ci} modes, but {@link #STANDARD_WORLD_PROPERTY} forces the standard (level-configured) world type instead.
+     */
+    public static boolean usesVoidTestWorld() {
+        return usesCiServerBehavior() && !PARSED.standardWorld();
+    }
+
+    public static boolean standardWorld() {
+        return PARSED.standardWorld();
+    }
+
+    public static String rawStandardWorld() {
+        return PARSED.rawStandardWorld();
     }
 
     public static String modeName() {
@@ -219,6 +236,12 @@ public final class HorizonQAProperties {
             issues.add(events.issue());
         }
 
+        String rawStandardWorld = properties.getProperty(STANDARD_WORLD_PROPERTY);
+        BooleanParseResult standardWorld = parseStrictBoolean(STANDARD_WORLD_PROPERTY, rawStandardWorld, false);
+        if (standardWorld.issue() != null) {
+            issues.add(standardWorld.issue());
+        }
+
         return new ParsedProperties(
             rawMode,
             mode.mode(),
@@ -233,6 +256,8 @@ public final class HorizonQAProperties {
             statusFile,
             rawEvents,
             events.enabled(),
+            rawStandardWorld,
+            standardWorld.value(),
             Collections.unmodifiableList(new ArrayList<>(issues)));
     }
 
@@ -443,7 +468,7 @@ public final class HorizonQAProperties {
     record ParsedProperties(String rawMode, Mode mode, PropertyIssue modeIssue, String rawTests,
         boolean selectsAllTests, List<TestSelector> testSelectors, String rawAllowNoTests, boolean allowNoTests,
         String reportFile, String reportDir, String statusFile, String rawEvents, boolean eventsEnabled,
-        List<PropertyIssue> issues) {
+        String rawStandardWorld, boolean standardWorld, List<PropertyIssue> issues) {
 
     }
 

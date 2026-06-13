@@ -114,6 +114,20 @@ Controls the event recorder behind `EventLog`.
 
 Disable event recording only for performance investigations; it is the primary CI failure diagnostic.
 
+## `horizonqa.standardWorld`
+
+| Property                 | Values           | Default |
+|--------------------------|------------------|---------|
+| `horizonqa.standardWorld`| `true` / `false` | `false` |
+
+Applies to `report` and `ci` modes. By default those modes force the void GameTest world. Set this to `true` to keep the standard, level-configured world type (`level-type` for a dedicated server, or the requested type when loading from disk) instead of the void world. Use it when a manual `report` batch needs the normal world generation, for example to reproduce a failure that depends on real terrain.
+
+```text
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.standardWorld=true"
+```
+
+The other CI-style server tweaks (no network bind, disabled mob/animal/NPC spawns, disabled Nether) are unaffected; only the world type changes.
+
 ## Report paths
 
 Default outputs:

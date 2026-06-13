@@ -46,10 +46,16 @@ public class CommonProxy {
             logNonFatalPropertyIssues();
         }
         if (HorizonQAProperties.usesCiServerBehavior()) {
-            HorizonQAMod.LOG.info(
-                "Void world registered as '{}' (Forge id {}).",
-                GameTestWorldType.INSTANCE.getWorldTypeName(),
-                GameTestWorldType.INSTANCE.getWorldTypeID());
+            if (HorizonQAProperties.usesVoidTestWorld()) {
+                HorizonQAMod.LOG.info(
+                    "Void world registered as '{}' (Forge id {}).",
+                    GameTestWorldType.INSTANCE.getWorldTypeName(),
+                    GameTestWorldType.INSTANCE.getWorldTypeID());
+            } else {
+                HorizonQAMod.LOG.info(
+                    "-D{}=true: using the standard level world type instead of the void test world.",
+                    HorizonQAProperties.STANDARD_WORLD_PROPERTY);
+            }
         }
 
         ForgeChunkManager.setForcedChunkLoadingCallback(HorizonQAMod.instance, HorizonQAMod.CHUNK_LOADER);
