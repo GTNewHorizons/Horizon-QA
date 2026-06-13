@@ -305,34 +305,37 @@ public class HorizonQACommand extends CommandBase {
         EntityPlayer player = requirePlayer(sender);
         if (player == null) return;
         if (!(player instanceof EntityPlayerMP serverPlayer)) {
-            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED
-                + "This command must be run by a server-side player."));
+            sender.addChatMessage(
+                new ChatComponentText(EnumChatFormatting.RED + "This command must be run by a server-side player."));
             return;
         }
 
-        List<CellRecord> cells = new ArrayList<>(InteractiveTestSession.get()
-            .getKnownCells());
+        List<CellRecord> cells = new ArrayList<>(
+            InteractiveTestSession.get()
+                .getKnownCells());
         if (cells.isEmpty()) {
-            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED
-                + "No test cells found. Run /horizonqa runall first."));
+            sender.addChatMessage(
+                new ChatComponentText(EnumChatFormatting.RED + "No test cells found. Run /horizonqa runall first."));
             return;
         }
 
         String testId = args[1];
         CellRecord cell = HorizonQACommandUtils.findTestById(testId, cells);
         if (cell == null) {
-            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED
-                + "No placed test cell for '"
-                + EnumChatFormatting.YELLOW
-                + testId
-                + EnumChatFormatting.RED
-                + "'. Use tab completion after /horizonqa runall."));
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + "No placed test cell for '"
+                        + EnumChatFormatting.YELLOW
+                        + testId
+                        + EnumChatFormatting.RED
+                        + "'. Use tab completion after /horizonqa runall."));
             return;
         }
 
         if (player.worldObj == null || player.worldObj.provider == null || player.worldObj.provider.dimensionId != 0) {
-            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED
-                + "Test cells are in the overworld. Go to dimension 0 first."));
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + "Test cells are in the overworld. Go to dimension 0 first."));
             return;
         }
 
@@ -343,22 +346,15 @@ public class HorizonQACommand extends CommandBase {
         if (serverPlayer.ridingEntity != null) {
             serverPlayer.mountEntity(null);
         }
-        serverPlayer.playerNetServerHandler.setPlayerLocation(
-            targetX,
-            targetY,
-            targetZ,
-            player.rotationYaw,
-            player.rotationPitch);
+        serverPlayer.playerNetServerHandler
+            .setPlayerLocation(targetX, targetY, targetZ, player.rotationYaw, player.rotationPitch);
 
-        sender.addChatMessage(new ChatComponentText(EnumChatFormatting.GREEN
-            + "Teleported to: "
-            + EnumChatFormatting.YELLOW
-            + cell.testId));
-        sender.addChatMessage(new ChatComponentText(EnumChatFormatting.GRAY + String.format(
-            "Cell target: (%.1f, %.1f, %.1f)",
-            targetX,
-            targetY,
-            targetZ)));
+        sender.addChatMessage(
+            new ChatComponentText(
+                EnumChatFormatting.GREEN + "Teleported to: " + EnumChatFormatting.YELLOW + cell.testId));
+        sender.addChatMessage(
+            new ChatComponentText(
+                EnumChatFormatting.GRAY + String.format("Cell target: (%.1f, %.1f, %.1f)", targetX, targetY, targetZ)));
 
     }
 
