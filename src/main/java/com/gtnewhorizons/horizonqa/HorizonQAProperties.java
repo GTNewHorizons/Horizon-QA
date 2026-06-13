@@ -47,15 +47,23 @@ public final class HorizonQAProperties {
     }
 
     public static boolean isActive() {
-        return PARSED.mode() == Mode.INTERACTIVE || PARSED.mode() == Mode.CI;
+        return PARSED.mode() == Mode.INTERACTIVE || PARSED.mode() == Mode.REPORT || PARSED.mode() == Mode.CI;
     }
 
     public static boolean isInteractive() {
         return PARSED.mode() == Mode.INTERACTIVE;
     }
 
+    public static boolean isReport() {
+        return PARSED.mode() == Mode.REPORT;
+    }
+
     public static boolean isCi() {
         return PARSED.mode() == Mode.CI;
+    }
+
+    public static boolean usesCiServerBehavior() {
+        return PARSED.mode() == Mode.REPORT || PARSED.mode() == Mode.CI;
     }
 
     public static String modeName() {
@@ -141,12 +149,20 @@ public final class HorizonQAProperties {
     }
 
     public static List<PropertyIssue> ciInfrastructureIssues() {
+        return infrastructureIssues(isCi());
+    }
+
+    public static List<PropertyIssue> reportInfrastructureIssues() {
+        return infrastructureIssues(isReport());
+    }
+
+    private static List<PropertyIssue> infrastructureIssues(boolean enabled) {
         List<PropertyIssue> issues = new ArrayList<>();
         if (PARSED.modeIssue() != null) {
             issues.add(PARSED.modeIssue());
             return Collections.unmodifiableList(issues);
         }
-        if (!isCi()) {
+        if (!enabled) {
             return Collections.emptyList();
         }
         for (PropertyIssue issue : PARSED.issues()) {
@@ -231,6 +247,9 @@ public final class HorizonQAProperties {
             case "interactive" -> {
                 return new ModeParseResult(Mode.INTERACTIVE, null);
             }
+            case "report" -> {
+                return new ModeParseResult(Mode.REPORT, null);
+            }
             case "ci" -> {
                 return new ModeParseResult(Mode.CI, null);
             }
@@ -241,7 +260,7 @@ public final class HorizonQAProperties {
             configIssue(
                 "config:" + MODE_PROPERTY,
                 MODE_PROPERTY,
-                "Invalid -D" + MODE_PROPERTY + "=" + value + " (expected one of: off, interactive, ci)",
+                "Invalid -D" + MODE_PROPERTY + "=" + value + " (expected one of: off, interactive, report, ci)",
                 true));
     }
 
@@ -401,6 +420,7 @@ public final class HorizonQAProperties {
     public enum Mode {
         OFF,
         INTERACTIVE,
+        REPORT,
         CI
     }
 

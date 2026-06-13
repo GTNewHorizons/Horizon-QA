@@ -18,6 +18,14 @@ Horizon-QA CI runs are normal dedicated-server runs with the Horizon-QA mode set
 
 In `horizonqa.mode=ci`, Horizon-QA discovers tests, runs the selected batch automatically after the server is ready, writes reports, and exits the process with a deterministic status code. Local authoring should use `horizonqa.mode=interactive` or omit the mode property, because interactive is the default.
 
+Use `horizonqa.mode=report` when you want CI-style report files from a manually-started batch without CI lifetime management:
+
+```text
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
+```
+
+Report mode uses the same void test world and report formats as CI mode. Then run `/horizonqa run <testId>`, `/horizonqa runall [namespace]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` only limits automatic `ci` mode selection; in `report` mode, use the command arguments to choose tests.
+
 ## Report files
 
 By default reports are written in the server process working directory:
@@ -31,6 +39,7 @@ For CI, send them to a predictable artifact directory:
 
 ```text
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
 ```
 
 Report path flags:

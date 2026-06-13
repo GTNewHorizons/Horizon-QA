@@ -31,7 +31,7 @@ public abstract class MixinDedicatedServer {
             value = "INVOKE",
             target = "Lnet/minecraft/world/WorldType;parseWorldType(Ljava/lang/String;)Lnet/minecraft/world/WorldType;"))
     private static WorldType gametest$forceLevelTypeProperty(String name) {
-        if (HorizonQAProperties.isCi()) {
+        if (HorizonQAProperties.usesCiServerBehavior()) {
             return GameTestWorldType.INSTANCE;
         }
         return WorldType.parseWorldType(name);
@@ -57,7 +57,7 @@ public abstract class MixinDedicatedServer {
             target = "Lnet/minecraft/server/dedicated/DedicatedServer;loadAllWorlds(Ljava/lang/String;Ljava/lang/String;JLnet/minecraft/world/WorldType;Ljava/lang/String;)V",
             shift = At.Shift.BEFORE))
     private void gametest$tuneDedicatedFlags(CallbackInfoReturnable<Boolean> cir) {
-        if (!HorizonQAProperties.isCi()) {
+        if (!HorizonQAProperties.usesCiServerBehavior()) {
             return;
         }
         MinecraftServer self = (MinecraftServer) (Object) this;
@@ -68,14 +68,14 @@ public abstract class MixinDedicatedServer {
 
     @Inject(method = "allowSpawnMonsters", at = @At("HEAD"), cancellable = true)
     private void gametest$noHostileSpawns(CallbackInfoReturnable<Boolean> cir) {
-        if (HorizonQAProperties.isCi()) {
+        if (HorizonQAProperties.usesCiServerBehavior()) {
             cir.setReturnValue(false);
         }
     }
 
     @Inject(method = "getAllowNether", at = @At("HEAD"), cancellable = true)
     private void gametest$disableNether(CallbackInfoReturnable<Boolean> cir) {
-        if (HorizonQAProperties.isCi()) {
+        if (HorizonQAProperties.usesCiServerBehavior()) {
             cir.setReturnValue(false);
         }
     }

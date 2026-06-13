@@ -27,6 +27,8 @@ Primary command: **`/horizonqa`** (alias **`/qa`**). Requires permission level *
 
 Tab-completion is wired for subcommands, full test ids on `run`, placed test ids on `tp`, and namespaces on `runall`.
 
+When the server starts with `-Dhorizonqa.mode=report`, `run`, `runall`, and `runfailed` use the CI batch runner and write JUnit XML plus status JSON after the batch completes. The server stays running. Interactive cell commands such as `runthis`, `runthat`, `pos`, and `clearall` are available only in interactive mode.
+
 ## Export requirements
 
 - Must be executed by a **player** (not the console).
