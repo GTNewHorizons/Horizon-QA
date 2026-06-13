@@ -49,6 +49,7 @@ public final class StatusJsonReporter {
         configFirst = appendBooleanField(out, 2, "selectsAllTests", HorizonQAProperties.selectsAllTests(), configFirst);
         configFirst = appendBooleanField(out, 2, "allowNoTests", HorizonQAProperties.allowNoTests(), configFirst);
         configFirst = appendBooleanField(out, 2, "eventsEnabled", HorizonQAProperties.eventsEnabled(), configFirst);
+        configFirst = appendBooleanField(out, 2, "standardWorld", HorizonQAProperties.standardWorld(), configFirst);
         configFirst = appendStringField(out, 2, "reportFile", HorizonQAProperties.reportFile(), configFirst);
         configFirst = appendStringField(out, 2, "reportDir", HorizonQAProperties.reportDir(), configFirst);
         appendStringField(out, 2, "statusFile", HorizonQAProperties.statusFile(), configFirst);

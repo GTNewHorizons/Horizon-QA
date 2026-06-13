@@ -24,7 +24,7 @@ Use `horizonqa.mode=report` when you want CI-style report files from a manually-
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
 ```
 
-Report mode uses the same void test world and report formats as CI mode. Then run `/horizonqa run <testId>`, `/horizonqa runall [namespace]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` only limits automatic `ci` mode selection; in `report` mode, use the command arguments to choose tests.
+Report mode uses the same void test world and report formats as CI mode. To run a manual report batch against the standard, level-configured world instead of the void world, add `-Dhorizonqa.standardWorld=true` (see [JVM & system properties](../reference/jvm-flags.md#horizonqastandardworld)). Then run `/horizonqa run <testId>`, `/horizonqa runall [namespace]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` only limits automatic `ci` mode selection; in `report` mode, use the command arguments to choose tests.
 
 ## Report files
 
@@ -96,6 +96,7 @@ Disable event recording only for performance investigations:
     "selectsAllTests": true,
     "allowNoTests": false,
     "eventsEnabled": true,
+    "standardWorld": false,
     "reportFile": null,
     "reportDir": "build/horizonqa",
     "statusFile": null

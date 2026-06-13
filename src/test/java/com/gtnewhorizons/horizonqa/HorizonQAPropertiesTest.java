@@ -35,6 +35,8 @@ public class HorizonQAPropertiesTest {
                 .isEmpty());
         assertFalse(parsed.allowNoTests());
         assertTrue(parsed.eventsEnabled());
+        assertFalse(parsed.standardWorld());
+        assertNull(parsed.rawStandardWorld());
         assertNull(parsed.reportFile());
         assertNull(parsed.reportDir());
         assertNull(parsed.statusFile());
@@ -67,6 +69,7 @@ public class HorizonQAPropertiesTest {
         properties.setProperty(HorizonQAProperties.REPORT_DIR_PROPERTY, " reports ");
         properties.setProperty(HorizonQAProperties.STATUS_FILE_PROPERTY, " status/result.json ");
         properties.setProperty(HorizonQAProperties.EVENTS_PROPERTY, "off");
+        properties.setProperty(HorizonQAProperties.STANDARD_WORLD_PROPERTY, "true");
 
         HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(properties);
 
@@ -90,6 +93,8 @@ public class HorizonQAPropertiesTest {
         assertTrue(parsed.allowNoTests());
         assertEquals("off", parsed.rawEvents());
         assertFalse(parsed.eventsEnabled());
+        assertEquals("true", parsed.rawStandardWorld());
+        assertTrue(parsed.standardWorld());
         assertEquals("reports/TEST-custom.xml", parsed.reportFile());
         assertEquals("reports", parsed.reportDir());
         assertEquals("status/result.json", parsed.statusFile());
@@ -105,6 +110,7 @@ public class HorizonQAPropertiesTest {
         properties.setProperty(HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY, "yes");
         properties.setProperty(HorizonQAProperties.REPORT_FILE_PROPERTY, "   ");
         properties.setProperty(HorizonQAProperties.EVENTS_PROPERTY, "false");
+        properties.setProperty(HorizonQAProperties.STANDARD_WORLD_PROPERTY, "yes");
 
         HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(properties);
 
@@ -112,12 +118,14 @@ public class HorizonQAPropertiesTest {
         assertFalse(parsed.allowNoTests());
         assertNull(parsed.reportFile());
         assertTrue(parsed.eventsEnabled());
+        assertFalse(parsed.standardWorld());
         assertConfigIssue(parsed, HorizonQAProperties.MODE_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.REPORT_FILE_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.EVENTS_PROPERTY);
+        assertConfigIssue(parsed, HorizonQAProperties.STANDARD_WORLD_PROPERTY);
         assertEquals(
-            4,
+            5,
             parsed.issues()
                 .size());
     }
