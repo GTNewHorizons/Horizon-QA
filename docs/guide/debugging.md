@@ -67,12 +67,12 @@ Failed cells **stay placed** on the grid:
 
 - Each cell shows a color-coded beacon, a highlight box, and floating text with the test id and status.
 - Block-level assertion failures place **red ghost blocks** with a label at the offending position; expected blocks render green.
-- `/horizonqa pos` while standing in a cell prints world and test-relative coordinates and suggests the matching `helper.absolute(x, y, z)` call.
+- `/horizonqa tp <testId>` jumps to a placed cell after `/horizonqa runall`; `/horizonqa pos` then prints world and test-relative coordinates and suggests the matching `helper.absolute(x, y, z)` call.
 
 Iterate without restarting:
 
 1. Edit the test, recompile (hotswap or `gradlew classes`).
-2. `/horizonqa runthis` re-runs the cell in your line of sight (within 64 blocks); `/horizonqa runthat` re-runs the nearest cell.
+2. `/horizonqa tp <testId>` jumps to a specific placed cell; `/horizonqa runthis` re-runs the cell you are standing inside; `/horizonqa runthat` re-runs the cell in your line of sight (within 64 blocks).
 3. `/horizonqa clearall` when the grid gets crowded.
 
 Full command details: [Commands](../reference/commands.md).

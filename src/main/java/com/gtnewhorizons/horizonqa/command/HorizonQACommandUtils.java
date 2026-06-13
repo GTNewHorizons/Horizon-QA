@@ -24,6 +24,15 @@ public final class HorizonQACommandUtils {
         return null;
     }
 
+    public static CellRecord findTestById(String testId, Collection<CellRecord> cells) {
+        for (CellRecord cell : cells) {
+            if (cell.testId.equals(testId)) {
+                return cell;
+            }
+        }
+        return null;
+    }
+
     public static CellRecord findTestAlongLook(EntityPlayer player, Collection<CellRecord> cells) {
         double ox = player.posX;
         double oy = player.posY + player.eyeHeight;

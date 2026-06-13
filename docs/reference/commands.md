@@ -17,14 +17,15 @@ Primary command: **`/horizonqa`** (alias **`/qa`**). Requires permission level *
 | `run`       | `/horizonqa run <testId>`       | Run a single test by full id                                              |
 | `runall`    | `/horizonqa runall [namespace]` | Run all tests, or filter by id prefix `<namespace>:`                      |
 | `runfailed` | `/horizonqa runfailed`          | Re-run tests that failed in the previous batch                            |
-| `runthis`   | `/horizonqa runthis`            | Re-run the test cell in your line of sight (≤ 64 blocks)                  |
-| `runthat`   | `/horizonqa runthat`            | Re-run the nearest known test cell                                        |
+| `tp`        | `/horizonqa tp <testId>`        | Teleport to the placed cell for a test id                                 |
+| `runthis`   | `/horizonqa runthis`            | Re-run the test cell you are standing inside                              |
+| `runthat`   | `/horizonqa runthat`            | Re-run the test cell in your line of sight (<= 64 blocks)                 |
 | `pos`       | `/horizonqa pos`                | Print world and test-relative coordinates; suggest `helper.absolute(...)` |
 | `clearall`  | `/horizonqa clearall`           | Clear all placed test cells and overlays                                  |
 | `clear`     | `/horizonqa clear`              | Clear Horizon Wand's selected position                                    |
 | `export`    | `/horizonqa export <name>`      | Export the wand selection to `horizonqastructures/`                       |
 
-Tab-completion is wired for subcommands, full test ids on `run`, and namespaces on `runall`.
+Tab-completion is wired for subcommands, full test ids on `run`, placed test ids on `tp`, and namespaces on `runall`.
 
 ## Export requirements
 

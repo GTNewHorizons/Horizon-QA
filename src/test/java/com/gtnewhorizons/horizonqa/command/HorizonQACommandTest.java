@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -20,11 +21,13 @@ import org.junit.After;
 import org.junit.Test;
 
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
+import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
 import com.gtnewhorizons.horizonqa.internal.DiscoveryIssue;
 import com.gtnewhorizons.horizonqa.internal.DiscoveryResult;
 import com.gtnewhorizons.horizonqa.internal.DuplicateTestId;
 import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
+import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook;
 import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
 
@@ -33,6 +36,7 @@ public class HorizonQACommandTest {
     @After
     public void clearRegistry() throws Exception {
         seedRegistry(Collections.emptyList(), Collections.emptyList());
+        InteractiveTestSession.reset();
     }
 
     @Test
@@ -53,6 +57,23 @@ public class HorizonQACommandTest {
             .addTabCompletionOptions(new RecordingSender(), new String[] { "runall", "" });
         assertTrue(runAllCompletions.contains("good"));
         assertFalse(runAllCompletions.contains("bad"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void teleportTabCompletionListsOnlyPlacedCells() throws Exception {
+        seedRegistry(
+            Arrays.asList(definition("good:Suite.placed"), definition("good:Suite.notPlaced")),
+            Collections.emptyList());
+        Map<String, CellRecord> knownCells = (Map<String, CellRecord>) sessionField("knownCells")
+            .get(InteractiveTestSession.get());
+        knownCells.put("good:Suite.placed", new CellRecord("good:Suite.placed", 0, 64, 0, 0, 64, 0, 4, 68, 4));
+
+        List<String> completions = new HorizonQACommand()
+            .addTabCompletionOptions(new RecordingSender(), new String[] { "tp", "" });
+
+        assertTrue(completions.contains("good:Suite.placed"));
+        assertFalse(completions.contains("good:Suite.notPlaced"));
     }
 
     @Test
@@ -114,6 +135,12 @@ public class HorizonQACommandTest {
 
     private static Field field(String name) throws Exception {
         Field field = GameTestRegistry.class.getDeclaredField(name);
+        field.setAccessible(true);
+        return field;
+    }
+
+    private static Field sessionField(String name) throws Exception {
+        Field field = InteractiveTestSession.class.getDeclaredField(name);
         field.setAccessible(true);
         return field;
     }

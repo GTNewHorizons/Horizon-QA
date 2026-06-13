@@ -77,12 +77,13 @@ Move the exported files into `src/main/resources/assets/<modid>/horizonqastructu
 
 After `/horizonqa runall`, failed cells **stay placed** on the grid with their overlays. These commands are designed for the in-world triage loop:
 
-| Command               | Purpose                                                                                |
-|-----------------------|----------------------------------------------------------------------------------------|
-| `/horizonqa pos`      | Print world + test-relative coordinates; suggest `helper.absolute(x, y, z)`            |
-| `/horizonqa runthis`  | Re-run the test cell you are looking at                                                |
-| `/horizonqa runthat`  | Re-run the nearest test cell                                                           |
-| `/horizonqa clearall` | Remove placed test cells and overlays                                                  |
+| Command                  | Purpose                                                                     |
+|--------------------------|-----------------------------------------------------------------------------|
+| `/horizonqa tp <testId>` | Teleport to the placed cell for a specific test id                          |
+| `/horizonqa pos`         | Print world + test-relative coordinates; suggest `helper.absolute(x, y, z)` |
+| `/horizonqa runthis`     | Re-run the test cell you are standing inside                                |
+| `/horizonqa runthat`     | Re-run the test cell you are looking at                                     |
+| `/horizonqa clearall`    | Remove placed test cells and overlays                                       |
 
 !!! tip "Iterate without restarting"
 
