@@ -1,9 +1,12 @@
 package com.gtnewhorizons.horizonqa.api.gt;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.WorldServer;
+import net.minecraft.world.chunk.Chunk;
 
 import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
@@ -66,16 +69,46 @@ class TimeWarpHandler {
         return simulated;
     }
 
-    private static void tickGTRegion(WorldServer world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+    private static List<TileEntity> collectGTTileEntities(WorldServer world, int minX, int minY, int minZ, int maxX,
+        int maxY, int maxZ) {
 
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    TileEntity te = world.getTileEntity(x, y, z);
-                    if (te instanceof IGregTechTileEntity) {
-                        te.updateEntity();
+        List<TileEntity> result = new ArrayList<>();
+        int chunkMinX = minX >> 4;
+        int chunkMaxX = maxX >> 4;
+        int chunkMinZ = minZ >> 4;
+        int chunkMaxZ = maxZ >> 4;
+
+        for (int cx = chunkMinX; cx <= chunkMaxX; cx++) {
+            for (int cz = chunkMinZ; cz <= chunkMaxZ; cz++) {
+                Chunk chunk = world.getChunkFromChunkCoords(cx, cz);
+                for (TileEntity te : chunk.chunkTileEntityMap.values()) {
+                    if (te == null) continue;
+                    if (te.xCoord >= minX && te.xCoord <= maxX
+                        && te.yCoord >= minY
+                        && te.yCoord <= maxY
+                        && te.zCoord >= minZ
+                        && te.zCoord <= maxZ
+                        && te instanceof IGregTechTileEntity) {
+                        result.add(te);
                     }
                 }
+            }
+        }
+        result.sort(
+            Comparator.comparingInt((TileEntity te) -> te.xCoord)
+                .thenComparingInt(te -> te.yCoord)
+                .thenComparingInt(te -> te.zCoord));
+
+        return result;
+    }
+
+    private static void tickGTRegion(WorldServer world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+
+        List<TileEntity> gtTileEntities = collectGTTileEntities(world, minX, minY, minZ, maxX, maxY, maxZ);
+
+        for (TileEntity te : gtTileEntities) {
+            if (!te.isInvalid()) {
+                te.updateEntity();
             }
         }
     }
