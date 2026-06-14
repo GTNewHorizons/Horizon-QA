@@ -18,17 +18,14 @@ Passing `-Dhorizonqa.mode=ci` directly to Gradle sets the property on the Gradle
 
 ## `horizonqa.mode`
 
-| Property         | Values                                  | Default       |
-|------------------|-----------------------------------------|---------------|
-| `horizonqa.mode` | `off` / `interactive` / `report` / `ci` | `interactive` |
+| Property         | Values                         | Default       |
+|------------------|--------------------------------|---------------|
+| `horizonqa.mode` | `off` / `interactive` / `ci`   | `interactive` |
 
 Controls Horizon-QA runtime behavior.
 
 `interactive`
 :   Enables `/horizonqa` commands, discovery, and client-side test visuals for local authoring. This is the default when the property is unset.
-
-`report`
-:   Compatibility preset for reported manual batches: non-interactive commands write JUnit XML and status JSON, tests do not auto-run at startup, and the server does not exit after a batch. Defaults to the void test world.
 
 `ci`
 :   Automation preset: non-interactive server behavior, automatic selected-test execution, report writing, and server exit. Defaults to the void test world.
@@ -42,10 +39,9 @@ Examples:
 
 ```text
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=interactive"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci"
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.world=normal -Dhorizonqa.gridOrigin=0,128,0"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.world=normal -Dhorizonqa.gridOrigin=0,128,0"
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=off"
 ```
 
@@ -53,7 +49,7 @@ Examples:
 
 | Property               | Values             | Default                                                   |
 |------------------------|--------------------|-----------------------------------------------------------|
-| `horizonqa.world`      | `void` / `normal`  | `void` in `ci`/`report`, otherwise `normal`               |
+| `horizonqa.world`      | `void` / `normal`  | `void` in `ci`, otherwise `normal`                        |
 | `horizonqa.autoRun`    | `true` / `false`   | `true` in `ci`, otherwise `false`                         |
 | `horizonqa.stopServer` | `true` / `false`   | `true` in `ci` when autorun is enabled, otherwise `false` |
 | `horizonqa.gridOrigin` | `x,y,z`            | `0,64,0`                                                  |
@@ -62,7 +58,7 @@ Examples:
 :   `void` forces Horizon-QA's dedicated void world type for dimension 0. `normal` leaves the server's configured or existing world type alone.
 
 `horizonqa.autoRun`
-:   Runs the selected tests automatically after server startup. When this is `false`, `/horizonqa run`, `/horizonqa runall`, and `/horizonqa runfailed` still use reported non-interactive batches in `ci` and `report` modes. If enabled in interactive mode, the startup batch uses the batch runner; interactive launch, relaunch, and clear commands are rejected until that batch finishes.
+:   Runs the selected tests automatically after server startup. When this is `false`, `/horizonqa run`, `/horizonqa runall`, and `/horizonqa runfailed` still use reported non-interactive batches in `ci` mode. If enabled in interactive mode, the startup batch uses the batch runner; interactive launch, relaunch, and clear commands are rejected until that batch finishes.
 
 `horizonqa.stopServer`
 :   Requests process exit after an auto-run or reported batch finishes. When `false`, the server remains up after the result is written.
@@ -80,9 +76,9 @@ Useful combinations:
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.world=normal -Dhorizonqa.stopServer=false"
 
 # Manual reported batches at Y=128 in the configured world
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.world=normal -Dhorizonqa.gridOrigin=0,128,0"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.world=normal -Dhorizonqa.gridOrigin=0,128,0"
 
-# Report-mode behavior expressed as overrides on the CI preset
+# Manual reported batches with CI overrides
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=build/horizonqa"
 ```
 
@@ -129,7 +125,7 @@ For automatic execution, invalid selector syntax is a fatal CI configuration iss
 |--------------------------|------------------|---------|
 | `horizonqa.allowNoTests` | `true` / `false` | `false` |
 
-Allows an automatic CI/report run with no selected valid tests to pass. This has no effect on manual reported batches, which select tests from the command arguments. For automatic execution, this only applies when the empty selection is otherwise clean; selector/configuration infrastructure issues still fail CI.
+Allows an automatic CI run with no selected valid tests to pass. This has no effect on manual reported batches, which select tests from the command arguments. For automatic execution, this only applies when the empty selection is otherwise clean; selector/configuration infrastructure issues still fail CI.
 
 ```text
 -Dhorizonqa.allowNoTests=true
@@ -176,7 +172,6 @@ Recommended CI and manual-report forms:
 
 ```text
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=build/horizonqa"
 ```
 
@@ -209,4 +204,4 @@ Optional failures do not change the process exit code by themselves. They are co
 
 !!! warning "Use lowercase property values"
 
-    CI property parsing is strict. Use `ci`, `report`, `interactive`, `void`, `normal`, `true`, `false`, `on`, and `off` exactly as documented.
+    CI property parsing is strict. Use `ci`, `interactive`, `void`, `normal`, `true`, `false`, `on`, and `off` exactly as documented.

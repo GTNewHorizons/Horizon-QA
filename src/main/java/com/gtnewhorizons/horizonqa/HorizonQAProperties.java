@@ -52,15 +52,11 @@ public final class HorizonQAProperties {
     }
 
     public static boolean isActive() {
-        return PARSED.mode() == Mode.INTERACTIVE || PARSED.mode() == Mode.REPORT || PARSED.mode() == Mode.CI;
+        return PARSED.mode() == Mode.INTERACTIVE || PARSED.mode() == Mode.CI;
     }
 
     public static boolean isInteractive() {
         return PARSED.mode() == Mode.INTERACTIVE;
-    }
-
-    public static boolean isReport() {
-        return PARSED.mode() == Mode.REPORT;
     }
 
     public static boolean isCi() {
@@ -72,7 +68,7 @@ public final class HorizonQAProperties {
     }
 
     public static boolean usesHeadlessServerBehavior() {
-        return PARSED.mode() == Mode.REPORT || PARSED.mode() == Mode.CI;
+        return PARSED.mode() == Mode.CI;
     }
 
     public static boolean usesReportedCommandBatches() {
@@ -258,7 +254,7 @@ public final class HorizonQAProperties {
     }
 
     private static boolean isActive(Mode mode) {
-        return mode == Mode.INTERACTIVE || mode == Mode.REPORT || mode == Mode.CI;
+        return mode == Mode.INTERACTIVE || mode == Mode.CI;
     }
 
     private static boolean isAutomaticOnlyIssue(PropertyIssue issue) {
@@ -374,9 +370,6 @@ public final class HorizonQAProperties {
             case "interactive" -> {
                 return new ModeParseResult(Mode.INTERACTIVE, null);
             }
-            case "report" -> {
-                return new ModeParseResult(Mode.REPORT, null);
-            }
             case "ci" -> {
                 return new ModeParseResult(Mode.CI, null);
             }
@@ -387,12 +380,12 @@ public final class HorizonQAProperties {
             configIssue(
                 "config:" + MODE_PROPERTY,
                 MODE_PROPERTY,
-                "Invalid -D" + MODE_PROPERTY + "=" + value + " (expected one of: off, interactive, report, ci)",
+                "Invalid -D" + MODE_PROPERTY + "=" + value + " (expected one of: off, interactive, ci)",
                 true));
     }
 
     private static WorldPolicy defaultWorldPolicy(Mode mode) {
-        return mode == Mode.REPORT || mode == Mode.CI ? WorldPolicy.VOID : WorldPolicy.NORMAL;
+        return mode == Mode.CI ? WorldPolicy.VOID : WorldPolicy.NORMAL;
     }
 
     private static boolean defaultAutoRun(Mode mode) {
@@ -627,7 +620,6 @@ public final class HorizonQAProperties {
     public enum Mode {
         OFF,
         INTERACTIVE,
-        REPORT,
         CI
     }
 

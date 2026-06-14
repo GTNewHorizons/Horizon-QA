@@ -425,7 +425,7 @@ public class HorizonQACommand extends CommandBase {
             return true;
         }
 
-        HorizonQAMod.LOG.error("Report path preflight failed; report-mode batch was not launched.");
+        HorizonQAMod.LOG.error("Report path preflight failed; reported batch was not launched.");
         for (IssueResult issue : reportPathIssues) {
             HorizonQAMod.LOG.error("Infrastructure issue [{}] {}: {}", issue.id(), issue.name(), issue.message());
         }

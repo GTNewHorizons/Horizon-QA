@@ -53,20 +53,18 @@ public class HorizonQAPropertiesTest {
     }
 
     @Test
-    public void reportModeParsesAsManualReportMode() {
+    public void reportModeIsRejected() {
         Properties properties = new Properties();
         properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "report");
 
         HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(properties);
 
-        assertEquals(HorizonQAProperties.Mode.REPORT, parsed.mode());
+        assertEquals(HorizonQAProperties.Mode.OFF, parsed.mode());
         assertEquals("report", parsed.rawMode());
-        assertEquals(HorizonQAProperties.WorldPolicy.VOID, parsed.worldPolicy());
+        assertEquals(HorizonQAProperties.WorldPolicy.NORMAL, parsed.worldPolicy());
         assertFalse(parsed.autoRunTests());
         assertFalse(parsed.stopServerAfterRun());
-        assertTrue(
-            parsed.issues()
-                .isEmpty());
+        assertConfigIssue(parsed, HorizonQAProperties.MODE_PROPERTY);
     }
 
     @Test
@@ -119,7 +117,8 @@ public class HorizonQAPropertiesTest {
     @Test
     public void manualReportedInfrastructureKeepsSharedConfigIssues() {
         Properties properties = new Properties();
-        properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "report");
+        properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "ci");
+        properties.setProperty(HorizonQAProperties.AUTO_RUN_PROPERTY, "false");
         properties.setProperty(HorizonQAProperties.TESTS_PROPERTY, "too:many:colons");
         properties.setProperty(HorizonQAProperties.GRID_ORIGIN_PROPERTY, "0,256,0");
         HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(properties);
