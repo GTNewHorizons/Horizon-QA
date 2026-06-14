@@ -18,31 +18,68 @@ Passing `-Dhorizonqa.mode=ci` directly to Gradle sets the property on the Gradle
 
 ## `horizonqa.mode`
 
-| Property         | Values                                  | Default       |
-|------------------|-----------------------------------------|---------------|
-| `horizonqa.mode` | `off` / `interactive` / `report` / `ci` | `interactive` |
+| Property         | Values                         | Default       |
+|------------------|--------------------------------|---------------|
+| `horizonqa.mode` | `off` / `interactive` / `ci`   | `interactive` |
 
 Controls Horizon-QA runtime behavior.
 
 `interactive`
 :   Enables `/horizonqa` commands, discovery, and client-side test visuals for local authoring. This is the default when the property is unset.
 
-`report`
-:   Enables the CI-style void test world plus manual `/horizonqa run`, `/horizonqa runall`, and `/horizonqa runfailed` batches that write JUnit XML and status JSON reports. The server does not auto-run tests at startup and does not exit after the batch completes.
-
 `ci`
-:   Enables deterministic headless execution: void world registration, CI-oriented server behavior, automatic selected-test execution, report writing, and server exit.
+:   Automation preset: non-interactive server behavior, automatic selected-test execution, report writing, and server exit. Defaults to the void test world.
 
 `off`
 :   Loads the mod while leaving commands, discovery, runner behavior, and test visuals inert.
+
+Modes are presets. Runtime behavior is resolved from the mode defaults plus the override properties below, so you do not need a new mode for every combination of world, autorun, shutdown, and placement policy.
 
 Examples:
 
 ```text
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=interactive"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.world=normal -Dhorizonqa.gridOrigin=0,128,0"
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=off"
+```
+
+## Runtime behavior overrides
+
+| Property               | Values             | Default                                                   |
+|------------------------|--------------------|-----------------------------------------------------------|
+| `horizonqa.world`      | `void` / `normal`  | `void` in `ci`, otherwise `normal`                        |
+| `horizonqa.autoRun`    | `true` / `false`   | `true` in `ci`, otherwise `false`                         |
+| `horizonqa.stopServer` | `true` / `false`   | `true` in `ci` when autorun is enabled, otherwise `false` |
+| `horizonqa.gridOrigin` | `x,y,z`            | `0,64,0`                                                  |
+
+`horizonqa.world`
+:   `void` forces Horizon-QA's dedicated void world type for dimension 0. `normal` leaves the server's configured or existing world type alone.
+
+`horizonqa.autoRun`
+:   Runs the selected tests automatically after server startup. When this is `false`, `/horizonqa run`, `/horizonqa runall`, and `/horizonqa runfailed` still use reported non-interactive batches in `ci` mode. If enabled in interactive mode, the startup batch uses the batch runner; interactive launch, relaunch, and clear commands are rejected until that batch finishes.
+
+`horizonqa.stopServer`
+:   Requests process exit after an auto-run or reported batch finishes. When `false`, the server remains up after the result is written.
+
+`horizonqa.gridOrigin`
+:   Sets the absolute world coordinate where the test grid starts. Use `x,y,z`; `y` must be between `0` and `255`. This affects both automatic and manual test placement.
+
+Useful combinations:
+
+```text
+# CI reports, normal terrain, exit when done
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.world=normal"
+
+# CI-style autorun, normal terrain, keep the server available afterward
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.world=normal -Dhorizonqa.stopServer=false"
+
+# Manual reported batches at Y=128 in the configured world
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.world=normal -Dhorizonqa.gridOrigin=0,128,0"
+
+# Manual reported batches with CI overrides
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=build/horizonqa"
 ```
 
 ## `horizonqa.tests`
@@ -51,7 +88,7 @@ Examples:
 |-------------------|---------------------------|-----------------|
 | `horizonqa.tests` | comma-separated selectors | all valid tests |
 
-Limits automatic CI execution to selected tests. `report` mode is manual and uses the command arguments instead.
+Limits automatic execution to selected tests. Manual reported batches use the command arguments instead and ignore this property.
 
 Selector grammar:
 
@@ -80,7 +117,7 @@ Examples:
 -Dhorizonqa.tests=horizonqaexamples,othermod:SmokeTests.boots
 ```
 
-Invalid selector syntax is a fatal CI configuration issue and exits `2`. Selectors that are syntactically valid but match no valid tests are reported as CI infrastructure issues; any other matched tests still run.
+For automatic execution, invalid selector syntax is a fatal CI configuration issue and exits `2`. Selectors that are syntactically valid but match no valid tests are reported as CI infrastructure issues; any other matched tests still run.
 
 ## `horizonqa.allowNoTests`
 
@@ -88,7 +125,7 @@ Invalid selector syntax is a fatal CI configuration issue and exits `2`. Selecto
 |--------------------------|------------------|---------|
 | `horizonqa.allowNoTests` | `true` / `false` | `false` |
 
-Allows a CI run with no selected valid tests to pass. This only applies when the empty selection is otherwise clean; selector/configuration infrastructure issues still fail CI.
+Allows an automatic CI run with no selected valid tests to pass. This has no effect on manual reported batches, which select tests from the command arguments. For automatic execution, this only applies when the empty selection is otherwise clean; selector/configuration infrastructure issues still fail CI.
 
 ```text
 -Dhorizonqa.allowNoTests=true
@@ -135,7 +172,7 @@ Recommended CI and manual-report forms:
 
 ```text
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=build/horizonqa"
 ```
 
 ## Status JSON
@@ -167,4 +204,4 @@ Optional failures do not change the process exit code by themselves. They are co
 
 !!! warning "Use lowercase property values"
 
-    CI property parsing is strict. Use `ci`, `report`, `interactive`, `true`, `false`, `on`, and `off` exactly as documented.
+    CI property parsing is strict. Use `ci`, `interactive`, `void`, `normal`, `true`, `false`, `on`, and `off` exactly as documented.

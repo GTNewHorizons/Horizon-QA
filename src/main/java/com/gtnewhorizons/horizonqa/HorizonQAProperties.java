@@ -11,6 +11,10 @@ import com.github.bsideup.jabel.Desugar;
 public final class HorizonQAProperties {
 
     public static final String MODE_PROPERTY = "horizonqa.mode";
+    public static final String WORLD_PROPERTY = "horizonqa.world";
+    public static final String AUTO_RUN_PROPERTY = "horizonqa.autoRun";
+    public static final String STOP_SERVER_PROPERTY = "horizonqa.stopServer";
+    public static final String GRID_ORIGIN_PROPERTY = "horizonqa.gridOrigin";
     public static final String TESTS_PROPERTY = "horizonqa.tests";
     public static final String ALLOW_NO_TESTS_PROPERTY = "horizonqa.allowNoTests";
     public static final String REPORT_FILE_PROPERTY = "horizonqa.reportFile";
@@ -20,6 +24,7 @@ public final class HorizonQAProperties {
 
     private static final String DEFAULT_JUNIT_REPORT = "TEST-horizonqa.xml";
     private static final String DEFAULT_STATUS_REPORT = "horizonqa-result.json";
+    private static final GridOrigin DEFAULT_GRID_ORIGIN = new GridOrigin(0, 64, 0);
 
     private static final ParsedProperties PARSED = parse();
 
@@ -47,15 +52,11 @@ public final class HorizonQAProperties {
     }
 
     public static boolean isActive() {
-        return PARSED.mode() == Mode.INTERACTIVE || PARSED.mode() == Mode.REPORT || PARSED.mode() == Mode.CI;
+        return PARSED.mode() == Mode.INTERACTIVE || PARSED.mode() == Mode.CI;
     }
 
     public static boolean isInteractive() {
         return PARSED.mode() == Mode.INTERACTIVE;
-    }
-
-    public static boolean isReport() {
-        return PARSED.mode() == Mode.REPORT;
     }
 
     public static boolean isCi() {
@@ -63,7 +64,77 @@ public final class HorizonQAProperties {
     }
 
     public static boolean usesCiServerBehavior() {
-        return PARSED.mode() == Mode.REPORT || PARSED.mode() == Mode.CI;
+        return usesHeadlessServerBehavior();
+    }
+
+    public static boolean usesHeadlessServerBehavior() {
+        return PARSED.mode() == Mode.CI;
+    }
+
+    public static boolean usesReportedCommandBatches() {
+        return usesReportedCommandBatches(PARSED);
+    }
+
+    public static boolean interactiveFeaturesEnabled() {
+        return PARSED.mode() == Mode.INTERACTIVE;
+    }
+
+    public static WorldPolicy worldPolicy() {
+        return PARSED.worldPolicy();
+    }
+
+    public static String worldPolicyName() {
+        return PARSED.worldPolicy()
+            .name()
+            .toLowerCase();
+    }
+
+    public static String rawWorld() {
+        return PARSED.rawWorld();
+    }
+
+    public static boolean usesVoidWorld() {
+        return PARSED.worldPolicy() == WorldPolicy.VOID;
+    }
+
+    public static boolean autoRunTests() {
+        return PARSED.autoRunTests();
+    }
+
+    public static String rawAutoRun() {
+        return PARSED.rawAutoRun();
+    }
+
+    public static boolean stopServerAfterRun() {
+        return PARSED.stopServerAfterRun();
+    }
+
+    public static String rawStopServer() {
+        return PARSED.rawStopServer();
+    }
+
+    public static int gridOriginX() {
+        return PARSED.gridOrigin()
+            .x();
+    }
+
+    public static int gridOriginY() {
+        return PARSED.gridOrigin()
+            .y();
+    }
+
+    public static int gridOriginZ() {
+        return PARSED.gridOrigin()
+            .z();
+    }
+
+    public static String gridOriginName() {
+        GridOrigin origin = PARSED.gridOrigin();
+        return origin.x() + "," + origin.y() + "," + origin.z();
+    }
+
+    public static String rawGridOrigin() {
+        return PARSED.rawGridOrigin();
     }
 
     public static String modeName() {
@@ -149,28 +220,45 @@ public final class HorizonQAProperties {
     }
 
     public static List<PropertyIssue> ciInfrastructureIssues() {
-        return infrastructureIssues(isCi());
+        return infrastructureIssues(PARSED, autoRunTests(), true);
     }
 
     public static List<PropertyIssue> reportInfrastructureIssues() {
-        return infrastructureIssues(isReport());
+        return reportInfrastructureIssues(PARSED);
     }
 
-    private static List<PropertyIssue> infrastructureIssues(boolean enabled) {
+    static List<PropertyIssue> reportInfrastructureIssues(ParsedProperties parsed) {
+        return infrastructureIssues(parsed, usesReportedCommandBatches(parsed), false);
+    }
+
+    private static List<PropertyIssue> infrastructureIssues(ParsedProperties parsed, boolean enabled,
+        boolean includeAutomaticOnlyProperties) {
         List<PropertyIssue> issues = new ArrayList<>();
-        if (PARSED.modeIssue() != null) {
-            issues.add(PARSED.modeIssue());
+        if (parsed.modeIssue() != null) {
+            issues.add(parsed.modeIssue());
             return Collections.unmodifiableList(issues);
         }
         if (!enabled) {
             return Collections.emptyList();
         }
-        for (PropertyIssue issue : PARSED.issues()) {
-            if (issue.fatalInCi()) {
+        for (PropertyIssue issue : parsed.issues()) {
+            if (issue.fatalInCi() && (includeAutomaticOnlyProperties || !isAutomaticOnlyIssue(issue))) {
                 issues.add(issue);
             }
         }
         return Collections.unmodifiableList(issues);
+    }
+
+    private static boolean usesReportedCommandBatches(ParsedProperties parsed) {
+        return isActive(parsed.mode()) && parsed.mode() != Mode.INTERACTIVE;
+    }
+
+    private static boolean isActive(Mode mode) {
+        return mode == Mode.INTERACTIVE || mode == Mode.CI;
+    }
+
+    private static boolean isAutomaticOnlyIssue(PropertyIssue issue) {
+        return TESTS_PROPERTY.equals(issue.property()) || ALLOW_NO_TESTS_PROPERTY.equals(issue.property());
     }
 
     private static ParsedProperties parse() {
@@ -191,6 +279,33 @@ public final class HorizonQAProperties {
         ModeParseResult mode = parseMode(rawMode);
         if (mode.issue() != null) {
             issues.add(mode.issue());
+        }
+
+        String rawWorld = properties.getProperty(WORLD_PROPERTY);
+        WorldPolicyParseResult world = parseWorldPolicy(rawWorld, defaultWorldPolicy(mode.mode()));
+        if (world.issue() != null) {
+            issues.add(world.issue());
+        }
+
+        String rawAutoRun = properties.getProperty(AUTO_RUN_PROPERTY);
+        BooleanParseResult autoRun = parseStrictBoolean(AUTO_RUN_PROPERTY, rawAutoRun, defaultAutoRun(mode.mode()));
+        if (autoRun.issue() != null) {
+            issues.add(autoRun.issue());
+        }
+
+        String rawStopServer = properties.getProperty(STOP_SERVER_PROPERTY);
+        BooleanParseResult stopServer = parseStrictBoolean(
+            STOP_SERVER_PROPERTY,
+            rawStopServer,
+            defaultStopServer(mode.mode(), autoRun.value()));
+        if (stopServer.issue() != null) {
+            issues.add(stopServer.issue());
+        }
+
+        String rawGridOrigin = properties.getProperty(GRID_ORIGIN_PROPERTY);
+        GridOriginParseResult gridOrigin = parseGridOrigin(rawGridOrigin);
+        if (gridOrigin.issue() != null) {
+            issues.add(gridOrigin.issue());
         }
 
         String rawTests = properties.getProperty(TESTS_PROPERTY);
@@ -223,6 +338,14 @@ public final class HorizonQAProperties {
             rawMode,
             mode.mode(),
             mode.issue(),
+            rawWorld,
+            world.policy(),
+            rawAutoRun,
+            autoRun.value(),
+            rawStopServer,
+            stopServer.value(),
+            rawGridOrigin,
+            gridOrigin.origin(),
             rawTests,
             selectors.selectsAll(),
             selectors.selectors(),
@@ -247,9 +370,6 @@ public final class HorizonQAProperties {
             case "interactive" -> {
                 return new ModeParseResult(Mode.INTERACTIVE, null);
             }
-            case "report" -> {
-                return new ModeParseResult(Mode.REPORT, null);
-            }
             case "ci" -> {
                 return new ModeParseResult(Mode.CI, null);
             }
@@ -260,7 +380,89 @@ public final class HorizonQAProperties {
             configIssue(
                 "config:" + MODE_PROPERTY,
                 MODE_PROPERTY,
-                "Invalid -D" + MODE_PROPERTY + "=" + value + " (expected one of: off, interactive, report, ci)",
+                "Invalid -D" + MODE_PROPERTY + "=" + value + " (expected one of: off, interactive, ci)",
+                true));
+    }
+
+    private static WorldPolicy defaultWorldPolicy(Mode mode) {
+        return mode == Mode.CI ? WorldPolicy.VOID : WorldPolicy.NORMAL;
+    }
+
+    private static boolean defaultAutoRun(Mode mode) {
+        return mode == Mode.CI;
+    }
+
+    private static boolean defaultStopServer(Mode mode, boolean autoRunTests) {
+        return mode == Mode.CI && autoRunTests;
+    }
+
+    private static WorldPolicyParseResult parseWorldPolicy(String raw, WorldPolicy defaultPolicy) {
+        if (raw == null) {
+            return new WorldPolicyParseResult(defaultPolicy, null);
+        }
+        switch (raw) {
+            case "void" -> {
+                return new WorldPolicyParseResult(WorldPolicy.VOID, null);
+            }
+            case "normal" -> {
+                return new WorldPolicyParseResult(WorldPolicy.NORMAL, null);
+            }
+        }
+        return new WorldPolicyParseResult(
+            defaultPolicy,
+            configIssue(
+                "config:" + WORLD_PROPERTY,
+                WORLD_PROPERTY,
+                "Invalid -D" + WORLD_PROPERTY + "=" + renderRawValue(raw) + " (expected void or normal)",
+                true));
+    }
+
+    private static GridOriginParseResult parseGridOrigin(String raw) {
+        if (raw == null) {
+            return new GridOriginParseResult(DEFAULT_GRID_ORIGIN, null);
+        }
+        String value = raw.trim();
+        if (value.isEmpty()) {
+            return invalidGridOrigin(raw);
+        }
+
+        String[] parts = value.split(",", -1);
+        if (parts.length != 3) {
+            return invalidGridOrigin(raw);
+        }
+
+        Integer x = parseInteger(parts[0]);
+        Integer y = parseInteger(parts[1]);
+        Integer z = parseInteger(parts[2]);
+        if (x == null || y == null || z == null || y < 0 || y > 255) {
+            return invalidGridOrigin(raw);
+        }
+
+        return new GridOriginParseResult(new GridOrigin(x, y, z), null);
+    }
+
+    private static Integer parseInteger(String raw) {
+        String value = raw.trim();
+        if (value.isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static GridOriginParseResult invalidGridOrigin(String raw) {
+        return new GridOriginParseResult(
+            DEFAULT_GRID_ORIGIN,
+            configIssue(
+                "config:" + GRID_ORIGIN_PROPERTY,
+                GRID_ORIGIN_PROPERTY,
+                "Invalid -D" + GRID_ORIGIN_PROPERTY
+                    + "="
+                    + renderRawValue(raw)
+                    + " (expected x,y,z with y between 0 and 255)",
                 true));
     }
 
@@ -420,8 +622,12 @@ public final class HorizonQAProperties {
     public enum Mode {
         OFF,
         INTERACTIVE,
-        REPORT,
         CI
+    }
+
+    public enum WorldPolicy {
+        VOID,
+        NORMAL
     }
 
     public enum SelectorType {
@@ -440,7 +646,9 @@ public final class HorizonQAProperties {
     }
 
     @Desugar
-    record ParsedProperties(String rawMode, Mode mode, PropertyIssue modeIssue, String rawTests,
+    record ParsedProperties(String rawMode, Mode mode, PropertyIssue modeIssue, String rawWorld,
+        WorldPolicy worldPolicy, String rawAutoRun, boolean autoRunTests, String rawStopServer,
+        boolean stopServerAfterRun, String rawGridOrigin, GridOrigin gridOrigin, String rawTests,
         boolean selectsAllTests, List<TestSelector> testSelectors, String rawAllowNoTests, boolean allowNoTests,
         String reportFile, String reportDir, String statusFile, String rawEvents, boolean eventsEnabled,
         List<PropertyIssue> issues) {
@@ -449,6 +657,21 @@ public final class HorizonQAProperties {
 
     @Desugar
     private record ModeParseResult(Mode mode, PropertyIssue issue) {
+
+    }
+
+    @Desugar
+    record GridOrigin(int x, int y, int z) {
+
+    }
+
+    @Desugar
+    private record WorldPolicyParseResult(WorldPolicy policy, PropertyIssue issue) {
+
+    }
+
+    @Desugar
+    private record GridOriginParseResult(GridOrigin origin, PropertyIssue issue) {
 
     }
 

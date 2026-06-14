@@ -31,7 +31,7 @@ public abstract class MixinDedicatedServer {
             value = "INVOKE",
             target = "Lnet/minecraft/world/WorldType;parseWorldType(Ljava/lang/String;)Lnet/minecraft/world/WorldType;"))
     private static WorldType gametest$forceLevelTypeProperty(String name) {
-        if (HorizonQAProperties.usesCiServerBehavior()) {
+        if (HorizonQAProperties.usesVoidWorld()) {
             return GameTestWorldType.INSTANCE;
         }
         return WorldType.parseWorldType(name);
@@ -43,7 +43,7 @@ public abstract class MixinDedicatedServer {
             value = "INVOKE",
             target = "Lnet/minecraft/network/NetworkSystem;addLanEndpoint(Ljava/net/InetAddress;I)V"))
     private void gametest$skipBind(NetworkSystem net, InetAddress address, int port) throws IOException {
-        if (HorizonQAProperties.isCi()) {
+        if (HorizonQAProperties.autoRunTests() && HorizonQAProperties.stopServerAfterRun()) {
             HorizonQAMod.LOG.info("GameTest: skipping dedicated server network bind (would have used port {})", port);
             return;
         }
@@ -57,7 +57,7 @@ public abstract class MixinDedicatedServer {
             target = "Lnet/minecraft/server/dedicated/DedicatedServer;loadAllWorlds(Ljava/lang/String;Ljava/lang/String;JLnet/minecraft/world/WorldType;Ljava/lang/String;)V",
             shift = At.Shift.BEFORE))
     private void gametest$tuneDedicatedFlags(CallbackInfoReturnable<Boolean> cir) {
-        if (!HorizonQAProperties.usesCiServerBehavior()) {
+        if (!HorizonQAProperties.usesHeadlessServerBehavior()) {
             return;
         }
         MinecraftServer self = (MinecraftServer) (Object) this;
@@ -68,14 +68,14 @@ public abstract class MixinDedicatedServer {
 
     @Inject(method = "allowSpawnMonsters", at = @At("HEAD"), cancellable = true)
     private void gametest$noHostileSpawns(CallbackInfoReturnable<Boolean> cir) {
-        if (HorizonQAProperties.usesCiServerBehavior()) {
+        if (HorizonQAProperties.usesHeadlessServerBehavior()) {
             cir.setReturnValue(false);
         }
     }
 
     @Inject(method = "getAllowNether", at = @At("HEAD"), cancellable = true)
     private void gametest$disableNether(CallbackInfoReturnable<Boolean> cir) {
-        if (HorizonQAProperties.usesCiServerBehavior()) {
+        if (HorizonQAProperties.usesHeadlessServerBehavior()) {
             cir.setReturnValue(false);
         }
     }

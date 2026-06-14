@@ -168,13 +168,14 @@ public class HorizonQACommand extends CommandBase {
                         + "'. Use /horizonqa runall to list available tests."));
             return;
         }
-        if (HorizonQAProperties.isReport()) {
+        if (HorizonQAProperties.usesReportedCommandBatches()) {
             startReportedBatch(
                 sender,
                 Collections.singletonList(def),
                 EnumChatFormatting.GREEN + "Launched report batch: " + EnumChatFormatting.YELLOW + def.getTestId());
             return;
         }
+        if (rejectBatchRunning(sender)) return;
         int launched = InteractiveTestSession.get()
             .launchTest(def);
         if (launched > 0) {
@@ -217,7 +218,7 @@ public class HorizonQACommand extends CommandBase {
                 return;
             }
         }
-        if (HorizonQAProperties.isReport()) {
+        if (HorizonQAProperties.usesReportedCommandBatches()) {
             startReportedBatch(
                 sender,
                 tests,
@@ -228,6 +229,7 @@ public class HorizonQACommand extends CommandBase {
                     + " test(s).");
             return;
         }
+        if (rejectBatchRunning(sender)) return;
         int launched = InteractiveTestSession.get()
             .launchTests(tests);
         if (launched > 0) {
@@ -246,7 +248,7 @@ public class HorizonQACommand extends CommandBase {
     }
 
     private void handleRunFailed(ICommandSender sender, String[] args) {
-        if (HorizonQAProperties.isReport() && reportBatchRunning) {
+        if (HorizonQAProperties.usesReportedCommandBatches() && reportBatchRunning) {
             reportBatchAlreadyRunning(sender);
             return;
         }
@@ -268,7 +270,7 @@ public class HorizonQACommand extends CommandBase {
                         + "were they unloaded?"));
             return;
         }
-        if (HorizonQAProperties.isReport()) {
+        if (HorizonQAProperties.usesReportedCommandBatches()) {
             startReportedBatch(
                 sender,
                 defs,
@@ -279,6 +281,7 @@ public class HorizonQACommand extends CommandBase {
                     + " failed test(s).");
             return;
         }
+        if (rejectBatchRunning(sender)) return;
         int launched = InteractiveTestSession.get()
             .launchTests(defs);
         if (launched > 0) {
@@ -359,7 +362,7 @@ public class HorizonQACommand extends CommandBase {
     }
 
     private static Set<String> failedIdsForCurrentMode() {
-        if (!HorizonQAProperties.isReport()) {
+        if (!HorizonQAProperties.usesReportedCommandBatches()) {
             return InteractiveTestSession.get()
                 .getFailedIds();
         }
@@ -368,7 +371,7 @@ public class HorizonQACommand extends CommandBase {
 
     private static void startReportedBatch(ICommandSender sender, List<GameTestDefinition> tests,
         String launchedMessage) {
-        if (reportBatchRunning) {
+        if (reportBatchRunning || GameTestBatchRunner.isBatchRunning()) {
             reportBatchAlreadyRunning(sender);
             return;
         }
@@ -383,13 +386,17 @@ public class HorizonQACommand extends CommandBase {
                 Collections.emptyList(),
                 result -> {
                     try {
-                        rememberReportedFailures(result);
+                        rememberReportedBatchResult(result);
                     } finally {
                         reportBatchRunning = false;
                     }
                 });
             reportBatchRunning = true;
             batchRunner.start();
+        } catch (IllegalStateException e) {
+            reportBatchRunning = false;
+            reportBatchAlreadyRunning(sender);
+            return;
         } catch (RuntimeException | Error e) {
             reportBatchRunning = false;
             throw e;
@@ -407,7 +414,7 @@ public class HorizonQACommand extends CommandBase {
             RunReportWriter.write(result, HorizonQAMod.LOG);
             sender.addChatMessage(
                 new ChatComponentText(
-                    EnumChatFormatting.RED + "Report-mode configuration is invalid; tests were not launched. "
+                    EnumChatFormatting.RED + "Reported-batch configuration is invalid; tests were not launched. "
                         + "Check the report files and server log for details."));
             return false;
         }
@@ -418,7 +425,7 @@ public class HorizonQACommand extends CommandBase {
             return true;
         }
 
-        HorizonQAMod.LOG.error("Report path preflight failed; report-mode batch was not launched.");
+        HorizonQAMod.LOG.error("Report path preflight failed; reported batch was not launched.");
         for (IssueResult issue : reportPathIssues) {
             HorizonQAMod.LOG.error("Infrastructure issue [{}] {}: {}", issue.id(), issue.name(), issue.message());
         }
@@ -432,8 +439,11 @@ public class HorizonQACommand extends CommandBase {
         return false;
     }
 
-    private static void rememberReportedFailures(RunResult result) {
+    public static void rememberReportedBatchResult(RunResult result) {
         LAST_REPORTED_FAILED_IDS.clear();
+        if (result == null) {
+            return;
+        }
         for (CaseResult resultCase : result.cases()) {
             if (resultCase.failed() || resultCase.timedOut() || resultCase.error()) {
                 LAST_REPORTED_FAILED_IDS.add(resultCase.id());
@@ -449,11 +459,19 @@ public class HorizonQACommand extends CommandBase {
     private static void reportBatchAlreadyRunning(ICommandSender sender) {
         sender.addChatMessage(
             new ChatComponentText(
-                EnumChatFormatting.RED + "A report batch is already running. Wait for it to finish first."));
+                EnumChatFormatting.RED + "A GameTest batch is already running. Wait for it to finish first."));
     }
 
-    private static boolean rejectInteractiveOnlyInReportMode(ICommandSender sender, String replacement) {
-        if (!HorizonQAProperties.isReport()) {
+    private static boolean rejectBatchRunning(ICommandSender sender) {
+        if (!GameTestBatchRunner.isBatchRunning()) {
+            return false;
+        }
+        reportBatchAlreadyRunning(sender);
+        return true;
+    }
+
+    private static boolean rejectInteractiveOnlyInNonInteractiveMode(ICommandSender sender, String replacement) {
+        if (HorizonQAProperties.interactiveFeaturesEnabled()) {
             return false;
         }
         sender.addChatMessage(
@@ -461,7 +479,7 @@ public class HorizonQACommand extends CommandBase {
                 EnumChatFormatting.RED + "That command is only available in interactive mode. "
                     + "Use "
                     + replacement
-                    + " in report mode."));
+                    + " for reported batches."));
         return true;
     }
 
@@ -485,7 +503,8 @@ public class HorizonQACommand extends CommandBase {
     }
 
     private void handleRunThis(ICommandSender sender, String[] args) {
-        if (rejectInteractiveOnlyInReportMode(sender, "/horizonqa run <testId>")) return;
+        if (rejectInteractiveOnlyInNonInteractiveMode(sender, "/horizonqa run <testId>")) return;
+        if (rejectBatchRunning(sender)) return;
         EntityPlayer player = requirePlayer(sender);
         if (player == null) return;
 
@@ -510,7 +529,8 @@ public class HorizonQACommand extends CommandBase {
     }
 
     private void handleRunThat(ICommandSender sender, String[] args) {
-        if (rejectInteractiveOnlyInReportMode(sender, "/horizonqa run <testId>")) return;
+        if (rejectInteractiveOnlyInNonInteractiveMode(sender, "/horizonqa run <testId>")) return;
+        if (rejectBatchRunning(sender)) return;
         EntityPlayer player = requirePlayer(sender);
         if (player == null) return;
 
@@ -553,7 +573,7 @@ public class HorizonQACommand extends CommandBase {
     }
 
     private void handlePos(ICommandSender sender, String[] args) {
-        if (rejectInteractiveOnlyInReportMode(sender, "/horizonqa run <testId>")) return;
+        if (rejectInteractiveOnlyInNonInteractiveMode(sender, "/horizonqa run <testId>")) return;
         EntityPlayer player = requirePlayer(sender);
         if (player == null) return;
 
@@ -607,7 +627,8 @@ public class HorizonQACommand extends CommandBase {
     }
 
     private void handleClearAll(ICommandSender sender, String[] args) {
-        if (rejectInteractiveOnlyInReportMode(sender, "/horizonqa runall")) return;
+        if (rejectInteractiveOnlyInNonInteractiveMode(sender, "/horizonqa runall")) return;
+        if (rejectBatchRunning(sender)) return;
         int count = InteractiveTestSession.get()
             .getKnownCells()
             .size();
