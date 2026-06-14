@@ -62,7 +62,7 @@ Examples:
 :   `void` forces Horizon-QA's dedicated void world type for dimension 0. `normal` leaves the server's configured or existing world type alone.
 
 `horizonqa.autoRun`
-:   Runs the selected tests automatically after server startup. When this is `false`, `/horizonqa run`, `/horizonqa runall`, and `/horizonqa runfailed` still use reported non-interactive batches in `ci` and `report` modes.
+:   Runs the selected tests automatically after server startup. When this is `false`, `/horizonqa run`, `/horizonqa runall`, and `/horizonqa runfailed` still use reported non-interactive batches in `ci` and `report` modes. If enabled in interactive mode, the startup batch uses the batch runner; interactive launch, relaunch, and clear commands are rejected until that batch finishes.
 
 `horizonqa.stopServer`
 :   Requests process exit after an auto-run or reported batch finishes. When `false`, the server remains up after the result is written.
@@ -92,7 +92,7 @@ Useful combinations:
 |-------------------|---------------------------|-----------------|
 | `horizonqa.tests` | comma-separated selectors | all valid tests |
 
-Limits automatic execution to selected tests. Manual reported batches use the command arguments instead.
+Limits automatic execution to selected tests. Manual reported batches use the command arguments instead and ignore this property.
 
 Selector grammar:
 
@@ -121,7 +121,7 @@ Examples:
 -Dhorizonqa.tests=horizonqaexamples,othermod:SmokeTests.boots
 ```
 
-Invalid selector syntax is a fatal CI configuration issue and exits `2`. Selectors that are syntactically valid but match no valid tests are reported as CI infrastructure issues; any other matched tests still run.
+For automatic execution, invalid selector syntax is a fatal CI configuration issue and exits `2`. Selectors that are syntactically valid but match no valid tests are reported as CI infrastructure issues; any other matched tests still run.
 
 ## `horizonqa.allowNoTests`
 
@@ -129,7 +129,7 @@ Invalid selector syntax is a fatal CI configuration issue and exits `2`. Selecto
 |--------------------------|------------------|---------|
 | `horizonqa.allowNoTests` | `true` / `false` | `false` |
 
-Allows a CI run with no selected valid tests to pass. This only applies when the empty selection is otherwise clean; selector/configuration infrastructure issues still fail CI.
+Allows an automatic CI/report run with no selected valid tests to pass. This has no effect on manual reported batches, which select tests from the command arguments. For automatic execution, this only applies when the empty selection is otherwise clean; selector/configuration infrastructure issues still fail CI.
 
 ```text
 -Dhorizonqa.allowNoTests=true

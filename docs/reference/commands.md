@@ -29,6 +29,8 @@ Tab-completion is wired for subcommands, full test ids on `run`, placed test ids
 
 When the server starts in a non-interactive reported-batch configuration, such as `-Dhorizonqa.mode=report` or `-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false`, `run`, `runall`, and `runfailed` use the CI batch runner and write JUnit XML plus status JSON after the batch completes. The server stays running unless `-Dhorizonqa.stopServer=true` is set. Interactive cell commands such as `runthis`, `runthat`, `pos`, and `clearall` are available only in interactive mode.
 
+Only one batch runner can be active at a time. If an automatic or reported batch is running, commands that launch, relaunch, or clear tests (`run`, `runall`, `runfailed`, `runthis`, `runthat`, and `clearall`) are rejected until the active batch finishes.
+
 ## Export requirements
 
 - Must be executed by a **player** (not the console).

@@ -24,7 +24,7 @@ Use `horizonqa.mode=report` when you want report files from a manually-started n
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
 ```
 
-Report mode uses the same report formats as CI mode and defaults to the same void world policy. Then run `/horizonqa run <testId>`, `/horizonqa runall [namespace]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` only limits automatic execution; for manual reported batches, use the command arguments to choose tests.
+Report mode uses the same report formats as CI mode and defaults to the same void world policy. Then run `/horizonqa run <testId>`, `/horizonqa runall [namespace]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` and `horizonqa.allowNoTests` only affect automatic execution; for manual reported batches, use the command arguments to choose tests.
 
 Modes are presets. Override specific behavior when the workflow needs it:
 
@@ -187,9 +187,9 @@ Rules:
 - `*` is not supported; omit the property or set it to an empty value to run everything,
 - duplicate selections are de-duplicated while preserving discovery order.
 
-Invalid selector syntax aborts before tests run and exits `2`. A syntactically valid selector that matches no valid tests is reported as a CI infrastructure issue; if other selectors match valid tests, those tests still run and the final result still includes the selector issue.
+For automatic execution, invalid selector syntax aborts before tests run and exits `2`. A syntactically valid selector that matches no valid tests is reported as a CI infrastructure issue; if other selectors match valid tests, those tests still run and the final result still includes the selector issue.
 
-If no valid tests are selected, CI still writes `TEST-horizonqa.xml` and `horizonqa-result.json`. By default this exits `2`. Set `-Dhorizonqa.allowNoTests=true` only for jobs where an empty selection is expected and there are no selector infrastructure issues.
+If no valid tests are selected automatically, CI still writes `TEST-horizonqa.xml` and `horizonqa-result.json`. By default this exits `2`. Set `-Dhorizonqa.allowNoTests=true` only for jobs where an empty selection is expected and there are no selector infrastructure issues. Manual reported batches ignore these selector properties and use `/horizonqa run`, `/horizonqa runall [namespace]`, or `/horizonqa runfailed` arguments instead.
 
 ## Optional tests
 
