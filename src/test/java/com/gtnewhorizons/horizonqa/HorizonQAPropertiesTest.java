@@ -126,8 +126,10 @@ public class HorizonQAPropertiesTest {
         List<PropertyIssue> issues = HorizonQAProperties.reportInfrastructureIssues(parsed);
 
         assertEquals(1, issues.size());
-        assertEquals(HorizonQAProperties.GRID_ORIGIN_PROPERTY, issues.get(0)
-            .property());
+        assertEquals(
+            HorizonQAProperties.GRID_ORIGIN_PROPERTY,
+            issues.get(0)
+                .property());
     }
 
     @Test
