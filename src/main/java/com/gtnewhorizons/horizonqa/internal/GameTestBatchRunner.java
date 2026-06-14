@@ -87,7 +87,7 @@ public class GameTestBatchRunner {
             }
             // Placement and getTileEntity are unreliable during FMLServerStartingEvent (before the first server
             // tick). Defer until the world has ticked once, matching /gametest runAll during normal gameplay.
-            runner.scheduleOnFirstTick(() -> runBatch(0));
+            runner.scheduleOnFirstTick(() -> runBatchSafely(0));
         } catch (RuntimeException | Error e) {
             runner.unregister();
             markBatchFinished();
@@ -113,6 +113,21 @@ public class GameTestBatchRunner {
 
     private static synchronized void markBatchFinished() {
         batchRunning = false;
+    }
+
+    private void runBatchSafely(int idx) {
+        try {
+            runBatch(idx);
+        } catch (RuntimeException | Error e) {
+            cleanupAfterUnexpectedFailure();
+            throw e;
+        }
+    }
+
+    private void cleanupAfterUnexpectedFailure() {
+        runner.unregister();
+        HorizonQAMod.CHUNK_LOADER.releaseAll();
+        markBatchFinished();
     }
 
     private void runBatch(int idx) {
@@ -272,7 +287,7 @@ public class GameTestBatchRunner {
     private void runNextBatchOrFinish(int idx) {
         int next = idx + 1;
         if (next < batches.size()) {
-            runBatch(next);
+            runBatchSafely(next);
         } else {
             onAllBatchesDone();
         }

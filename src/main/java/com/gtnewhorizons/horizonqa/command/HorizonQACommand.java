@@ -175,6 +175,7 @@ public class HorizonQACommand extends CommandBase {
                 EnumChatFormatting.GREEN + "Launched report batch: " + EnumChatFormatting.YELLOW + def.getTestId());
             return;
         }
+        if (rejectBatchRunning(sender)) return;
         int launched = InteractiveTestSession.get()
             .launchTest(def);
         if (launched > 0) {
@@ -228,6 +229,7 @@ public class HorizonQACommand extends CommandBase {
                     + " test(s).");
             return;
         }
+        if (rejectBatchRunning(sender)) return;
         int launched = InteractiveTestSession.get()
             .launchTests(tests);
         if (launched > 0) {
@@ -279,6 +281,7 @@ public class HorizonQACommand extends CommandBase {
                     + " failed test(s).");
             return;
         }
+        if (rejectBatchRunning(sender)) return;
         int launched = InteractiveTestSession.get()
             .launchTests(defs);
         if (launched > 0) {
@@ -456,6 +459,14 @@ public class HorizonQACommand extends CommandBase {
                 EnumChatFormatting.RED + "A GameTest batch is already running. Wait for it to finish first."));
     }
 
+    private static boolean rejectBatchRunning(ICommandSender sender) {
+        if (!GameTestBatchRunner.isBatchRunning()) {
+            return false;
+        }
+        reportBatchAlreadyRunning(sender);
+        return true;
+    }
+
     private static boolean rejectInteractiveOnlyInNonInteractiveMode(ICommandSender sender, String replacement) {
         if (HorizonQAProperties.interactiveFeaturesEnabled()) {
             return false;
@@ -490,6 +501,7 @@ public class HorizonQACommand extends CommandBase {
 
     private void handleRunThis(ICommandSender sender, String[] args) {
         if (rejectInteractiveOnlyInNonInteractiveMode(sender, "/horizonqa run <testId>")) return;
+        if (rejectBatchRunning(sender)) return;
         EntityPlayer player = requirePlayer(sender);
         if (player == null) return;
 
@@ -515,6 +527,7 @@ public class HorizonQACommand extends CommandBase {
 
     private void handleRunThat(ICommandSender sender, String[] args) {
         if (rejectInteractiveOnlyInNonInteractiveMode(sender, "/horizonqa run <testId>")) return;
+        if (rejectBatchRunning(sender)) return;
         EntityPlayer player = requirePlayer(sender);
         if (player == null) return;
 
@@ -612,6 +625,7 @@ public class HorizonQACommand extends CommandBase {
 
     private void handleClearAll(ICommandSender sender, String[] args) {
         if (rejectInteractiveOnlyInNonInteractiveMode(sender, "/horizonqa runall")) return;
+        if (rejectBatchRunning(sender)) return;
         int count = InteractiveTestSession.get()
             .getKnownCells()
             .size();

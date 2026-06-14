@@ -76,7 +76,7 @@ public final class HorizonQAProperties {
     }
 
     public static boolean usesReportedCommandBatches() {
-        return isActive() && !interactiveFeaturesEnabled();
+        return usesReportedCommandBatches(PARSED);
     }
 
     public static boolean interactiveFeaturesEnabled() {
@@ -224,28 +224,45 @@ public final class HorizonQAProperties {
     }
 
     public static List<PropertyIssue> ciInfrastructureIssues() {
-        return infrastructureIssues(autoRunTests());
+        return infrastructureIssues(PARSED, autoRunTests(), true);
     }
 
     public static List<PropertyIssue> reportInfrastructureIssues() {
-        return infrastructureIssues(usesReportedCommandBatches());
+        return reportInfrastructureIssues(PARSED);
     }
 
-    private static List<PropertyIssue> infrastructureIssues(boolean enabled) {
+    static List<PropertyIssue> reportInfrastructureIssues(ParsedProperties parsed) {
+        return infrastructureIssues(parsed, usesReportedCommandBatches(parsed), false);
+    }
+
+    private static List<PropertyIssue> infrastructureIssues(ParsedProperties parsed, boolean enabled,
+        boolean includeAutomaticOnlyProperties) {
         List<PropertyIssue> issues = new ArrayList<>();
-        if (PARSED.modeIssue() != null) {
-            issues.add(PARSED.modeIssue());
+        if (parsed.modeIssue() != null) {
+            issues.add(parsed.modeIssue());
             return Collections.unmodifiableList(issues);
         }
         if (!enabled) {
             return Collections.emptyList();
         }
-        for (PropertyIssue issue : PARSED.issues()) {
-            if (issue.fatalInCi()) {
+        for (PropertyIssue issue : parsed.issues()) {
+            if (issue.fatalInCi() && (includeAutomaticOnlyProperties || !isAutomaticOnlyIssue(issue))) {
                 issues.add(issue);
             }
         }
         return Collections.unmodifiableList(issues);
+    }
+
+    private static boolean usesReportedCommandBatches(ParsedProperties parsed) {
+        return isActive(parsed.mode()) && parsed.mode() != Mode.INTERACTIVE;
+    }
+
+    private static boolean isActive(Mode mode) {
+        return mode == Mode.INTERACTIVE || mode == Mode.REPORT || mode == Mode.CI;
+    }
+
+    private static boolean isAutomaticOnlyIssue(PropertyIssue issue) {
+        return TESTS_PROPERTY.equals(issue.property()) || ALLOW_NO_TESTS_PROPERTY.equals(issue.property());
     }
 
     private static ParsedProperties parse() {

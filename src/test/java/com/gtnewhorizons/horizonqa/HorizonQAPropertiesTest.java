@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Properties;
 
 import org.junit.Rule;
@@ -99,6 +100,35 @@ public class HorizonQAPropertiesTest {
         assertTrue(
             parsed.issues()
                 .isEmpty());
+    }
+
+    @Test
+    public void manualReportedInfrastructureIgnoresAutomaticOnlyProperties() {
+        Properties properties = new Properties();
+        properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "ci");
+        properties.setProperty(HorizonQAProperties.AUTO_RUN_PROPERTY, "false");
+        properties.setProperty(HorizonQAProperties.TESTS_PROPERTY, "moda,,too:many:colons");
+        properties.setProperty(HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY, "yes");
+        HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(properties);
+
+        List<PropertyIssue> issues = HorizonQAProperties.reportInfrastructureIssues(parsed);
+
+        assertTrue(issues.isEmpty());
+    }
+
+    @Test
+    public void manualReportedInfrastructureKeepsSharedConfigIssues() {
+        Properties properties = new Properties();
+        properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "report");
+        properties.setProperty(HorizonQAProperties.TESTS_PROPERTY, "too:many:colons");
+        properties.setProperty(HorizonQAProperties.GRID_ORIGIN_PROPERTY, "0,256,0");
+        HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(properties);
+
+        List<PropertyIssue> issues = HorizonQAProperties.reportInfrastructureIssues(parsed);
+
+        assertEquals(1, issues.size());
+        assertEquals(HorizonQAProperties.GRID_ORIGIN_PROPERTY, issues.get(0)
+            .property());
     }
 
     @Test

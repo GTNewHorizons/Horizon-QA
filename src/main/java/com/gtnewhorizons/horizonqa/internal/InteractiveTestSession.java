@@ -69,6 +69,7 @@ public class InteractiveTestSession {
 
     public int launchTests(List<GameTestDefinition> defs) {
         if (defs.isEmpty()) return 0;
+        if (isBatchRunnerActive()) return 0;
         WorldServer world = getOverworld();
         if (world == null) return 0;
 
@@ -93,6 +94,7 @@ public class InteractiveTestSession {
     }
 
     public boolean relaunchAtCell(GameTestDefinition def) {
+        if (isBatchRunnerActive()) return false;
         WorldServer world = getOverworld();
         if (world == null) return false;
 
@@ -118,6 +120,7 @@ public class InteractiveTestSession {
     }
 
     public void clearAll() {
+        if (isBatchRunnerActive()) return;
         WorldServer world = getOverworld();
         int cleared = 0;
         if (world != null) {
@@ -132,6 +135,14 @@ public class InteractiveTestSession {
         grid.reset();
         if (onClearAllCallback != null) onClearAllCallback.run();
         LOG.info("[GameTest] Cleared {} test cell(s).", cleared);
+    }
+
+    private static boolean isBatchRunnerActive() {
+        if (!GameTestBatchRunner.isBatchRunning()) {
+            return false;
+        }
+        LOG.warn("[GameTest] Interactive test session is unavailable while a GameTest batch is running.");
+        return true;
     }
 
     public void refreshFailedIds() {
