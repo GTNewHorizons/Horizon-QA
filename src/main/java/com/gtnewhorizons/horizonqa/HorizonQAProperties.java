@@ -459,7 +459,9 @@ public final class HorizonQAProperties {
             configIssue(
                 "config:" + GRID_ORIGIN_PROPERTY,
                 GRID_ORIGIN_PROPERTY,
-                "Invalid -D" + GRID_ORIGIN_PROPERTY + "=" + renderRawValue(raw)
+                "Invalid -D" + GRID_ORIGIN_PROPERTY
+                    + "="
+                    + renderRawValue(raw)
                     + " (expected x,y,z with y between 0 and 255)",
                 true));
     }
