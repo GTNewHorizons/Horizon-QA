@@ -18,13 +18,29 @@ Horizon-QA CI runs are normal dedicated-server runs with the Horizon-QA mode set
 
 In `horizonqa.mode=ci`, Horizon-QA discovers tests, runs the selected batch automatically after the server is ready, writes reports, and exits the process with a deterministic status code. Local authoring should use `horizonqa.mode=interactive` or omit the mode property, because interactive is the default.
 
-Use `horizonqa.mode=report` when you want CI-style report files from a manually-started batch without CI lifetime management:
+Use `horizonqa.mode=report` when you want report files from a manually-started non-interactive batch without CI lifetime management:
 
 ```text
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
 ```
 
-Report mode uses the same void test world and report formats as CI mode. Then run `/horizonqa run <testId>`, `/horizonqa runall [namespace]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` only limits automatic `ci` mode selection; in `report` mode, use the command arguments to choose tests.
+Report mode uses the same report formats as CI mode and defaults to the same void world policy. Then run `/horizonqa run <testId>`, `/horizonqa runall [namespace]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` only limits automatic execution; for manual reported batches, use the command arguments to choose tests.
+
+Modes are presets. Override specific behavior when the workflow needs it:
+
+```text
+# Use the configured or existing world instead of Horizon-QA's void world
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.world=normal"
+
+# Run automatically but keep the server up afterward
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.stopServer=false"
+
+# Place the test grid at Y=128
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.world=normal -Dhorizonqa.gridOrigin=0,128,0"
+
+# Express report-mode behavior as CI overrides
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=build/horizonqa"
+```
 
 ## Report files
 
@@ -40,6 +56,7 @@ For CI, send them to a predictable artifact directory:
 ```text
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=report -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=build/horizonqa"
 ```
 
 Report path flags:
@@ -92,6 +109,14 @@ Disable event recording only for performance investigations:
   "configuration": {
     "mode": "ci",
     "rawMode": "ci",
+    "world": "void",
+    "rawWorld": null,
+    "autoRun": true,
+    "rawAutoRun": null,
+    "stopServer": true,
+    "rawStopServer": null,
+    "gridOrigin": "0,64,0",
+    "rawGridOrigin": null,
     "tests": null,
     "selectsAllTests": true,
     "allowNoTests": false,
@@ -135,7 +160,7 @@ Status values are:
 
 ## Selectors
 
-Use `horizonqa.tests` to limit automatic CI execution:
+Use `horizonqa.tests` to limit automatic execution:
 
 ```text
 -Dhorizonqa.tests=mymod

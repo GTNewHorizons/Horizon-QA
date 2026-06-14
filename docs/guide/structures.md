@@ -63,7 +63,7 @@ Templates use `format_version: 1`, a palette keyed by single-character symbols, 
 
 ## Placement in the grid
 
-The batch runner places each test's template into a dedicated cell on the void world grid with margin for clearance. Structure placement emits `StructurePlaced` in the [event log](../reference/events.md), so a missing structure surfaces in CI without a manual rerun.
+The batch runner places each test's template into a dedicated grid cell with margin for clearance. CI and report presets default to Horizon-QA's void world, but `-Dhorizonqa.world=normal` leaves the server's configured or existing world type in place, and `-Dhorizonqa.gridOrigin=x,y,z` moves the grid start. Structure placement emits `StructurePlaced` in the [event log](../reference/events.md), so a missing structure surfaces in CI without a manual rerun.
 
 ## Rotation
 

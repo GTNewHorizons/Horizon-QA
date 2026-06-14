@@ -40,14 +40,21 @@ public class CommonProxy {
         HorizonQAMod.LOG.info(Config.greeting);
         HorizonQAMod.LOG.info("I am " + HorizonQAMod.NAME + " at version " + Tags.VERSION);
         HorizonQAMod.LOG.info("Mode (-D{}): {}", HorizonQAProperties.MODE_PROPERTY, HorizonQAProperties.modeName());
+        HorizonQAMod.LOG.info(
+            "Resolved Horizon-QA behavior: world={}, autoRun={}, stopServer={}, gridOrigin={}, interactiveFeatures={}",
+            HorizonQAProperties.worldPolicyName(),
+            HorizonQAProperties.autoRunTests(),
+            HorizonQAProperties.stopServerAfterRun(),
+            HorizonQAProperties.gridOriginName(),
+            HorizonQAProperties.interactiveFeaturesEnabled());
         if (HorizonQAProperties.hasModeError()) {
             HorizonQAMod.LOG.error(HorizonQAProperties.modeError());
-        } else if (HorizonQAProperties.isInteractive() || HorizonQAProperties.isReport()) {
+        } else if (!HorizonQAProperties.autoRunTests()) {
             logNonFatalPropertyIssues();
         }
-        if (HorizonQAProperties.usesCiServerBehavior()) {
+        if (HorizonQAProperties.usesVoidWorld()) {
             HorizonQAMod.LOG.info(
-                "Void world registered as '{}' (Forge id {}).",
+                "Void world policy registered as '{}' (Forge id {}).",
                 GameTestWorldType.INSTANCE.getWorldTypeName(),
                 GameTestWorldType.INSTANCE.getWorldTypeID());
         }
@@ -68,8 +75,9 @@ public class CommonProxy {
     public void postInit(FMLPostInitializationEvent event) {}
 
     public void serverStarting(FMLServerStartingEvent event) {
-        List<PropertyIssue> ciPropertyIssues = HorizonQAProperties.ciInfrastructureIssues();
-        if (!ciPropertyIssues.isEmpty() || HorizonQAProperties.isCi()) {
+        List<PropertyIssue> startupPropertyIssues = HorizonQAProperties.ciInfrastructureIssues();
+        boolean autoRunBlocked = false;
+        if (!startupPropertyIssues.isEmpty() || HorizonQAProperties.autoRunTests()) {
             List<IssueResult> reportPathIssues = ReportPathPreflight
                 .check(HorizonQAProperties.junitReportFile(), HorizonQAProperties.statusReportFile());
             if (!reportPathIssues.isEmpty()) {
@@ -78,18 +86,24 @@ public class CommonProxy {
                 // The configured report outputs just failed preflight; retrying them can create partial or colliding
                 // files, so report this class of failure to the console only.
                 ConsoleReporter.report(result);
+                if (shouldStopAfterStartupFailure()) {
+                    FMLCommonHandler.instance()
+                        .exitJava(result.exitCode(), false);
+                    return;
+                }
+                autoRunBlocked = true;
+            }
+        }
+        if (!startupPropertyIssues.isEmpty() && !autoRunBlocked) {
+            logInfrastructureIssues(startupPropertyIssues);
+            RunResult result = preRunResult(toPropertyIssueResults(startupPropertyIssues));
+            result = writePreRunReport(result);
+            if (shouldStopAfterStartupFailure()) {
                 FMLCommonHandler.instance()
                     .exitJava(result.exitCode(), false);
                 return;
             }
-        }
-        if (!ciPropertyIssues.isEmpty()) {
-            logInfrastructureIssues(ciPropertyIssues);
-            RunResult result = preRunResult(toPropertyIssueResults(ciPropertyIssues));
-            result = writePreRunReport(result);
-            FMLCommonHandler.instance()
-                .exitJava(result.exitCode(), false);
-            return;
+            autoRunBlocked = true;
         }
         if (HorizonQAProperties.isOff()) return;
 
@@ -99,7 +113,7 @@ public class CommonProxy {
         HorizonQAMod.LOG.info("Discovering tests...");
         DiscoveryResult discovery = GameTestRegistry.discoverTests();
 
-        if (!HorizonQAProperties.isCi()) return;
+        if (!HorizonQAProperties.autoRunTests() || autoRunBlocked) return;
 
         GameTestSelection selection = GameTestSelection.from(discovery);
         List<SelectionIssue> infrastructureIssues = new ArrayList<>(selection.infrastructureIssues());
@@ -120,13 +134,15 @@ public class CommonProxy {
             }
             RunResult result = preRunResult(issues);
             result = writePreRunReport(result);
-            FMLCommonHandler.instance()
-                .exitJava(result.exitCode(), false);
+            if (HorizonQAProperties.stopServerAfterRun()) {
+                FMLCommonHandler.instance()
+                    .exitJava(result.exitCode(), false);
+            }
             return;
         }
 
         HorizonQAMod.LOG.info(
-            "Starting {} test(s) in CI mode.",
+            "Starting {} selected test(s) in auto-run mode.",
             selection.selectedTests()
                 .size());
         GameTestBatchRunner batchRunner = new GameTestBatchRunner(
@@ -139,6 +155,11 @@ public class CommonProxy {
 
     public void serverStopping(FMLServerStoppingEvent event) {
         HorizonQACommand.resetReportBatchState();
+        GameTestBatchRunner.resetBatchRunningState();
+    }
+
+    private static boolean shouldStopAfterStartupFailure() {
+        return HorizonQAProperties.stopServerAfterRun() || HorizonQAProperties.hasModeError();
     }
 
     private static void logInfrastructureIssues(List<PropertyIssue> issues) {
@@ -198,7 +219,7 @@ public class CommonProxy {
     private static void logNonFatalPropertyIssues() {
         for (PropertyIssue issue : HorizonQAProperties.propertyIssues()) {
             HorizonQAMod.LOG.warn(
-                "Ignoring non-CI property issue [{}] {} in {}: {}",
+                "Deferring non-autorun property issue [{}] {} in {}: {}",
                 issue.id(),
                 issue.kind(),
                 issue.property(),

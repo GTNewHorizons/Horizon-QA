@@ -29,6 +29,14 @@ public class HorizonQAPropertiesTest {
 
         assertEquals(HorizonQAProperties.Mode.INTERACTIVE, parsed.mode());
         assertNull(parsed.rawMode());
+        assertEquals(HorizonQAProperties.WorldPolicy.NORMAL, parsed.worldPolicy());
+        assertNull(parsed.rawWorld());
+        assertFalse(parsed.autoRunTests());
+        assertNull(parsed.rawAutoRun());
+        assertFalse(parsed.stopServerAfterRun());
+        assertNull(parsed.rawStopServer());
+        assertEquals(new HorizonQAProperties.GridOrigin(0, 64, 0), parsed.gridOrigin());
+        assertNull(parsed.rawGridOrigin());
         assertTrue(parsed.selectsAllTests());
         assertTrue(
             parsed.testSelectors()
@@ -52,6 +60,42 @@ public class HorizonQAPropertiesTest {
 
         assertEquals(HorizonQAProperties.Mode.REPORT, parsed.mode());
         assertEquals("report", parsed.rawMode());
+        assertEquals(HorizonQAProperties.WorldPolicy.VOID, parsed.worldPolicy());
+        assertFalse(parsed.autoRunTests());
+        assertFalse(parsed.stopServerAfterRun());
+        assertTrue(
+            parsed.issues()
+                .isEmpty());
+    }
+
+    @Test
+    public void ciModeDefaultsToVoidWorldAutorunAndShutdown() {
+        Properties properties = new Properties();
+        properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "ci");
+
+        HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(properties);
+
+        assertEquals(HorizonQAProperties.Mode.CI, parsed.mode());
+        assertEquals(HorizonQAProperties.WorldPolicy.VOID, parsed.worldPolicy());
+        assertTrue(parsed.autoRunTests());
+        assertTrue(parsed.stopServerAfterRun());
+        assertTrue(
+            parsed.issues()
+                .isEmpty());
+    }
+
+    @Test
+    public void ciModeCanBeResolvedAsManualReportedKeepAlivePreset() {
+        Properties properties = new Properties();
+        properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "ci");
+        properties.setProperty(HorizonQAProperties.AUTO_RUN_PROPERTY, "false");
+
+        HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(properties);
+
+        assertEquals(HorizonQAProperties.Mode.CI, parsed.mode());
+        assertEquals(HorizonQAProperties.WorldPolicy.VOID, parsed.worldPolicy());
+        assertFalse(parsed.autoRunTests());
+        assertFalse(parsed.stopServerAfterRun());
         assertTrue(
             parsed.issues()
                 .isEmpty());
@@ -61,6 +105,10 @@ public class HorizonQAPropertiesTest {
     public void propertyParsingTrimsPathsAndKeepsRawConfigurationValues() {
         Properties properties = new Properties();
         properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "ci");
+        properties.setProperty(HorizonQAProperties.WORLD_PROPERTY, "normal");
+        properties.setProperty(HorizonQAProperties.AUTO_RUN_PROPERTY, "false");
+        properties.setProperty(HorizonQAProperties.STOP_SERVER_PROPERTY, "true");
+        properties.setProperty(HorizonQAProperties.GRID_ORIGIN_PROPERTY, " 16,128,-32 ");
         properties.setProperty(HorizonQAProperties.TESTS_PROPERTY, " moda , modb:Suite.test ");
         properties.setProperty(HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY, "true");
         properties.setProperty(HorizonQAProperties.REPORT_FILE_PROPERTY, " reports/TEST-custom.xml ");
@@ -72,6 +120,14 @@ public class HorizonQAPropertiesTest {
 
         assertEquals(HorizonQAProperties.Mode.CI, parsed.mode());
         assertEquals("ci", parsed.rawMode());
+        assertEquals("normal", parsed.rawWorld());
+        assertEquals(HorizonQAProperties.WorldPolicy.NORMAL, parsed.worldPolicy());
+        assertEquals("false", parsed.rawAutoRun());
+        assertFalse(parsed.autoRunTests());
+        assertEquals("true", parsed.rawStopServer());
+        assertTrue(parsed.stopServerAfterRun());
+        assertEquals(" 16,128,-32 ", parsed.rawGridOrigin());
+        assertEquals(new HorizonQAProperties.GridOrigin(16, 128, -32), parsed.gridOrigin());
         assertEquals(" moda , modb:Suite.test ", parsed.rawTests());
         assertFalse(parsed.selectsAllTests());
         assertEquals(
@@ -102,6 +158,10 @@ public class HorizonQAPropertiesTest {
     public void strictPropertyParsingReportsFatalConfigIssues() {
         Properties properties = new Properties();
         properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "true");
+        properties.setProperty(HorizonQAProperties.WORLD_PROPERTY, "flat");
+        properties.setProperty(HorizonQAProperties.AUTO_RUN_PROPERTY, "yes");
+        properties.setProperty(HorizonQAProperties.STOP_SERVER_PROPERTY, "no");
+        properties.setProperty(HorizonQAProperties.GRID_ORIGIN_PROPERTY, "0,256,0");
         properties.setProperty(HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY, "yes");
         properties.setProperty(HorizonQAProperties.REPORT_FILE_PROPERTY, "   ");
         properties.setProperty(HorizonQAProperties.EVENTS_PROPERTY, "false");
@@ -109,15 +169,23 @@ public class HorizonQAPropertiesTest {
         HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(properties);
 
         assertEquals(HorizonQAProperties.Mode.OFF, parsed.mode());
+        assertEquals(HorizonQAProperties.WorldPolicy.NORMAL, parsed.worldPolicy());
+        assertFalse(parsed.autoRunTests());
+        assertFalse(parsed.stopServerAfterRun());
+        assertEquals(new HorizonQAProperties.GridOrigin(0, 64, 0), parsed.gridOrigin());
         assertFalse(parsed.allowNoTests());
         assertNull(parsed.reportFile());
         assertTrue(parsed.eventsEnabled());
         assertConfigIssue(parsed, HorizonQAProperties.MODE_PROPERTY);
+        assertConfigIssue(parsed, HorizonQAProperties.WORLD_PROPERTY);
+        assertConfigIssue(parsed, HorizonQAProperties.AUTO_RUN_PROPERTY);
+        assertConfigIssue(parsed, HorizonQAProperties.STOP_SERVER_PROPERTY);
+        assertConfigIssue(parsed, HorizonQAProperties.GRID_ORIGIN_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.REPORT_FILE_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.EVENTS_PROPERTY);
         assertEquals(
-            4,
+            8,
             parsed.issues()
                 .size());
     }

@@ -14,12 +14,12 @@ public final class VisualManager {
     private VisualManager() {}
 
     public static void addFailureGhost(int x, int y, int z, String label) {
-        if (!HorizonQAProperties.isInteractive()) return;
+        if (!HorizonQAProperties.interactiveFeaturesEnabled()) return;
         GHOSTS.add(new GhostBlockDiff(x, y, z, 1.00f, 0.15f, 0.15f, label));
     }
 
     public static void addExpectedGhost(int x, int y, int z, String label) {
-        if (!HorizonQAProperties.isInteractive()) return;
+        if (!HorizonQAProperties.interactiveFeaturesEnabled()) return;
         GHOSTS.add(new GhostBlockDiff(x, y, z, 0.15f, 1.00f, 0.35f, label));
     }
 

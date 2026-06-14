@@ -1,5 +1,6 @@
 package com.gtnewhorizons.horizonqa.internal;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -231,6 +232,20 @@ public class GameTestRunnerTest {
     @Test
     public void emptyBatchWithNullCallbackIsNoOp() {
         new GameTestRunner().run(Collections.emptyList(), null);
+    }
+
+    @Test
+    public void gridLayoutUsesConfiguredOriginAndKeepsRowsRelativeToIt() {
+        GameTestGridLayout grid = new GameTestGridLayout(16, 128, -32);
+
+        assertArrayEquals(new int[] { 16, 128, -32 }, grid.allocateOrigin());
+        assertArrayEquals(new int[] { 24, 128, -32 }, grid.allocateOrigin());
+
+        for (int i = 0; i < 8; i++) {
+            grid.allocateOrigin();
+        }
+
+        assertArrayEquals(new int[] { 16, 128, -24 }, grid.allocateOrigin());
     }
 
     @Test

@@ -45,6 +45,7 @@ public class GameTestBatchRunner {
         (Method m) -> m.getDeclaringClass()
             .getName())
         .thenComparing(Method::getName);
+    private static boolean batchRunning;
 
     private final List<Batch> batches;
     private final GameTestRunner runner;
@@ -75,14 +76,43 @@ public class GameTestBatchRunner {
     }
 
     public void start() {
-        runner.register();
-        if (batches.isEmpty()) {
-            onAllBatchesDone();
-            return;
+        if (!markBatchStarted()) {
+            throw new IllegalStateException("A GameTest batch is already running.");
         }
-        // Placement and getTileEntity are unreliable during FMLServerStartingEvent (before the first server
-        // tick). Defer until the world has ticked once, matching /gametest runAll during normal gameplay.
-        runner.scheduleOnFirstTick(() -> runBatch(0));
+        try {
+            runner.register();
+            if (batches.isEmpty()) {
+                onAllBatchesDone();
+                return;
+            }
+            // Placement and getTileEntity are unreliable during FMLServerStartingEvent (before the first server
+            // tick). Defer until the world has ticked once, matching /gametest runAll during normal gameplay.
+            runner.scheduleOnFirstTick(() -> runBatch(0));
+        } catch (RuntimeException | Error e) {
+            runner.unregister();
+            markBatchFinished();
+            throw e;
+        }
+    }
+
+    public static synchronized boolean isBatchRunning() {
+        return batchRunning;
+    }
+
+    public static synchronized void resetBatchRunningState() {
+        batchRunning = false;
+    }
+
+    private static synchronized boolean markBatchStarted() {
+        if (batchRunning) {
+            return false;
+        }
+        batchRunning = true;
+        return true;
+    }
+
+    private static synchronized void markBatchFinished() {
+        batchRunning = false;
     }
 
     private void runBatch(int idx) {
@@ -208,27 +238,32 @@ public class GameTestBatchRunner {
     }
 
     private void onAllBatchesDone() {
-        runner.unregister();
-        HorizonQAMod.CHUNK_LOADER.releaseAll();
+        RunResult result;
+        try {
+            runner.unregister();
+            HorizonQAMod.CHUNK_LOADER.releaseAll();
 
-        File reportFile = HorizonQAProperties.junitReportFile();
-        RunResult result = RunResult
-            .completedCases(HorizonQAProperties.modeName(), collectCaseResults(), issues, reportFile.getPath());
+            File reportFile = HorizonQAProperties.junitReportFile();
+            result = RunResult
+                .completedCases(HorizonQAProperties.modeName(), collectCaseResults(), issues, reportFile.getPath());
 
-        result = RunReportWriter.write(result, LOG);
+            result = RunReportWriter.write(result, LOG);
 
-        if (HorizonQAProperties.isCi()) {
-            LOG.info(
-                "CI mode: exiting with code {} ({} required test failure/timeout(s), {} incomplete test(s), {} infrastructure issue(s)).",
-                result.exitCode(),
-                result.requiredFailures(),
-                result.incomplete(),
-                result.infrastructureErrors());
+            if (HorizonQAProperties.stopServerAfterRun()) {
+                LOG.info(
+                    "Stopping server with code {} ({} required test failure/timeout(s), {} incomplete test(s), {} infrastructure issue(s)).",
+                    result.exitCode(),
+                    result.requiredFailures(),
+                    result.incomplete(),
+                    result.infrastructureErrors());
+            }
+            if (onComplete != null) {
+                onComplete.accept(result);
+            }
+        } finally {
+            markBatchFinished();
         }
-        if (onComplete != null) {
-            onComplete.accept(result);
-        }
-        if (HorizonQAProperties.isCi()) {
+        if (HorizonQAProperties.stopServerAfterRun()) {
             FMLCommonHandler.instance()
                 .exitJava(result.exitCode(), false);
         }
