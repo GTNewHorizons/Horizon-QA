@@ -386,7 +386,7 @@ public class HorizonQACommand extends CommandBase {
                 Collections.emptyList(),
                 result -> {
                     try {
-                        rememberReportedFailures(result);
+                        rememberReportedBatchResult(result);
                     } finally {
                         reportBatchRunning = false;
                     }
@@ -439,8 +439,11 @@ public class HorizonQACommand extends CommandBase {
         return false;
     }
 
-    private static void rememberReportedFailures(RunResult result) {
+    public static void rememberReportedBatchResult(RunResult result) {
         LAST_REPORTED_FAILED_IDS.clear();
+        if (result == null) {
+            return;
+        }
         for (CaseResult resultCase : result.cases()) {
             if (resultCase.failed() || resultCase.timedOut() || resultCase.error()) {
                 LAST_REPORTED_FAILED_IDS.add(resultCase.id());

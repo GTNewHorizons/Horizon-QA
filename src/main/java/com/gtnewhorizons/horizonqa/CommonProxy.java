@@ -149,7 +149,8 @@ public class CommonProxy {
             selection.selectedTests(),
             discovery.beforeBatchMethods(),
             discovery.afterBatchMethods(),
-            issues);
+            issues,
+            HorizonQACommand::rememberReportedBatchResult);
         batchRunner.start();
     }
 
