@@ -15,6 +15,8 @@ public final class StructurePlacer {
 
     private static final Logger LOG = LogManager.getLogger("GameTest");
     private static final TileEntityNbtRotator NO_TILE_ENTITY_NBT_ROTATION = (nbt, rotation) -> {};
+    private static final int MIN_BUILD_Y = 0;
+    private static final int MAX_BUILD_Y = 255;
 
     private StructurePlacer() {}
 
@@ -73,6 +75,27 @@ public final class StructurePlacer {
         return placedSizeZ(template.getSizeX(), template.getSizeZ(), normalizeRotation(rotation));
     }
 
+    public static void validateVerticalBounds(String templateName, int originY, int sizeY) throws TemplateException {
+        long maxY = (long) originY + sizeY - 1L;
+        if (sizeY <= 0 || originY < MIN_BUILD_Y || maxY > MAX_BUILD_Y) {
+            throw new TemplateException(
+                "Template '" + templateName
+                    + "' with height "
+                    + sizeY
+                    + " at origin Y="
+                    + originY
+                    + " would occupy Y="
+                    + originY
+                    + ".."
+                    + maxY
+                    + ", outside build height "
+                    + MIN_BUILD_Y
+                    + ".."
+                    + MAX_BUILD_Y
+                    + ". Lower -Dhorizonqa.gridOrigin or use a shorter template.");
+        }
+    }
+
     private static void placeInternal(String templateName, HybridStructureTemplate template, WorldServer world,
         int originX, int originY, int originZ, int rotation, TileEntityNbtRotator tileNbtRotator, boolean strict)
         throws TemplateException {
@@ -88,6 +111,7 @@ public final class StructurePlacer {
         int placedSizeX = placedSizeX(sizeX, sizeZ, rotationSteps);
         int placedSizeZ = placedSizeZ(sizeX, sizeZ, rotationSteps);
 
+        validateVerticalBounds(templateName, originY, sizeY);
         ensureChunksLoaded(world, originX, originZ, placedSizeX, placedSizeZ);
 
         int notifyClients = 2;

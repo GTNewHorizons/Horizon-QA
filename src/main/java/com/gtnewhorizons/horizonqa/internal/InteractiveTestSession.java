@@ -74,6 +74,9 @@ public class InteractiveTestSession {
         if (world == null) return 0;
 
         List<PlannedTest> planned = planTests(defs);
+        if (planned.isEmpty()) {
+            return 0;
+        }
         if (!forcePlannedArea(world, planned)) {
             return 0;
         }
@@ -89,7 +92,7 @@ public class InteractiveTestSession {
                 plannedTest.originY,
                 plannedTest.originZ);
         }
-        LOG.info("[GameTest] Launched {} test(s) total.", defs.size());
+        LOG.info("[GameTest] Launched {} test(s) total.", planned.size());
         return planned.size();
     }
 
@@ -104,6 +107,9 @@ public class InteractiveTestSession {
         }
 
         PlannedTest plannedTest = planTestAt(def, existing.originX, existing.originY, existing.originZ);
+        if (plannedTest == null) {
+            return false;
+        }
         if (!forcePlannedArea(world, Collections.singletonList(plannedTest))) {
             return false;
         }
@@ -177,7 +183,10 @@ public class InteractiveTestSession {
             int sizeX = template != null ? StructurePlacer.placedSizeX(template, def.getRotation()) : 0;
             int sizeZ = template != null ? StructurePlacer.placedSizeZ(template, def.getRotation()) : 0;
             int[] origin = grid.allocateOrigin(sizeX, sizeZ);
-            planned.add(planTestAt(def, origin[0], origin[1], origin[2], template));
+            PlannedTest plannedTest = planTestAt(def, origin[0], origin[1], origin[2], template);
+            if (plannedTest != null) {
+                planned.add(plannedTest);
+            }
         }
         return planned;
     }
@@ -202,6 +211,21 @@ public class InteractiveTestSession {
         int cellMaxX = originX + cellSizeX - 1;
         int cellMaxY = originY + cellSizeY - 1;
         int cellMaxZ = originZ + cellSizeZ - 1;
+
+        if (template != null) {
+            try {
+                StructurePlacer.validateVerticalBounds(def.getTemplateName(), originY, sizeY);
+            } catch (TemplateException e) {
+                LOG.error(
+                    "[GameTest] Cannot place interactive test '{}' at ({}, {}, {}): {}",
+                    def.getTestId(),
+                    originX,
+                    originY,
+                    originZ,
+                    e.getMessage());
+                return null;
+            }
+        }
 
         return new PlannedTest(
             def,
