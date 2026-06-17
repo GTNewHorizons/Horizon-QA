@@ -64,7 +64,7 @@ Examples:
 :   Requests process exit after an auto-run or reported batch finishes. When `false`, the server remains up after the result is written.
 
 `horizonqa.gridOrigin`
-:   Sets the absolute world coordinate where the test grid starts. Use `x,y,z`; `y` must be between `0` and `255`. This affects both automatic and manual test placement.
+:   Sets the absolute world coordinate where the test grid starts. Use `x,y,z`; `y` must be between `0` and `255`, and the full template height must still fit below the build limit. This affects both automatic and manual test placement.
 
 Useful combinations:
 

@@ -66,6 +66,36 @@ public class StructurePlacerTest {
                 .contains("Unknown block 'horizonqatest:missing_block'"));
     }
 
+    @Test
+    public void verticalBoundsAllowTemplateEndingAtBuildLimit() throws Exception {
+        StructurePlacer.validateVerticalBounds("horizonqatest:tall", 252, 4);
+    }
+
+    @Test
+    public void verticalBoundsRejectTemplateAboveBuildLimit() {
+        TemplateException error = assertThrows(
+            TemplateException.class,
+            () -> StructurePlacer.validateVerticalBounds("horizonqatest:tall", 253, 4));
+
+        assertTrue(
+            error.getMessage()
+                .contains("would occupy Y=253..256"));
+        assertTrue(
+            error.getMessage()
+                .contains("outside build height 0..255"));
+    }
+
+    @Test
+    public void verticalBoundsRejectTemplateBelowBuildLimit() {
+        TemplateException error = assertThrows(
+            TemplateException.class,
+            () -> StructurePlacer.validateVerticalBounds("horizonqatest:tall", -1, 1));
+
+        assertTrue(
+            error.getMessage()
+                .contains("would occupy Y=-1..-1"));
+    }
+
     private static void assertRotated(int rotation, int sourceX, int sourceZ, int expectedX, int expectedZ) {
         assertEquals(expectedX, StructurePlacer.rotatedLocalX(sourceX, sourceZ, 2, 3, rotation));
         assertEquals(expectedZ, StructurePlacer.rotatedLocalZ(sourceX, sourceZ, 2, 3, rotation));
