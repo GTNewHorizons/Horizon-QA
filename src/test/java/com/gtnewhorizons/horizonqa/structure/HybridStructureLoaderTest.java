@@ -2,6 +2,7 @@ package com.gtnewhorizons.horizonqa.structure;
 
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -92,12 +93,14 @@ public class HybridStructureLoaderTest {
         NBTTagList entities = new NBTTagList();
         NBTTagCompound entity = new NBTTagCompound();
         entity.setString("id", "Item");
+        entity.setString("CustomName", "");
         entities.appendTag(entity);
         entityData.setTag("entities", entities);
 
         String snbt = StructureNbt.toSnbt(StructureNbt.combine(tileData, entityData));
         assertTrue(snbt.contains("tiles:"));
         assertTrue(snbt.contains("id: \"TestTile\""));
+        assertTrue(snbt.contains("CustomName: \"\""));
 
         StructureNbt.StructureData structureData = StructureNbt.splitCombined(
             StructureNbt.parseSnbt(snbt, "horizonqatest:generated", "generated.snbt"),
@@ -112,5 +115,10 @@ public class HybridStructureLoaderTest {
         assertEquals(1, structureData.entityData()
             .getTagList("entities", 10)
             .tagCount());
+        NBTTagCompound loadedEntity = structureData.entityData()
+            .getTagList("entities", 10)
+            .getCompoundTagAt(0);
+        assertEquals("", loadedEntity.getString("CustomName"));
+        assertFalse("\"\"".equals(loadedEntity.getString("CustomName")));
     }
 }

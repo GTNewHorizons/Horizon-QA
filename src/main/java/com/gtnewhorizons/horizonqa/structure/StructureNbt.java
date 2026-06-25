@@ -9,6 +9,7 @@ import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTException;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.nbt.NBTTagString;
 
 final class StructureNbt {
 
@@ -107,7 +108,7 @@ final class StructureNbt {
 
     static NBTTagCompound parseSnbt(String snbt, String templateName, String resource) throws TemplateException {
         try {
-            NBTBase parsed = JsonToNBT.func_150315_a(snbt);
+            NBTBase parsed = normalizeParsedStrings(JsonToNBT.func_150315_a(snbt));
             if (!(parsed instanceof NBTTagCompound compound)) {
                 throw malformedStructureData(templateName, resource, "root tag must be a compound");
             }
@@ -118,6 +119,31 @@ final class StructureNbt {
                     + errorMessage(e),
                 e);
         }
+    }
+
+    private static NBTBase normalizeParsedStrings(NBTBase tag) {
+        if (tag instanceof NBTTagCompound compound) {
+            for (String key : sortedKeys(compound)) {
+                compound.setTag(key, normalizeParsedStrings(compound.getTag(key)));
+            }
+            return compound;
+        }
+
+        if (tag instanceof NBTTagList list) {
+            NBTTagList normalized = new NBTTagList();
+            NBTTagList copy = (NBTTagList) list.copy();
+            while (copy.tagCount() > 0) {
+                normalized.appendTag(normalizeParsedStrings(copy.removeTag(0)));
+            }
+            return normalized;
+        }
+
+        // Minecraft 1.7.10's JsonToNBT leaves empty quoted strings as the literal value "\"\"".
+        if (tag instanceof NBTTagString string && "\"\"".equals(string.func_150285_a_())) {
+            return new NBTTagString("");
+        }
+
+        return tag;
     }
 
     static String toSnbt(NBTTagCompound compound) {
