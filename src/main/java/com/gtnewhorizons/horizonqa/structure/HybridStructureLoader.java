@@ -236,8 +236,7 @@ public final class HybridStructureLoader {
             return StructureNbt.parseSnbt(readUtf8(snbtStream), templateName, resource);
         } catch (IOException e) {
             throw new TemplateException(
-                "Template '" + templateName + "' has unreadable structure data " + resource + ": "
-                    + errorMessage(e),
+                "Template '" + templateName + "' has unreadable structure data " + resource + ": " + errorMessage(e),
                 e);
         } finally {
             try {

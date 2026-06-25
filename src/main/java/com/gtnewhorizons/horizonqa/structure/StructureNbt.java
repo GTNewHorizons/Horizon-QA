@@ -83,8 +83,9 @@ final class StructureNbt {
         NBTTagList tiles = new NBTTagList();
         List<String> keys = sortedKeys(tileData);
         for (String key : keys) {
-            tiles.appendTag(tileData.getCompoundTag(key)
-                .copy());
+            tiles.appendTag(
+                tileData.getCompoundTag(key)
+                    .copy());
         }
         return tiles;
     }
@@ -115,8 +116,7 @@ final class StructureNbt {
             return compound;
         } catch (NBTException | RuntimeException e) {
             throw new TemplateException(
-                "Template '" + templateName + "' has unreadable structure data " + resource + ": "
-                    + errorMessage(e),
+                "Template '" + templateName + "' has unreadable structure data " + resource + ": " + errorMessage(e),
                 e);
         }
     }

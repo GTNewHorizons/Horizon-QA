@@ -1,8 +1,8 @@
 package com.gtnewhorizons.horizonqa.structure;
 
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -112,9 +112,11 @@ public class HybridStructureLoaderTest {
             structureData.tileData()
                 .getCompoundTag("0,0,0")
                 .getString("id"));
-        assertEquals(1, structureData.entityData()
-            .getTagList("entities", 10)
-            .tagCount());
+        assertEquals(
+            1,
+            structureData.entityData()
+                .getTagList("entities", 10)
+                .tagCount());
         NBTTagCompound loadedEntity = structureData.entityData()
             .getTagList("entities", 10)
             .getCompoundTagAt(0);
