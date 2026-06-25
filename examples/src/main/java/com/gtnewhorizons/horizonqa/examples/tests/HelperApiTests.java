@@ -220,5 +220,6 @@ public class HelperApiTests {
     public static void testChicken(GameTestHelper helper) {
         helper.assertEntityCount(EntityChicken.class, 1, 1, 1, 1);
         helper.assertEntityPresent(EntityItem.class, 1, 1, 3);
+        helper.succeed();
     }
 }
