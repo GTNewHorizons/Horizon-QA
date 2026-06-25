@@ -89,21 +89,5 @@
       id: "Item"
     }
   ],
-  tiles: [
-    {
-      id: "RCHiddenTile",
-      last: {
-        dim: 0,
-        x: 30,
-        y: 6,
-        z: -13
-      },
-      owner: "[Railcraft]",
-      seed: 96204736726034L,
-      time: 1782380321210L,
-      x: 1,
-      y: 1,
-      z: 1
-    }
-  ]
+  tiles: []
 }
