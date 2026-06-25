@@ -1,0 +1,16 @@
+{
+  entities: [
+    {
+      id: "Item",
+      Pos: [0.5d, 0.0d, 0.5d]
+    }
+  ],
+  tiles: [
+    {
+      id: "TestTile",
+      x: 0,
+      y: 0,
+      z: 0
+    }
+  ]
+}

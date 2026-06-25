@@ -1,7 +1,12 @@
 package com.gtnewhorizons.horizonqa.structure;
 
 import net.minecraft.block.Block;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityList;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagDouble;
+import net.minecraft.nbt.NBTTagFloat;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
@@ -17,6 +22,9 @@ public final class StructurePlacer {
     private static final TileEntityNbtRotator NO_TILE_ENTITY_NBT_ROTATION = (nbt, rotation) -> {};
     private static final int MIN_BUILD_Y = 0;
     private static final int MAX_BUILD_Y = 255;
+    private static final int TAG_FLOAT = 5;
+    private static final int TAG_DOUBLE = 6;
+    private static final int TAG_ANY_NUMERIC = 99;
 
     private StructurePlacer() {}
 
@@ -194,6 +202,8 @@ public final class StructurePlacer {
                 }
             }
         }
+
+        spawnEntities(templateName, template, world, originX, originY, originZ, rotationSteps, strict);
     }
 
     static int rotatedLocalX(int x, int z, int sizeX, int sizeZ, int rotation) {
@@ -212,6 +222,238 @@ public final class StructurePlacer {
             case 3 -> sizeX - 1 - x;
             default -> z;
         };
+    }
+
+    static double rotatedLocalDoubleX(double x, double z, int sizeX, int sizeZ, int rotation) {
+        return switch (rotation) {
+            case 1 -> sizeZ - z;
+            case 2 -> sizeX - x;
+            case 3 -> z;
+            default -> x;
+        };
+    }
+
+    static double rotatedLocalDoubleZ(double x, double z, int sizeX, int sizeZ, int rotation) {
+        return switch (rotation) {
+            case 1 -> x;
+            case 2 -> sizeZ - z;
+            case 3 -> sizeX - x;
+            default -> z;
+        };
+    }
+
+    static NBTTagCompound entityNbtForPlacement(NBTTagCompound sourceNbt, int sizeX, int sizeZ, int originX,
+        int originY, int originZ, int rotation) {
+        NBTTagCompound entityNbt = (NBTTagCompound) sourceNbt.copy();
+        patchPosition(entityNbt, sizeX, sizeZ, originX, originY, originZ, rotation);
+        patchMotion(entityNbt, rotation);
+        patchRotation(entityNbt, rotation);
+        patchIntegerBlockTriple(
+            entityNbt,
+            "TileX",
+            "TileY",
+            "TileZ",
+            sizeX,
+            sizeZ,
+            originX,
+            originY,
+            originZ,
+            rotation);
+        patchShortBlockTriple(entityNbt, "xTile", "yTile", "zTile", sizeX, sizeZ, originX, originY, originZ, rotation);
+        patchHangingDirection(entityNbt, rotation);
+        return entityNbt;
+    }
+
+    private static void spawnEntities(String templateName, HybridStructureTemplate template, WorldServer world,
+        int originX, int originY, int originZ, int rotation, boolean strict) throws TemplateException {
+        NBTTagList entities = template.getEntities();
+        for (int i = 0; i < entities.tagCount(); i++) {
+            NBTTagCompound entityNbt = entityNbtForPlacement(
+                entities.getCompoundTagAt(i),
+                template.getSizeX(),
+                template.getSizeZ(),
+                originX,
+                originY,
+                originZ,
+                rotation);
+            String entityId = entityNbt.getString("id");
+            Entity entity;
+            try {
+                entity = EntityList.createEntityFromNBT(entityNbt, world);
+            } catch (RuntimeException e) {
+                throw new TemplateException(
+                    "Failed to create entity '" + entityId
+                        + "' from template '"
+                        + templateName
+                        + "' at entity index "
+                        + i
+                        + ": "
+                        + errorMessage(e),
+                    e);
+            }
+
+            if (entity == null) {
+                handleTemplateError(
+                    strict,
+                    "Unknown entity '" + entityId + "' in template '" + templateName + "' at entity index " + i,
+                    null);
+                continue;
+            }
+            entity.dimension = world.provider.dimensionId;
+
+            try {
+                if (!world.spawnEntityInWorld(entity)) {
+                    handleTemplateError(
+                        strict,
+                        "World refused to spawn entity '" + entityId
+                            + "' from template '"
+                            + templateName
+                            + "' at entity index "
+                            + i,
+                        null);
+                }
+            } catch (RuntimeException e) {
+                throw new TemplateException(
+                    "Failed to spawn entity '" + entityId
+                        + "' from template '"
+                        + templateName
+                        + "' at entity index "
+                        + i
+                        + ": "
+                        + errorMessage(e),
+                    e);
+            }
+        }
+    }
+
+    private static void patchPosition(NBTTagCompound entityNbt, int sizeX, int sizeZ, int originX, int originY,
+        int originZ, int rotation) {
+        NBTTagList pos = entityNbt.getTagList("Pos", TAG_DOUBLE);
+        if (pos.tagCount() < 3) {
+            return;
+        }
+        double localX = pos.func_150309_d(0);
+        double localY = pos.func_150309_d(1);
+        double localZ = pos.func_150309_d(2);
+        entityNbt.setTag(
+            "Pos",
+            doubleList(
+                originX + rotatedLocalDoubleX(localX, localZ, sizeX, sizeZ, rotation),
+                originY + localY,
+                originZ + rotatedLocalDoubleZ(localX, localZ, sizeX, sizeZ, rotation)));
+    }
+
+    private static void patchMotion(NBTTagCompound entityNbt, int rotation) {
+        NBTTagList motion = entityNbt.getTagList("Motion", TAG_DOUBLE);
+        if (motion.tagCount() < 3) {
+            return;
+        }
+        double localX = motion.func_150309_d(0);
+        double localY = motion.func_150309_d(1);
+        double localZ = motion.func_150309_d(2);
+        double rotatedX = switch (rotation) {
+            case 1 -> -localZ;
+            case 2 -> -localX;
+            case 3 -> localZ;
+            default -> localX;
+        };
+        double rotatedZ = switch (rotation) {
+            case 1 -> localX;
+            case 2 -> -localZ;
+            case 3 -> -localX;
+            default -> localZ;
+        };
+        entityNbt.setTag("Motion", doubleList(rotatedX, localY, rotatedZ));
+    }
+
+    private static void patchRotation(NBTTagCompound entityNbt, int rotation) {
+        NBTTagList rotationList = entityNbt.getTagList("Rotation", TAG_FLOAT);
+        if (rotationList.tagCount() < 2) {
+            return;
+        }
+        float yaw = rotationList.func_150308_e(0);
+        float pitch = rotationList.func_150308_e(1);
+        entityNbt.setTag("Rotation", floatList(yaw + rotation * 90.0F, pitch));
+    }
+
+    private static void patchIntegerBlockTriple(NBTTagCompound nbt, String xKey, String yKey, String zKey, int sizeX,
+        int sizeZ, int originX, int originY, int originZ, int rotation) {
+        if (!nbt.hasKey(xKey) || !nbt.hasKey(yKey) || !nbt.hasKey(zKey)) {
+            return;
+        }
+        int localX = nbt.getInteger(xKey);
+        int localY = nbt.getInteger(yKey);
+        int localZ = nbt.getInteger(zKey);
+        nbt.setInteger(xKey, originX + rotatedLocalX(localX, localZ, sizeX, sizeZ, rotation));
+        nbt.setInteger(yKey, originY + localY);
+        nbt.setInteger(zKey, originZ + rotatedLocalZ(localX, localZ, sizeX, sizeZ, rotation));
+    }
+
+    private static void patchShortBlockTriple(NBTTagCompound nbt, String xKey, String yKey, String zKey, int sizeX,
+        int sizeZ, int originX, int originY, int originZ, int rotation) {
+        if (!nbt.hasKey(xKey) || !nbt.hasKey(yKey) || !nbt.hasKey(zKey)) {
+            return;
+        }
+        int localX = nbt.getShort(xKey);
+        int localY = nbt.getShort(yKey);
+        int localZ = nbt.getShort(zKey);
+        nbt.setShort(xKey, (short) (originX + rotatedLocalX(localX, localZ, sizeX, sizeZ, rotation)));
+        nbt.setShort(yKey, (short) (originY + localY));
+        nbt.setShort(zKey, (short) (originZ + rotatedLocalZ(localX, localZ, sizeX, sizeZ, rotation)));
+    }
+
+    private static void patchHangingDirection(NBTTagCompound entityNbt, int rotation) {
+        if (rotation == 0) {
+            return;
+        }
+
+        if (entityNbt.hasKey("Direction", TAG_ANY_NUMERIC)) {
+            int direction = rotateHorizontalDirection(entityNbt.getByte("Direction"), rotation);
+            entityNbt.setByte("Direction", (byte) direction);
+            if (entityNbt.hasKey("Dir", TAG_ANY_NUMERIC)) {
+                entityNbt.setByte("Dir", (byte) legacyDirFromDirection(direction));
+            }
+        } else if (entityNbt.hasKey("Dir", TAG_ANY_NUMERIC)) {
+            int direction = directionFromLegacyDir(entityNbt.getByte("Dir"));
+            entityNbt.setByte("Dir", (byte) legacyDirFromDirection(rotateHorizontalDirection(direction, rotation)));
+        }
+    }
+
+    private static int rotateHorizontalDirection(int direction, int rotation) {
+        return (direction + rotation) & 3;
+    }
+
+    private static int directionFromLegacyDir(int dir) {
+        return switch (dir & 3) {
+            case 0 -> 2;
+            case 1 -> 1;
+            case 2 -> 0;
+            default -> 3;
+        };
+    }
+
+    private static int legacyDirFromDirection(int direction) {
+        return switch (direction & 3) {
+            case 0 -> 2;
+            case 1 -> 1;
+            case 2 -> 0;
+            default -> 3;
+        };
+    }
+
+    private static NBTTagList doubleList(double x, double y, double z) {
+        NBTTagList list = new NBTTagList();
+        list.appendTag(new NBTTagDouble(x));
+        list.appendTag(new NBTTagDouble(y));
+        list.appendTag(new NBTTagDouble(z));
+        return list;
+    }
+
+    private static NBTTagList floatList(float yaw, float pitch) {
+        NBTTagList list = new NBTTagList();
+        list.appendTag(new NBTTagFloat(yaw));
+        list.appendTag(new NBTTagFloat(pitch));
+        return list;
     }
 
     private static int placedSizeX(int sizeX, int sizeZ, int rotation) {

@@ -1,0 +1,147 @@
+{
+  entities: [
+    {
+      AbsorptionAmount: 0.0f,
+      Age: 0,
+      Air: 300s,
+      AttackTime: 0s,
+      Attributes: [
+        {
+          Base: 4.0d,
+          Name: "generic.maxHealth"
+        },
+        {
+          Base: 0.0d,
+          Name: "generic.knockbackResistance"
+        },
+        {
+          Base: 0.25d,
+          Name: "generic.movementSpeed"
+        },
+        {
+          Base: 16.0d,
+          Modifiers: [
+            {
+              Amount: 0.016227921352636517d,
+              Name: "Random spawn bonus",
+              Operation: 1,
+              UUIDLeast: -4933895457556395428L,
+              UUIDMost: 4007959543355624948L
+            }
+          ],
+          Name: "generic.followRange"
+        }
+      ],
+      CanPickUpLoot: 0b,
+      CustomName: "",
+      CustomNameVisible: 0b,
+      DeathTime: 0s,
+      Dimension: 0,
+      DropChances: [0.085f, 0.085f, 0.085f, 0.085f, 0.085f],
+      Equipment: [
+        {},
+        {},
+        {},
+        {},
+        {}
+      ],
+      FallDistance: 0.0f,
+      Fire: -1s,
+      ForgeData: {},
+      HealF: 4.0f,
+      Health: 4s,
+      HurtTime: 0s,
+      InLove: 0,
+      Invulnerable: 0b,
+      IsChickenJockey: 0b,
+      Leashed: 0b,
+      Motion: [0.0d, -0.0784000015258789d, 0.0d],
+      OnGround: 1b,
+      PersistenceRequired: 0b,
+      PortalCooldown: 0,
+      Pos: [1.5d, 1.0d, 3.5d],
+      Rotation: [26.049765f, 0.0f],
+      id: "Chicken"
+    },
+    {
+      AbsorptionAmount: 0.0f,
+      Age: 0,
+      Air: 300s,
+      AttackTime: 0s,
+      Attributes: [
+        {
+          Base: 4.0d,
+          Name: "generic.maxHealth"
+        },
+        {
+          Base: 0.0d,
+          Name: "generic.knockbackResistance"
+        },
+        {
+          Base: 0.25d,
+          Name: "generic.movementSpeed"
+        },
+        {
+          Base: 16.0d,
+          Modifiers: [
+            {
+              Amount: 0.006971302564244177d,
+              Name: "Random spawn bonus",
+              Operation: 1,
+              UUIDLeast: -6035527008084353915L,
+              UUIDMost: 7224658037734195396L
+            }
+          ],
+          Name: "generic.followRange"
+        }
+      ],
+      CanPickUpLoot: 0b,
+      CustomName: "",
+      CustomNameVisible: 0b,
+      DeathTime: 0s,
+      Dimension: 0,
+      DropChances: [0.085f, 0.085f, 0.085f, 0.085f, 0.085f],
+      Equipment: [
+        {},
+        {},
+        {},
+        {},
+        {}
+      ],
+      FallDistance: 0.0f,
+      Fire: -1s,
+      ForgeData: {},
+      HealF: 4.0f,
+      Health: 4s,
+      HurtTime: 0s,
+      InLove: 0,
+      Invulnerable: 0b,
+      IsChickenJockey: 0b,
+      Leashed: 0b,
+      Motion: [0.0d, -0.0784000015258789d, 0.0d],
+      OnGround: 1b,
+      PersistenceRequired: 0b,
+      PortalCooldown: 0,
+      Pos: [1.5d, 1.0d, 1.5d],
+      Rotation: [75.66014f, 0.0f],
+      id: "Chicken"
+    }
+  ],
+  tiles: [
+    {
+      id: "RCHiddenTile",
+      last: {
+        dim: 0,
+        x: 30,
+        y: 6,
+        z: -13
+      },
+      owner: "[Railcraft]",
+      seed: 96204736726034L,
+      time: 1782380321210L,
+      x: 1,
+      y: 1,
+      z: 1
+    }
+  ]
+}

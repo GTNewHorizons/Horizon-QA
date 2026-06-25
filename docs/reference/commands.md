@@ -40,6 +40,11 @@ Only one batch runner can be active at a time. If an automatic or reported batch
 
 Output directory: `<serverDir>/horizonqastructures/`.
 
+Exported files:
+
+- `<name>.json` for the block layout.
+- `<name>.snbt` for tile entity and non-player entity data, when the selection has any.
+
 ## Typical workflows
 
 === "Single test debug"

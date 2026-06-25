@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,10 +13,14 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import net.minecraft.block.Block;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagDouble;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.world.WorldServer;
 
 import org.apache.logging.log4j.LogManager;
@@ -27,10 +33,36 @@ public final class StructureExporter {
     private static final Logger LOG = LogManager.getLogger("GameTest");
 
     private static final String KEY_SEQUENCE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    private static final String ENTITIES_KEY = "entities";
+
+    public static final class ExportResult {
+
+        private final int tileEntityCount;
+        private final int entityCount;
+        private final boolean structureDataWritten;
+
+        private ExportResult(int tileEntityCount, int entityCount, boolean structureDataWritten) {
+            this.tileEntityCount = tileEntityCount;
+            this.entityCount = entityCount;
+            this.structureDataWritten = structureDataWritten;
+        }
+
+        public int tileEntityCount() {
+            return tileEntityCount;
+        }
+
+        public int entityCount() {
+            return entityCount;
+        }
+
+        public boolean structureDataWritten() {
+            return structureDataWritten;
+        }
+    }
 
     private StructureExporter() {}
 
-    public static void export(WorldServer world, int x1, int y1, int z1, int x2, int y2, int z2, File outputDir,
+    public static ExportResult export(WorldServer world, int x1, int y1, int z1, int x2, int y2, int z2, File outputDir,
         String name) throws IOException {
 
         int sizeX = x2 - x1 + 1;
@@ -40,6 +72,8 @@ public final class StructureExporter {
         String[][][] blockNames = new String[sizeX][sizeY][sizeZ];
         int[][][] blockMetas = new int[sizeX][sizeY][sizeZ];
         NBTTagCompound tileData = new NBTTagCompound();
+        NBTTagCompound entityData = new NBTTagCompound();
+        NBTTagList entities = new NBTTagList();
 
         TreeMap<String, String> sortedUniqueBlocks = new TreeMap<>();
 
@@ -78,6 +112,11 @@ public final class StructureExporter {
                     }
                 }
             }
+        }
+
+        int entityCount = exportEntities(world, x1, y1, z1, x2, y2, z2, entities);
+        if (entityCount > 0) {
+            entityData.setTag(ENTITIES_KEY, entities);
         }
 
         if (sortedUniqueBlocks.size() > KEY_SEQUENCE.length()) {
@@ -173,13 +212,114 @@ public final class StructureExporter {
             writer.write("  ]\n");
             writer.write("}\n");
         }
-        LOG.info("StructureExporter: wrote layout → {}", jsonFile.getAbsolutePath());
+        LOG.info("StructureExporter: wrote layout -> {}", jsonFile.getAbsolutePath());
 
-        File nbtFile = new File(outputDir, name + "_tiles.nbt");
-        try (FileOutputStream fos = new FileOutputStream(nbtFile)) {
-            CompressedStreamTools.writeCompressed(tileData, fos);
+        NBTTagCompound structureData = StructureNbt.combine(tileData, entityData);
+        File snbtFile = new File(outputDir, name + ".snbt");
+        boolean structureDataWritten = !StructureNbt.isEmpty(structureData);
+        if (structureDataWritten) {
+            try (OutputStreamWriter writer = new OutputStreamWriter(
+                new FileOutputStream(snbtFile),
+                StandardCharsets.UTF_8)) {
+                writer.write(StructureNbt.toSnbt(structureData));
+            }
+            LOG.info("StructureExporter: wrote structure data -> {}", snbtFile.getAbsolutePath());
+        } else {
+            deleteStale(snbtFile, "structure data");
         }
-        LOG.info("StructureExporter: wrote tile data → {}", nbtFile.getAbsolutePath());
+
+        deleteStale(new File(outputDir, name + ".nbt"), "legacy structure data");
+        deleteStale(new File(outputDir, name + "_tiles.nbt"), "legacy tile entity data");
+        deleteStale(new File(outputDir, name + "_entities.nbt"), "legacy entity data");
+
+        return new ExportResult(StructureNbt.tileEntityCount(tileData), entityCount, structureDataWritten);
+    }
+
+    private static int exportEntities(WorldServer world, int x1, int y1, int z1, int x2, int y2, int z2,
+        NBTTagList entities) {
+        AxisAlignedBB selection = AxisAlignedBB
+            .getBoundingBox(x1, y1, z1, (double) x2 + 1.0D, (double) y2 + 1.0D, (double) z2 + 1.0D);
+        int entityCount = 0;
+
+        for (Object object : world.loadedEntityList) {
+            if (!(object instanceof Entity entity) || entity instanceof EntityPlayer || entity.isDead) {
+                continue;
+            }
+            if (!isEntityInSelection(entity, selection)) {
+                continue;
+            }
+
+            NBTTagCompound entityNbt = new NBTTagCompound();
+            if (!entity.writeToNBTOptional(entityNbt)) {
+                continue;
+            }
+            relativizeEntityNbt(entityNbt, x1, y1, z1);
+            entities.appendTag(entityNbt);
+            entityCount++;
+        }
+
+        return entityCount;
+    }
+
+    private static boolean isEntityInSelection(Entity entity, AxisAlignedBB selection) {
+        if (entity.boundingBox != null && entity.boundingBox.intersectsWith(selection)) {
+            return true;
+        }
+        return entity.posX >= selection.minX && entity.posX < selection.maxX
+            && entity.posY >= selection.minY
+            && entity.posY < selection.maxY
+            && entity.posZ >= selection.minZ
+            && entity.posZ < selection.maxZ;
+    }
+
+    static void relativizeEntityNbt(NBTTagCompound entityNbt, int originX, int originY, int originZ) {
+        patchDoubleList(entityNbt, "Pos", -originX, -originY, -originZ);
+        relativizeIntegerTriple(entityNbt, "TileX", "TileY", "TileZ", originX, originY, originZ);
+        relativizeShortTriple(entityNbt, "xTile", "yTile", "zTile", originX, originY, originZ);
+        entityNbt.removeTag("UUIDMost");
+        entityNbt.removeTag("UUIDLeast");
+    }
+
+    private static void patchDoubleList(NBTTagCompound nbt, String key, double dx, double dy, double dz) {
+        NBTTagList list = nbt.getTagList(key, 6);
+        if (list.tagCount() < 3) {
+            return;
+        }
+        nbt.setTag(key, doubleList(list.func_150309_d(0) + dx, list.func_150309_d(1) + dy, list.func_150309_d(2) + dz));
+    }
+
+    private static void relativizeIntegerTriple(NBTTagCompound nbt, String xKey, String yKey, String zKey, int originX,
+        int originY, int originZ) {
+        if (!nbt.hasKey(xKey) || !nbt.hasKey(yKey) || !nbt.hasKey(zKey)) {
+            return;
+        }
+        nbt.setInteger(xKey, nbt.getInteger(xKey) - originX);
+        nbt.setInteger(yKey, nbt.getInteger(yKey) - originY);
+        nbt.setInteger(zKey, nbt.getInteger(zKey) - originZ);
+    }
+
+    private static void relativizeShortTriple(NBTTagCompound nbt, String xKey, String yKey, String zKey, int originX,
+        int originY, int originZ) {
+        if (!nbt.hasKey(xKey) || !nbt.hasKey(yKey) || !nbt.hasKey(zKey)) {
+            return;
+        }
+        nbt.setShort(xKey, (short) (nbt.getShort(xKey) - originX));
+        nbt.setShort(yKey, (short) (nbt.getShort(yKey) - originY));
+        nbt.setShort(zKey, (short) (nbt.getShort(zKey) - originZ));
+    }
+
+    static NBTTagList doubleList(double x, double y, double z) {
+        NBTTagList list = new NBTTagList();
+        list.appendTag(new NBTTagDouble(x));
+        list.appendTag(new NBTTagDouble(y));
+        list.appendTag(new NBTTagDouble(z));
+        return list;
+    }
+
+    private static void deleteStale(File file, String description) throws IOException {
+        if (file.exists() && !file.delete()) {
+            throw new IOException("Could not delete stale " + description + " file: " + file.getAbsolutePath());
+        }
     }
 
     private static String resolveLabel(Block block, int meta) {

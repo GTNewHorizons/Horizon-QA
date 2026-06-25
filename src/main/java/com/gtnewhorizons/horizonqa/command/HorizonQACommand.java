@@ -697,7 +697,8 @@ public class HorizonQACommand extends CommandBase {
             .getFile("horizonqastructures");
 
         try {
-            StructureExporter.export(world, minX, minY, minZ, maxX, maxY, maxZ, outputDir, name);
+            StructureExporter.ExportResult result = StructureExporter
+                .export(world, minX, minY, minZ, maxX, maxY, maxZ, outputDir, name);
             sender.addChatMessage(
                 new ChatComponentText(
                     EnumChatFormatting.GREEN + "Exported '"
@@ -709,8 +710,17 @@ public class HorizonQACommand extends CommandBase {
                         + outputDir.getAbsolutePath()));
             sender.addChatMessage(
                 new ChatComponentText(EnumChatFormatting.GRAY + "  " + name + ".json        (block layout)"));
-            sender.addChatMessage(
-                new ChatComponentText(EnumChatFormatting.GRAY + "  " + name + "_tiles.nbt   (tile entities)"));
+            if (result.structureDataWritten()) {
+                sender.addChatMessage(
+                    new ChatComponentText(
+                        EnumChatFormatting.GRAY + "  "
+                            + name
+                            + ".snbt        ("
+                            + result.tileEntityCount()
+                            + " tile entities, "
+                            + result.entityCount()
+                            + " entities)"));
+            }
         } catch (IOException e) {
             sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Export failed: " + e.getMessage()));
             HorizonQAMod.LOG.error("StructureExporter failed for '{}'", name, e);

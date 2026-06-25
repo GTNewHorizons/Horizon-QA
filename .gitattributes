@@ -1,5 +1,8 @@
 * text eol=lf
 
+*.[sS][nN][bB][tT]      text
+*.[nN][bB][tT]          binary
+
 *.[jJ][aA][rR]          binary
 
 *.[pP][nN][gG]          binary

@@ -1,6 +1,7 @@
 package com.gtnewhorizons.horizonqa.structure;
 
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 
 public final class HybridStructureTemplate {
 
@@ -30,9 +31,15 @@ public final class HybridStructureTemplate {
     private final char[] paletteKeys;
     private final int[][][] blockData;
     private final NBTTagCompound tileData;
+    private final NBTTagCompound entityData;
 
     public HybridStructureTemplate(int sizeX, int sizeY, int sizeZ, PaletteEntry[] palette, char[] paletteKeys,
         int[][][] blockData, NBTTagCompound tileData) {
+        this(sizeX, sizeY, sizeZ, palette, paletteKeys, blockData, tileData, null);
+    }
+
+    public HybridStructureTemplate(int sizeX, int sizeY, int sizeZ, PaletteEntry[] palette, char[] paletteKeys,
+        int[][][] blockData, NBTTagCompound tileData, NBTTagCompound entityData) {
         this.sizeX = sizeX;
         this.sizeY = sizeY;
         this.sizeZ = sizeZ;
@@ -40,6 +47,7 @@ public final class HybridStructureTemplate {
         this.paletteKeys = paletteKeys;
         this.blockData = blockData;
         this.tileData = tileData != null ? tileData : new NBTTagCompound();
+        this.entityData = entityData != null ? entityData : new NBTTagCompound();
     }
 
     public int getSizeX() {
@@ -71,5 +79,9 @@ public final class HybridStructureTemplate {
         String key = x + "," + y + "," + z;
         if (!tileData.hasKey(key)) return null;
         return tileData.getCompoundTag(key);
+    }
+
+    public NBTTagList getEntities() {
+        return entityData.getTagList("entities", 10);
     }
 }
