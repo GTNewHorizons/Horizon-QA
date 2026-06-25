@@ -31,7 +31,8 @@ The `examples/` directory in **this repository** is reserved for framework demon
 ```text
 src/main/resources/assets/<modid>/horizonqastructures/
   <path>.json
-  <path>.snbt
+  <path>.snbt   (optional; text structure data)
+  <path>.nbt    (optional fallback; binary structure data)
 ```
 
 Template reference: `@GameTest(template = "path")` with `@GameTestHolder("<modid>")` resolves to `<modid>:path`.

@@ -153,6 +153,19 @@ final class StructureNbt {
         return builder.toString();
     }
 
+    static String toSnbtIfLossless(NBTTagCompound compound) {
+        String snbt = toSnbt(compound);
+        return isLosslessSnbt(compound, snbt) ? snbt : null;
+    }
+
+    static boolean isLosslessSnbt(NBTTagCompound compound, String snbt) {
+        try {
+            return compound.equals(parseSnbt(snbt, "generated", "generated.snbt"));
+        } catch (TemplateException e) {
+            return false;
+        }
+    }
+
     static int tileEntityCount(NBTTagCompound tileData) {
         if (tileData == null) {
             return 0;
@@ -186,6 +199,8 @@ final class StructureNbt {
             appendCompound(compound, builder, indent);
         } else if (tag instanceof NBTTagList list) {
             appendList(list, builder, indent);
+        } else if (tag instanceof NBTTagString string) {
+            appendString(string.func_150285_a_(), builder);
         } else {
             builder.append(tag);
         }
@@ -259,6 +274,19 @@ final class StructureNbt {
         }
         indent(builder, indent);
         builder.append(']');
+    }
+
+    private static void appendString(String value, StringBuilder builder) {
+        builder.append('"');
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch == '"') {
+                builder.append("\\\"");
+            } else {
+                builder.append(ch);
+            }
+        }
+        builder.append('"');
     }
 
     private static List<String> sortedKeys(NBTTagCompound compound) {

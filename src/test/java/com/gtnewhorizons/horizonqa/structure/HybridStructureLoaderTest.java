@@ -2,6 +2,8 @@ package com.gtnewhorizons.horizonqa.structure;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -122,5 +124,48 @@ public class HybridStructureLoaderTest {
             .getCompoundTagAt(0);
         assertEquals("", loadedEntity.getString("CustomName"));
         assertFalse("\"\"".equals(loadedEntity.getString("CustomName")));
+    }
+
+    @Test
+    public void generatedSnbtEscapesQuotedStringValues() throws Exception {
+        NBTTagCompound structureData = new NBTTagCompound();
+        NBTTagList entities = new NBTTagList();
+        NBTTagCompound entity = new NBTTagCompound();
+        entity.setString("id", "Item");
+        entity.setString("CustomName", "Bob \"The Test\"");
+        entities.appendTag(entity);
+        structureData.setTag("entities", entities);
+
+        String snbt = StructureNbt.toSnbt(structureData);
+        assertTrue(snbt.contains("CustomName: \"Bob \\\"The Test\\\"\""));
+        assertTrue(StructureNbt.isLosslessSnbt(structureData, snbt));
+        assertNotNull(StructureNbt.toSnbtIfLossless(structureData));
+
+        NBTTagCompound parsed = StructureNbt.parseSnbt(snbt, "horizonqatest:generated", "generated.snbt");
+        assertEquals(
+            "Bob \"The Test\"",
+            parsed.getTagList("entities", 10)
+                .getCompoundTagAt(0)
+                .getString("CustomName"));
+    }
+
+    @Test
+    public void unsafeSnbtKeysRequireBinaryStructureData() {
+        NBTTagCompound structureData = new NBTTagCompound();
+        NBTTagList tiles = new NBTTagList();
+        NBTTagCompound tile = new NBTTagCompound();
+        NBTTagCompound forgeData = new NBTTagCompound();
+        forgeData.setString("modid:foo", "bar");
+        tile.setString("id", "TestTile");
+        tile.setInteger("x", 0);
+        tile.setInteger("y", 0);
+        tile.setInteger("z", 0);
+        tile.setTag("ForgeData", forgeData);
+        tiles.appendTag(tile);
+        structureData.setTag("tiles", tiles);
+
+        String snbt = StructureNbt.toSnbt(structureData);
+        assertFalse(StructureNbt.isLosslessSnbt(structureData, snbt));
+        assertNull(StructureNbt.toSnbtIfLossless(structureData));
     }
 }

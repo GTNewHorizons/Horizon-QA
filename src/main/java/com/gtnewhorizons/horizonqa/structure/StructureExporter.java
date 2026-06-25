@@ -16,6 +16,7 @@ import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagDouble;
 import net.minecraft.nbt.NBTTagList;
@@ -39,12 +40,12 @@ public final class StructureExporter {
 
         private final int tileEntityCount;
         private final int entityCount;
-        private final boolean structureDataWritten;
+        private final String structureDataExtension;
 
-        private ExportResult(int tileEntityCount, int entityCount, boolean structureDataWritten) {
+        private ExportResult(int tileEntityCount, int entityCount, String structureDataExtension) {
             this.tileEntityCount = tileEntityCount;
             this.entityCount = entityCount;
-            this.structureDataWritten = structureDataWritten;
+            this.structureDataExtension = structureDataExtension;
         }
 
         public int tileEntityCount() {
@@ -56,7 +57,11 @@ public final class StructureExporter {
         }
 
         public boolean structureDataWritten() {
-            return structureDataWritten;
+            return structureDataExtension != null;
+        }
+
+        public String structureDataExtension() {
+            return structureDataExtension;
         }
     }
 
@@ -216,23 +221,38 @@ public final class StructureExporter {
 
         NBTTagCompound structureData = StructureNbt.combine(tileData, entityData);
         File snbtFile = new File(outputDir, name + ".snbt");
-        boolean structureDataWritten = !StructureNbt.isEmpty(structureData);
-        if (structureDataWritten) {
-            try (OutputStreamWriter writer = new OutputStreamWriter(
-                new FileOutputStream(snbtFile),
-                StandardCharsets.UTF_8)) {
-                writer.write(StructureNbt.toSnbt(structureData));
+        File nbtFile = new File(outputDir, name + ".nbt");
+        String structureDataExtension = null;
+        if (!StructureNbt.isEmpty(structureData)) {
+            String snbt = StructureNbt.toSnbtIfLossless(structureData);
+            if (snbt != null) {
+                try (OutputStreamWriter writer = new OutputStreamWriter(
+                    new FileOutputStream(snbtFile),
+                    StandardCharsets.UTF_8)) {
+                    writer.write(snbt);
+                }
+                deleteStale(nbtFile, "binary structure data");
+                structureDataExtension = ".snbt";
+                LOG.info("StructureExporter: wrote structure data -> {}", snbtFile.getAbsolutePath());
+            } else {
+                try (FileOutputStream outputStream = new FileOutputStream(nbtFile)) {
+                    CompressedStreamTools.writeCompressed(structureData, outputStream);
+                }
+                deleteStale(snbtFile, "SNBT structure data");
+                structureDataExtension = ".nbt";
+                LOG.info(
+                    "StructureExporter: wrote binary structure data -> {} (SNBT round-trip was not lossless)",
+                    nbtFile.getAbsolutePath());
             }
-            LOG.info("StructureExporter: wrote structure data -> {}", snbtFile.getAbsolutePath());
         } else {
             deleteStale(snbtFile, "structure data");
+            deleteStale(nbtFile, "binary structure data");
         }
 
-        deleteStale(new File(outputDir, name + ".nbt"), "legacy structure data");
         deleteStale(new File(outputDir, name + "_tiles.nbt"), "legacy tile entity data");
         deleteStale(new File(outputDir, name + "_entities.nbt"), "legacy entity data");
 
-        return new ExportResult(StructureNbt.tileEntityCount(tileData), entityCount, structureDataWritten);
+        return new ExportResult(StructureNbt.tileEntityCount(tileData), entityCount, structureDataExtension);
     }
 
     private static int exportEntities(WorldServer world, int x1, int y1, int z1, int x2, int y2, int z2,

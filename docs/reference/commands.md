@@ -43,7 +43,8 @@ Output directory: `<serverDir>/horizonqastructures/`.
 Exported files:
 
 - `<name>.json` for the block layout.
-- `<name>.snbt` for tile entity and non-player entity data, when the selection has any.
+- `<name>.snbt` for tile entity and non-player entity data, when the selection has any and the generated text round-trips losslessly.
+- `<name>.nbt` instead of `.snbt` when the structure data cannot be represented safely in Minecraft 1.7.10 SNBT.
 
 ## Typical workflows
 

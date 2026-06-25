@@ -715,7 +715,8 @@ public class HorizonQACommand extends CommandBase {
                     new ChatComponentText(
                         EnumChatFormatting.GRAY + "  "
                             + name
-                            + ".snbt        ("
+                            + result.structureDataExtension()
+                            + "        ("
                             + result.tileEntityCount()
                             + " tile entities, "
                             + result.entityCount()

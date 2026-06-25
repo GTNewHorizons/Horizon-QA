@@ -8,7 +8,7 @@ tags:
 
 # Structure templates
 
-Structures are compact JSON layouts plus optional SNBT data for tile entities and entities. They are versioned alongside your mod jar and referenced by name from `@GameTest`.
+Structures are compact JSON layouts plus optional structure data for tile entities and entities. They are versioned alongside your mod jar and referenced by name from `@GameTest`.
 
 ## On-disk layout
 
@@ -17,7 +17,8 @@ After export or hand-authoring:
 ```text
 src/main/resources/assets/<namespace>/horizonqastructures/
   my_cell.json
-  my_cell.snbt   (optional; tile entity and entity data)
+  my_cell.snbt   (optional; tile entity and entity data, when text-safe)
+  my_cell.nbt    (optional fallback; tile entity and entity data)
 ```
 
 Runtime resolution is by classpath:
@@ -25,6 +26,7 @@ Runtime resolution is by classpath:
 ```text
 /assets/<namespace>/horizonqastructures/<path>.json
 /assets/<namespace>/horizonqastructures/<path>.snbt   (optional)
+/assets/<namespace>/horizonqastructures/<path>.nbt    (optional fallback)
 ```
 
 Reference from tests:
@@ -42,7 +44,7 @@ public class MyTests {
 flowchart LR
     A[Build the structure<br/>in a dev world] --> B[Wand: left-click pos1,<br/>right-click pos2]
     B --> C["/horizonqa export name"]
-    C --> D[Server writes JSON + SNBT<br/>under serverDir/horizonqastructures/]
+    C --> D[Server writes JSON + structure data<br/>under serverDir/horizonqastructures/]
     D --> E[Move into<br/>assets/modid/horizonqastructures/]
 ```
 
@@ -51,7 +53,8 @@ flowchart LR
 3. Run `/horizonqa export <name>`. Allowed characters: letters, digits, `_`, `-`.
 4. The server writes to `<serverDir>/horizonqastructures/`:
    - `<name>.json` with the block palette and layers.
-   - `<name>.snbt` with tile entity and non-player entity data, if any.
+   - `<name>.snbt` with tile entity and non-player entity data, if the generated text round-trips losslessly.
+   - `<name>.nbt` instead of `.snbt` when the NBT contains data that Minecraft 1.7.10's SNBT parser cannot represent safely, such as compound keys containing `:`.
 5. Move the exported files into your mod's `assets/<modid>/horizonqastructures/`.
 
 !!! tip "Use `/horizonqa pos` while authoring"
@@ -62,7 +65,7 @@ flowchart LR
 
 Templates use `format_version: 1`, a palette keyed by single-character symbols, and a `layers` array in Y-major order. The loader throws `IOException` with explicit messages for missing layers and unknown palette keys; on a load failure the server log identifies the file and the offending key.
 
-The optional `.snbt` file is a text NBT compound. It uses `tiles` as a list of tile entity compounds and `entities` as a list of non-player entity compounds; both are merged at placement time. For compatibility, the loader also accepts older `<path>.nbt`, `<path>_tiles.nbt`, and `<path>_entities.nbt` files, but new exports write `.snbt`.
+The optional structure data file uses `tiles` as a list of tile entity compounds and `entities` as a list of non-player entity compounds; both are merged at placement time. New exports prefer text `<path>.snbt`, but only write it after parsing the generated text back and confirming the NBT tree is unchanged. If that round-trip is not lossless, the exporter writes combined binary `<path>.nbt`. For compatibility, the loader also accepts older `<path>_tiles.nbt` and `<path>_entities.nbt` files.
 
 ## Placement in the grid
 
