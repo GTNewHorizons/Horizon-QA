@@ -1,0 +1,93 @@
+{
+  entities: [
+    {
+      AbsorptionAmount: 0.0f,
+      Age: 0,
+      Air: 300s,
+      AttackTime: 0s,
+      Attributes: [
+        {
+          Base: 4.0d,
+          Name: "generic.maxHealth"
+        },
+        {
+          Base: 0.0d,
+          Name: "generic.knockbackResistance"
+        },
+        {
+          Base: 0.25d,
+          Name: "generic.movementSpeed"
+        },
+        {
+          Base: 16.0d,
+          Modifiers: [
+            {
+              Amount: 0.016227921352636517d,
+              Name: "Random spawn bonus",
+              Operation: 1,
+              UUIDLeast: -4933895457556395428L,
+              UUIDMost: 4007959543355624948L
+            }
+          ],
+          Name: "generic.followRange"
+        }
+      ],
+      CanPickUpLoot: 0b,
+      CustomName: "",
+      CustomNameVisible: 0b,
+      DeathTime: 0s,
+      Dimension: 0,
+      DropChances: [0.085f, 0.085f, 0.085f, 0.085f, 0.085f],
+      Equipment: [
+        {},
+        {},
+        {},
+        {},
+        {}
+      ],
+      FallDistance: 0.0f,
+      Fire: -1s,
+      ForgeData: {},
+      HealF: 4.0f,
+      Health: 4s,
+      HurtTime: 0s,
+      InLove: 0,
+      Invulnerable: 0b,
+      IsChickenJockey: 0b,
+      Leashed: 0b,
+      Motion: [0.0d, -0.0784000015258789d, 0.0d],
+      OnGround: 1b,
+      PersistenceRequired: 0b,
+      PortalCooldown: 0,
+      Pos: [1.489991026828175d, 1.0d, 1.5227173827641796d],
+      Rotation: [182.29185f, 0.0f],
+      id: "Chicken"
+    },
+    {
+      Age: 55s,
+      Air: 300s,
+      Dimension: 0,
+      FallDistance: 0.0f,
+      Fire: -1s,
+      ForgeData: {
+        thrower: "Developer"
+      },
+      Health: 5s,
+      Invulnerable: 0b,
+      Item: {
+        Count: 1b,
+        Damage: 93s,
+        id: 383s
+      },
+      Lifespan: 6000,
+      Motion: [1.1673357752136318E-12d, -0.0d, 5.358076857269044E-13d],
+      OnGround: 1b,
+      PortalCooldown: 0,
+      Pos: [1.7940603765142633d, 1.125d, 3.7454768807345484d],
+      Rotation: [96.189545f, 0.0f],
+      Thrower: "Developer",
+      id: "Item"
+    }
+  ],
+  tiles: []
+}

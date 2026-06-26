@@ -1,5 +1,6 @@
 package com.gtnewhorizons.horizonqa.api;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -7,12 +8,15 @@ import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
 import net.minecraft.block.Block;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityList;
 import net.minecraft.init.Blocks;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.storage.WorldInfo;
 import net.minecraftforge.common.util.FakePlayer;
@@ -665,6 +669,218 @@ public class GameTestHelper {
     }
 
     /**
+     * Return live entities of {@code type} whose bounding boxes intersect the single test-local
+     * block at {@code (x, y, z)}.
+     */
+    public <T extends Entity> List<T> getEntities(Class<T> type, int x, int y, int z) {
+        return getEntities(type, x, y, z, x, y, z);
+    }
+
+    /**
+     * Return live entities of {@code type} whose bounding boxes intersect the inclusive test-local
+     * block range.
+     */
+    @SuppressWarnings("unchecked")
+    public <T extends Entity> List<T> getEntities(Class<T> type, int minX, int minY, int minZ, int maxX, int maxY,
+        int maxZ) {
+        AxisAlignedBB box = localEntityBox(minX, minY, minZ, maxX, maxY, maxZ);
+        List<?> raw = world.getEntitiesWithinAABB(type, box);
+        List<T> result = new ArrayList<>();
+        for (Object object : raw) {
+            if (!type.isInstance(object)) continue;
+            T entity = (T) object;
+            if (!entity.isDead) {
+                result.add(entity);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Assert that at least one live entity exists in the single test-local block at {@code (x, y, z)}.
+     * Returns the first matching entity for further inspection.
+     */
+    public Entity assertEntityPresent(int x, int y, int z) {
+        return assertEntityPresent(Entity.class, x, y, z);
+    }
+
+    /**
+     * Assert that at least one live entity of {@code type} exists in the single test-local block at
+     * {@code (x, y, z)}. Returns the first matching entity for further inspection.
+     */
+    public <T extends Entity> T assertEntityPresent(Class<T> type, int x, int y, int z) {
+        List<T> entities = getEntities(type, x, y, z);
+        if (entities.isEmpty()) {
+            throw new GameTestAssertException(
+                "Expected " + entityTypeName(type) + " at (" + x + "," + y + "," + z + ") but found none",
+                absolute(x, y, z));
+        }
+        return entities.get(0);
+    }
+
+    /**
+     * Assert that no live entity exists in the single test-local block at {@code (x, y, z)}.
+     */
+    public void assertEntityAbsent(int x, int y, int z) {
+        assertEntityAbsent(Entity.class, x, y, z);
+    }
+
+    /**
+     * Assert that no live entity of {@code type} exists in the single test-local block at
+     * {@code (x, y, z)}.
+     */
+    public void assertEntityAbsent(Class<? extends Entity> type, int x, int y, int z) {
+        List<? extends Entity> entities = getEntities(type, x, y, z);
+        if (!entities.isEmpty()) {
+            String entityType = entityPluralName(type);
+            throw new GameTestAssertException(
+                "Expected no " + entityType + " at (" + x + "," + y + "," + z + ") but found " + entities.size(),
+                absolute(x, y, z));
+        }
+    }
+
+    /**
+     * Assert that exactly {@code expectedCount} live entities exist in the single test-local block at
+     * {@code (x, y, z)}.
+     */
+    public void assertEntityCount(int expectedCount, int x, int y, int z) {
+        assertEntityCount(Entity.class, expectedCount, x, y, z);
+    }
+
+    /**
+     * Assert that exactly {@code expectedCount} live entities of {@code type} exist in the single
+     * test-local block at {@code (x, y, z)}.
+     */
+    public void assertEntityCount(Class<? extends Entity> type, int expectedCount, int x, int y, int z) {
+        assertEntityCount(type, expectedCount, x, y, z, x, y, z);
+    }
+
+    /**
+     * Assert that exactly {@code expectedCount} live entities exist in the inclusive test-local block
+     * range.
+     */
+    public void assertEntityCount(int expectedCount, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        assertEntityCount(Entity.class, expectedCount, minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    /**
+     * Assert that exactly {@code expectedCount} live entities of {@code type} exist in the inclusive
+     * test-local block range.
+     */
+    public void assertEntityCount(Class<? extends Entity> type, int expectedCount, int minX, int minY, int minZ,
+        int maxX, int maxY, int maxZ) {
+        int actual = getEntities(type, minX, minY, minZ, maxX, maxY, maxZ).size();
+        if (actual != expectedCount) {
+            String entityType = entityCountName(type, expectedCount);
+            throw new GameTestAssertException(
+                "Expected " + expectedCount
+                    + " "
+                    + entityType
+                    + " in range ("
+                    + minX
+                    + ","
+                    + minY
+                    + ","
+                    + minZ
+                    + ")..("
+                    + maxX
+                    + ","
+                    + maxY
+                    + ","
+                    + maxZ
+                    + ") but found "
+                    + actual,
+                absolute(minX, minY, minZ));
+        }
+    }
+
+    /**
+     * Spawn {@code entity} at the test-local position and return it.
+     *
+     * @throws GameTestAssertException if the world refuses to spawn the entity
+     */
+    public <T extends Entity> T spawnEntity(T entity, double x, double y, double z) {
+        entity.dimension = world.provider.dimensionId;
+        entity.setPosition(originX + x, originY + y, originZ + z);
+        if (!world.spawnEntityInWorld(entity)) {
+            String entityType = entityTypeName(entity.getClass());
+            throw new GameTestAssertException(
+                "World refused to spawn " + entityType + " at (" + x + "," + y + "," + z + ")",
+                localDoublePos(x, y, z));
+        }
+        return entity;
+    }
+
+    /**
+     * Create an entity by NBT entity id, spawn it at the test-local position, and return it.
+     */
+    public Entity spawnEntity(String entityId, double x, double y, double z) {
+        Entity entity = EntityList.createEntityByName(entityId, world);
+        if (entity == null) {
+            throw new GameTestAssertException("Unknown entity '" + entityId + "'", localDoublePos(x, y, z));
+        }
+        return spawnEntity(entity, x, y, z);
+    }
+
+    /**
+     * Assert that the entity's NBT contains all keys/values from {@code expectedSubset}. Only the keys
+     * present in {@code expectedSubset} are checked.
+     */
+    public void assertEntityNBT(Entity entity, NBTTagCompound expectedSubset) {
+        NBTTagCompound actual = getEntityNBT(entity);
+        String entityType = entityTypeName(entity.getClass());
+        TestPos pos = entityPos(entity);
+        for (String key : expectedSubset.func_150296_c()) {
+            if (!actual.hasKey(key)) {
+                throw new GameTestAssertException("Entity " + entityType + " missing NBT key '" + key + "'", pos);
+            }
+            NBTBase expectedTag = expectedSubset.getTag(key);
+            NBTBase actualTag = actual.getTag(key);
+            if (!expectedTag.equals(actualTag)) {
+                throw new GameTestAssertException(
+                    "Entity " + entityType
+                        + " NBT key '"
+                        + key
+                        + "': expected "
+                        + expectedTag
+                        + " but found "
+                        + actualTag,
+                    pos);
+            }
+        }
+    }
+
+    /**
+     * Assert a specific value at a dotted NBT path on an entity (e.g. {@code "Pos.0"}). Comparison is
+     * done via the tag's string representation.
+     */
+    public void assertEntityNBTPath(Entity entity, String path, String expectedValue) {
+        NBTTagCompound nbt = getEntityNBT(entity);
+        String actual = NBTPathAccessor.resolveAsString(nbt, path);
+        String entityType = entityTypeName(entity.getClass());
+        TestPos pos = entityPos(entity);
+        if (actual == null) {
+            throw new GameTestAssertException("Entity " + entityType + " has no NBT at path '" + path + "'", pos);
+        }
+        if (!actual.equals(expectedValue)) {
+            throw new GameTestAssertException(
+                "Entity " + entityType + " NBT path '" + path + "': expected " + expectedValue + " but found " + actual,
+                pos);
+        }
+    }
+
+    /**
+     * Return a deep copy of an entity's serialized NBT.
+     */
+    public NBTTagCompound getEntityNBT(Entity entity) {
+        NBTTagCompound nbt = new NBTTagCompound();
+        if (!entity.writeToNBTOptional(nbt)) {
+            entity.writeToNBT(nbt);
+        }
+        return (NBTTagCompound) nbt.copy();
+    }
+
+    /**
      * Insert an ItemStack into the inventory at test-local position. Auto-detects
      * {@code ISidedInventory} vs plain {@code IInventory}.
      *
@@ -925,6 +1141,42 @@ public class GameTestHelper {
         copy.setInteger("z", pos.z());
         te.readFromNBT(copy);
         world.markBlockForUpdate(pos.x(), pos.y(), pos.z());
+    }
+
+    private AxisAlignedBB localEntityBox(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        int localMinX = Math.min(minX, maxX);
+        int localMinY = Math.min(minY, maxY);
+        int localMinZ = Math.min(minZ, maxZ);
+        int localMaxX = Math.max(minX, maxX);
+        int localMaxY = Math.max(minY, maxY);
+        int localMaxZ = Math.max(minZ, maxZ);
+        TestPos min = absolute(localMinX, localMinY, localMinZ);
+        TestPos max = absolute(localMaxX, localMaxY, localMaxZ);
+        return AxisAlignedBB.getBoundingBox(min.x(), min.y(), min.z(), max.x() + 1.0D, max.y() + 1.0D, max.z() + 1.0D);
+    }
+
+    private TestPos localDoublePos(double x, double y, double z) {
+        return absolute((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
+    }
+
+    private TestPos entityPos(Entity entity) {
+        return localDoublePos(entity.posX - originX, entity.posY - originY, entity.posZ - originZ);
+    }
+
+    private static String entityTypeName(Class<? extends Entity> type) {
+        String name = type.getSimpleName();
+        return name.isEmpty() ? type.getName() : name;
+    }
+
+    private static String entityPluralName(Class<? extends Entity> type) {
+        return type == Entity.class ? "entities" : entityTypeName(type) + " entities";
+    }
+
+    private static String entityCountName(Class<? extends Entity> type, int count) {
+        if (type == Entity.class) {
+            return count == 1 ? "entity" : "entities";
+        }
+        return count == 1 ? entityTypeName(type) : entityTypeName(type) + " entities";
     }
 
     /**

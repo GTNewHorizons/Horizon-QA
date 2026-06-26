@@ -42,7 +42,8 @@ Template `platform` resolves to `mymod:platform`, which the loader reads from:
 
 ```text
 assets/mymod/horizonqastructures/platform.json
-assets/mymod/horizonqastructures/platform_tiles.nbt   (optional)
+assets/mymod/horizonqastructures/platform.snbt   (optional; text structure data)
+assets/mymod/horizonqastructures/platform.nbt    (optional fallback; binary structure data)
 ```
 
 ## Success patterns

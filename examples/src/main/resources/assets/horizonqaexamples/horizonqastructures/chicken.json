@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "size": [3, 2, 5],
+  "palette": {
+    "A": {"name": "Railcraft:residual.heat", "meta": 0, "label": "Residual Heat"},
+    "B": {"name": "minecraft:fence", "meta": 0, "label": "Fence"},
+    "C": {"name": "minecraft:grass", "meta": 0, "label": "Grass Block"}
+  },
+  "layers": [
+    [
+      "CCC",
+      "CCC",
+      "CCC",
+      "CCC",
+      "CCC"
+    ],
+    [
+      "BBB",
+      "BAB",
+      "B.B",
+      "B.B",
+      "BBB"
+    ]
+  ]
+}

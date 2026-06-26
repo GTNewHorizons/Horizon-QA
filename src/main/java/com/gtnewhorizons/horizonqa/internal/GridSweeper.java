@@ -4,8 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.world.ChunkPosition;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
@@ -35,12 +38,44 @@ final class GridSweeper {
         int chunkMinZ = minZ >> 4;
         int chunkMaxZ = maxZ >> 4;
 
+        clearEntities(world, minX, minY, minZ, maxX, maxY, maxZ);
+
         for (int cx = chunkMinX; cx <= chunkMaxX; cx++) {
             for (int cz = chunkMinZ; cz <= chunkMaxZ; cz++) {
                 Chunk chunk = world.getChunkFromChunkCoords(cx, cz);
                 clearChunkRegion(chunk, world, cx, cz, minX, minY, minZ, maxX, maxY, maxZ, notifyClients);
             }
         }
+    }
+
+    private static void clearEntities(WorldServer world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        AxisAlignedBB selection = AxisAlignedBB
+            .getBoundingBox(minX, minY, minZ, (double) maxX + 1.0D, (double) maxY + 1.0D, (double) maxZ + 1.0D);
+        List<Entity> toRemove = new ArrayList<>();
+
+        for (Object object : world.loadedEntityList) {
+            if (!(object instanceof Entity entity) || entity instanceof EntityPlayer || entity.isDead) {
+                continue;
+            }
+            if (isEntityInSelection(entity, selection)) {
+                toRemove.add(entity);
+            }
+        }
+
+        for (Entity entity : toRemove) {
+            world.removeEntity(entity);
+        }
+    }
+
+    private static boolean isEntityInSelection(Entity entity, AxisAlignedBB selection) {
+        if (entity.boundingBox != null && entity.boundingBox.intersectsWith(selection)) {
+            return true;
+        }
+        return entity.posX >= selection.minX && entity.posX < selection.maxX
+            && entity.posY >= selection.minY
+            && entity.posY < selection.maxY
+            && entity.posZ >= selection.minZ
+            && entity.posZ < selection.maxZ;
     }
 
     private static void clearChunkRegion(Chunk chunk, WorldServer world, int cx, int cz, int minX, int minY, int minZ,

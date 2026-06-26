@@ -3,6 +3,7 @@ package com.gtnewhorizons.horizonqa.structure;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,7 +37,10 @@ public final class HybridStructureLoader {
         String path = parts[1];
 
         String jsonResource = "/assets/" + namespace + "/horizonqastructures/" + path + ".json";
-        String nbtResource = "/assets/" + namespace + "/horizonqastructures/" + path + "_tiles.nbt";
+        String snbtResource = "/assets/" + namespace + "/horizonqastructures/" + path + ".snbt";
+        String combinedNbtResource = "/assets/" + namespace + "/horizonqastructures/" + path + ".nbt";
+        String tileNbtResource = "/assets/" + namespace + "/horizonqastructures/" + path + "_tiles.nbt";
+        String entityNbtResource = "/assets/" + namespace + "/horizonqastructures/" + path + "_entities.nbt";
 
         InputStream jsonStream = HybridStructureLoader.class.getResourceAsStream(jsonResource);
         if (jsonStream == null) {
@@ -180,16 +184,80 @@ public final class HybridStructureLoader {
             throw new TemplateException("Malformed template '" + templateName + "': " + errorMessage(e), e);
         }
 
-        NBTTagCompound tileData = null;
-        InputStream nbtStream = HybridStructureLoader.class.getResourceAsStream(nbtResource);
+        StructureNbt.StructureData structureData = readStructureData(
+            templateName,
+            snbtResource,
+            combinedNbtResource,
+            tileNbtResource,
+            entityNbtResource);
+
+        LOG.debug(
+            "Loaded template '{}' ({}x{}x{}, {} palette entries, {} entities)",
+            templateName,
+            sizeX,
+            sizeY,
+            sizeZ,
+            palette.length - 1,
+            StructureNbt.entityCount(structureData.entityData()));
+        return new HybridStructureTemplate(
+            sizeX,
+            sizeY,
+            sizeZ,
+            palette,
+            paletteKeys,
+            blockData,
+            structureData.tileData(),
+            structureData.entityData());
+    }
+
+    private static StructureNbt.StructureData readStructureData(String templateName, String snbtResource,
+        String combinedNbtResource, String tileNbtResource, String entityNbtResource) throws TemplateException {
+        NBTTagCompound snbtData = readOptionalSnbt(templateName, snbtResource);
+        if (snbtData != null) {
+            return StructureNbt.splitCombined(snbtData, templateName, snbtResource);
+        }
+
+        NBTTagCompound combinedNbt = readOptionalCompressedNbt(templateName, combinedNbtResource, "structure data");
+        if (combinedNbt != null) {
+            return StructureNbt.splitCombined(combinedNbt, templateName, combinedNbtResource);
+        }
+
+        NBTTagCompound tileData = readOptionalCompressedNbt(templateName, tileNbtResource, "legacy tile entity data");
+        NBTTagCompound entityData = readOptionalCompressedNbt(templateName, entityNbtResource, "legacy entity data");
+        return new StructureNbt.StructureData(tileData, entityData);
+    }
+
+    private static NBTTagCompound readOptionalSnbt(String templateName, String resource) throws TemplateException {
+        InputStream snbtStream = HybridStructureLoader.class.getResourceAsStream(resource);
+        if (snbtStream == null) {
+            return null;
+        }
+        try {
+            return StructureNbt.parseSnbt(readUtf8(snbtStream), templateName, resource);
+        } catch (IOException e) {
+            throw new TemplateException(
+                "Template '" + templateName + "' has unreadable structure data " + resource + ": " + errorMessage(e),
+                e);
+        } finally {
+            try {
+                snbtStream.close();
+            } catch (IOException ignored) {}
+        }
+    }
+
+    private static NBTTagCompound readOptionalCompressedNbt(String templateName, String resource, String description)
+        throws TemplateException {
+        InputStream nbtStream = HybridStructureLoader.class.getResourceAsStream(resource);
         if (nbtStream != null) {
             try {
-                tileData = CompressedStreamTools.readCompressed(nbtStream);
+                return CompressedStreamTools.readCompressed(nbtStream);
             } catch (IOException | RuntimeException e) {
                 throw new TemplateException(
                     "Template '" + templateName
-                        + "' has unreadable tile entity data "
-                        + nbtResource
+                        + "' has unreadable "
+                        + description
+                        + " "
+                        + resource
                         + ": "
                         + errorMessage(e),
                     e);
@@ -199,15 +267,19 @@ public final class HybridStructureLoader {
                 } catch (IOException ignored) {}
             }
         }
+        return null;
+    }
 
-        LOG.debug(
-            "Loaded template '{}' ({}x{}x{}, {} palette entries)",
-            templateName,
-            sizeX,
-            sizeY,
-            sizeZ,
-            palette.length - 1);
-        return new HybridStructureTemplate(sizeX, sizeY, sizeZ, palette, paletteKeys, blockData, tileData);
+    private static String readUtf8(InputStream inputStream) throws IOException {
+        StringBuilder builder = new StringBuilder();
+        char[] buffer = new char[4096];
+        try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
+            int read;
+            while ((read = reader.read(buffer)) != -1) {
+                builder.append(buffer, 0, read);
+            }
+        }
+        return builder.toString();
     }
 
     private static char getKey(String templateName, String keyStr, Map<Character, Integer> keyToIndex)

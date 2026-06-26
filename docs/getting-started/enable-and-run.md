@@ -77,7 +77,7 @@ A creative-tab item used to define export bounds.
 
 1. ++left-button++ a block → position 1.
 2. ++right-button++ a block → position 2. Right-click also works at range via the targeted block, and sneaking selects the adjacent (air) block instead, which is useful for capturing clearance above a multiblock.
-3. `/horizonqa export <name>` → writes `horizonqastructures/<name>.json` and `<name>_tiles.nbt` under the server directory.
+3. `/horizonqa export <name>` → writes `horizonqastructures/<name>.json` and, when needed, `<name>.snbt` or `<name>.nbt` under the server directory.
 
 Move the exported files into `src/main/resources/assets/<modid>/horizonqastructures/` in your mod. Full export details: [Structure templates](../guide/structures.md).
 

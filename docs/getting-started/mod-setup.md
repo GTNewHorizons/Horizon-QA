@@ -45,7 +45,8 @@ src/main/java/.../tests/
   compatibility/<modA>_<modB>/      ← cross-mod scenarios
 src/main/resources/assets/mymod/horizonqastructures/
   ebf.json
-  ebf_tiles.nbt
+  ebf.snbt   (optional; text structure data)
+  ebf.nbt    (optional fallback; binary structure data)
 ```
 
 !!! warning "Do not mirror `examples/` in a consumer mod"
@@ -68,8 +69,11 @@ Templates load from the classpath:
 
 ```text
 /assets/<namespace>/horizonqastructures/<path>.json
-/assets/<namespace>/horizonqastructures/<path>_tiles.nbt   (optional)
+/assets/<namespace>/horizonqastructures/<path>.snbt   (optional)
+/assets/<namespace>/horizonqastructures/<path>.nbt    (optional fallback)
 ```
+
+The loader also accepts legacy `<path>_tiles.nbt` and `<path>_entities.nbt` files.
 
 `@GameTest(template = "ebf")` declared on a class with `@GameTestHolder("mymod")` resolves to `mymod:ebf`. Use `template = "othermod:shared/cell"` to reference a fully qualified template from another mod, or `templatePrefix` on the holder to share a prefix across a class.
 

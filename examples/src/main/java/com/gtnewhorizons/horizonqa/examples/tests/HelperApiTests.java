@@ -1,5 +1,7 @@
 package com.gtnewhorizons.horizonqa.examples.tests;
 
+import net.minecraft.entity.item.EntityItem;
+import net.minecraft.entity.passive.EntityChicken;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.IInventory;
@@ -212,5 +214,12 @@ public class HelperApiTests {
     @GameTest(required = false)
     public static void testNoGhostBlockDiff(GameTestHelper helper) {
         helper.fail();
+    }
+
+    @GameTest(template = "chicken")
+    public static void testChicken(GameTestHelper helper) {
+        helper.assertEntityCount(EntityChicken.class, 1, 1, 1, 1);
+        helper.assertEntityPresent(EntityItem.class, 1, 1, 3);
+        helper.succeed();
     }
 }
