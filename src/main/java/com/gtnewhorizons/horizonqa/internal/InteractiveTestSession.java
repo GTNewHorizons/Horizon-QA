@@ -137,6 +137,7 @@ public class InteractiveTestSession {
         }
         knownCells.clear();
         lastInstances.clear();
+        failedIds.clear();
         HorizonQAMod.CHUNK_LOADER.releaseAll();
         grid.reset();
         if (onClearAllCallback != null) onClearAllCallback.run();
@@ -286,6 +287,12 @@ public class InteractiveTestSession {
         int originX = plannedTest.originX;
         int originY = plannedTest.originY;
         int originZ = plannedTest.originZ;
+
+        CellRecord previous = knownCells.remove(def.getTestId());
+        if (previous != null) {
+            clearCell(world, previous);
+        }
+        failedIds.remove(def.getTestId());
 
         TestCellScanner.preClearWithMargin(
             world,

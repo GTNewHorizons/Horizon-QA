@@ -120,6 +120,18 @@ public class HorizonQACommandTest {
         assertTrue(failedIds.contains("mod:Suite.error"));
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    public void clearAllClearsInteractiveFailedIds() throws Exception {
+        Set<String> failedIds = (Set<String>) sessionField("failedIds").get(InteractiveTestSession.get());
+        failedIds.add("mod:Suite.failed");
+
+        InteractiveTestSession.get()
+            .clearAll();
+
+        assertTrue(failedIds.isEmpty());
+    }
+
     private static GameTestDefinition definition(String testId) throws Exception {
         return new GameTestDefinition(testId, dummyMethod(), "", 20, "", true, 0);
     }
