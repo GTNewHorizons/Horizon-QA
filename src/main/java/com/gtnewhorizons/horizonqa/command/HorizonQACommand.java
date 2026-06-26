@@ -230,8 +230,9 @@ public class HorizonQACommand extends CommandBase {
             return;
         }
         if (rejectBatchRunning(sender)) return;
-        int launched = InteractiveTestSession.get()
-            .launchTests(tests);
+        InteractiveTestSession session = InteractiveTestSession.get();
+        session.clearAll();
+        int launched = session.launchTests(tests);
         if (launched > 0) {
             sender.addChatMessage(
                 new ChatComponentText(
