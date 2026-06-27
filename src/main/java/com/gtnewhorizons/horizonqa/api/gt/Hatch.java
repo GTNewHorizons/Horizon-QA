@@ -65,7 +65,7 @@ public final class Hatch {
     }
 
     public Hatch fill(FluidStack fluid) {
-        if (fluid == null) return this;
+        if (fluid == null) throw new IllegalArgumentException("fluid must not be null");
         IFluidHandler handler = requireMte();
         int filled = handler.fill(ForgeDirection.UNKNOWN, fluid, true);
         if (filled < fluid.amount) {
@@ -105,7 +105,7 @@ public final class Hatch {
      * than relying on the single-slot {@code drain()} view.
      */
     public void assertContains(FluidStack fluid) {
-        if (fluid == null) return;
+        if (fluid == null) throw new IllegalArgumentException("fluid must not be null");
         IMetaTileEntity mte = requireMte();
         if (mte instanceof MTEHatchMultiInput multiInput) {
             for (FluidStack stored : multiInput.getStoredFluid()) {

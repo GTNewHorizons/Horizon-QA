@@ -21,7 +21,9 @@ public final class InventoryHelper {
      * amount that could not be inserted (0 = fully inserted).
      */
     public static int insert(IInventory inventory, ItemStack stack) {
-        if (stack == null || stack.stackSize <= 0) return 0;
+        requireInventory(inventory);
+        requireStack(stack, "stack");
+        if (stack.stackSize <= 0) return 0;
 
         ItemStack toInsert = stack.copy();
 
@@ -50,7 +52,9 @@ public final class InventoryHelper {
      * inventory. Returns the actual amount extracted.
      */
     public static int extract(IInventory inventory, ItemStack template, int maxAmount) {
-        if (template == null || maxAmount <= 0) return 0;
+        requireInventory(inventory);
+        requireStack(template, "template");
+        if (maxAmount <= 0) return 0;
 
         int remaining = maxAmount;
 
@@ -73,7 +77,8 @@ public final class InventoryHelper {
 
     /** Check if the inventory contains at least {@code stack.stackSize} items matching {@code stack}. */
     public static boolean contains(IInventory inventory, ItemStack stack) {
-        if (stack == null) return true;
+        requireInventory(inventory);
+        requireStack(stack, "stack");
         int needed = stack.stackSize;
         for (int i = 0; i < inventory.getSizeInventory(); i++) {
             ItemStack slot = inventory.getStackInSlot(i);
@@ -87,6 +92,7 @@ public final class InventoryHelper {
 
     /** Check if every slot in the inventory is null or has stackSize 0. */
     public static boolean isEmpty(IInventory inventory) {
+        requireInventory(inventory);
         for (int i = 0; i < inventory.getSizeInventory(); i++) {
             ItemStack slot = inventory.getStackInSlot(i);
             if (slot != null && slot.stackSize > 0) return false;
@@ -96,6 +102,7 @@ public final class InventoryHelper {
 
     /** Get the {@link ItemStack} at a specific slot, or null. */
     public static ItemStack getSlot(IInventory inventory, int slot) {
+        requireInventory(inventory);
         if (slot < 0 || slot >= inventory.getSizeInventory()) return null;
         return inventory.getStackInSlot(slot);
     }
@@ -111,6 +118,14 @@ public final class InventoryHelper {
         if (a.getTagCompound() == null || b.getTagCompound() == null) return false;
         return a.getTagCompound()
             .equals(b.getTagCompound());
+    }
+
+    private static void requireInventory(IInventory inventory) {
+        if (inventory == null) throw new IllegalArgumentException("inventory must not be null");
+    }
+
+    private static void requireStack(ItemStack stack, String name) {
+        if (stack == null) throw new IllegalArgumentException(name + " must not be null");
     }
 
     private static int mergeIntoSlot(IInventory inv, int slot, ItemStack toInsert) {
