@@ -43,29 +43,68 @@ public class MyTests {
 ```mermaid
 flowchart LR
     A[Build the structure<br/>in a dev world] --> B[Wand: left-click pos1,<br/>right-click pos2]
-    B --> C["/horizonqa export name"]
-    C --> D[Server writes JSON + structure data<br/>under serverDir/horizonqastructures/]
-    D --> E[Move into<br/>assets/modid/horizonqastructures/]
+    B --> C[Press L to label<br/>important coordinates]
+    C --> D["/horizonqa export name"]
+    D --> E[Server writes JSON + structure data<br/>under serverDir/horizonqastructures/]
+    E --> F[Move into<br/>assets/modid/horizonqastructures/]
 ```
 
 1. Build the structure in a dev world with Horizon-QA enabled.
 2. Select bounds with the **Horizon Wand**: ++left-button++ for pos1, ++right-button++ for pos2.
-3. Run `/horizonqa export <name>`. Allowed characters: letters, digits, `_`, `-`.
-4. The server writes to `<serverDir>/horizonqastructures/`:
+3. Hold the wand and press ++l++ to label important coordinates such as `controller`, `input_bus`, or `energy_hatch`. Sneak while pressing ++l++ to label the adjacent air block.
+4. Run `/horizonqa labels list` and fix any labels outside the selection.
+5. Run `/horizonqa export <name>`. Allowed characters: letters, digits, `_`, `-`.
+6. The server writes to `<serverDir>/horizonqastructures/`:
    - `<name>.json` with the block palette and layers.
    - `<name>.snbt` with tile entity and non-player entity data, if the generated text round-trips losslessly.
    - `<name>.nbt` instead of `.snbt` when the NBT contains data that Minecraft 1.7.10's SNBT parser cannot represent safely, such as compound keys containing `:`.
-5. Move the exported files into your mod's `assets/<modid>/horizonqastructures/`.
+7. Move the exported files into your mod's `assets/<modid>/horizonqastructures/`.
 
-!!! tip "Use `/horizonqa pos` while authoring"
+!!! tip "Label the coordinates the Java code will name"
 
-    Stand inside the structure and run `/horizonqa pos`. The output gives you click-to-copy `helper.absolute(x, y, z)` snippets for controllers and hatch roles, much faster than translating world coordinates by hand.
+    If a test will refer to a controller, hatch, bus, button, sensor, or expected output block, put that name in the template. Use `/horizonqa pos` as a temporary debugging aid, not as the usual way to author long-lived test coordinates.
 
 ## Format
 
 Templates use `format_version: 1`, a palette keyed by single-character symbols, and a `layers` array in Y-major order. The loader throws `IOException` with explicit messages for missing layers and unknown palette keys; on a load failure the server log identifies the file and the offending key.
 
 The optional structure data file uses `tiles` as a list of tile entity compounds and `entities` as a list of non-player entity compounds; both are merged at placement time. New exports prefer text `<path>.snbt`, but only write it after parsing the generated text back and confirming the NBT tree is unchanged. If that round-trip is not lossless, the exporter writes combined binary `<path>.nbt`. For compatibility, the loader also accepts older `<path>_tiles.nbt` and `<path>_entities.nbt` files.
+
+## Coordinate labels
+
+Templates may include optional coordinate labels:
+
+```json
+{
+  "format_version": 1,
+  "size": [1, 1, 1],
+  "palette": {
+    "A": {"name": "minecraft:stone", "meta": 0, "label": "Stone"}
+  },
+  "layers": [
+    [
+      "A"
+    ]
+  ],
+  "annotations": {
+    "labels": {
+      "stone": [0, 0, 0]
+    }
+  }
+}
+```
+
+Labels are optional for loading and running tests, but any labels present in a template are validated. Names must match `[A-Za-z_][A-Za-z0-9_]*`; prefer `snake_case`. Coordinates are template-relative `[x, y, z]` and must be inside `size`.
+
+Use labels from Java:
+
+```java
+helper.assertBlockPresent(Blocks.stone, helper.pos("stone"));
+TestPos controller = helper.pos("controller");
+TestPos controllerWorld = helper.absolute("controller");
+```
+
+`helper.pos("name")` returns test-relative coordinates with `@GameTest(rotation = ...)` applied. `helper.absolute("name")` returns world coordinates after the same rotation. Asking for an undefined label fails the test as an infrastructure error with type `LABEL_ERROR`.
 
 ## Placement in the grid
 
@@ -117,7 +156,7 @@ A **structure test** validates behaviour that emerges from a pre-built world lay
 ```java
 @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
 public static void testTitaniumSmelting(GameTestHelper helper) {
-    Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0));
+    Multiblock ebf = helper.gtnh().multiblock(helper.pos("controller"));
     ebf.assertFormed();
     ebf.fixMaintenance();
     ebf.inputBus(0)

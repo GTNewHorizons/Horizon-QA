@@ -33,5 +33,10 @@
       "AAA",
       "BAA"
     ]
-  ]
+  ],
+  "annotations": {
+    "labels": {
+      "controller": [1, 0, 2]
+    }
+  }
 }

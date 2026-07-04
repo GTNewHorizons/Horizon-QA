@@ -15,6 +15,9 @@ horizonqa.wand.hud.pos2=§bPos2: §f%s
 horizonqa.wand.hud.pos2.pending=§bPos2: §eaim & right-click
 horizonqa.wand.hud.pos2.unset=§7Pos2: §8—
 horizonqa.wand.hud.size=§eSize: §f%s×%s×%s §7(%s)
+horizonqa.wand.hud.labels=§bLabels: §f%s
+horizonqa.wand.hud.labels.outside=§bLabels: §f%s §c(%s outside)
+horizonqa.wand.hud.label_key=§7Press §e%s§7 to label target
 
 horizonqa.wand.tooltip.pos1.unset=§7Pos1: §8Not set (left-click or right-click)
 horizonqa.wand.tooltip.pos1=§aPos1: §f(%d, %d, %d)
@@ -23,3 +26,7 @@ horizonqa.wand.tooltip.pos2.pending=§7Pos2: §eAim and right-click to confirm
 horizonqa.wand.tooltip.pos2=§bPos2: §f(%d, %d, %d)
 horizonqa.wand.tooltip.size=§eSize: §f%d×%d×%d
 horizonqa.wand.tooltip.surface_mode=§8Hold Shift while selecting for §esurface mode
+horizonqa.wand.tooltip.label_key=§8Press §eL§8 to label the targeted coordinate
+
+key.categories.horizonqa=Horizon QA
+key.horizonqa.label=Label Horizon Wand target

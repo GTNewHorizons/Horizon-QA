@@ -1,7 +1,5 @@
 package com.gtnewhorizons.horizonqa.examples.tests;
 
-import static com.gtnewhorizons.horizonqa.api.TestPos.at;
-
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
@@ -22,7 +20,7 @@ public class GTNHExampleTests {
     @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
     public static void testTitaniumSmelting(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
-        Multiblock ebf = gtnh.multiblock(at(1, 0, 0));
+        Multiblock ebf = gtnh.multiblock(helper.pos("controller"));
         ebf.assertFormed();
         ebf.fixMaintenance();
         ebf.inputBus(0)
@@ -40,10 +38,10 @@ public class GTNHExampleTests {
     public static void testTitaniumSmeltingImperative(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
 
-        TestPos controller = new TestPos(1, 0, 0);
-        TestPos energyHatch = new TestPos(0, 0, 0);
-        TestPos inputBus = new TestPos(1, 0, 1);
-        TestPos outputBus = new TestPos(1, 0, 2);
+        TestPos controller = helper.pos("controller");
+        TestPos energyHatch = helper.pos("energy_hatch");
+        TestPos inputBus = helper.pos("input_bus");
+        TestPos outputBus = helper.pos("output_bus");
 
         gtnh.assertMachineFormed(controller);
         gtnh.fixAllMaintenanceIssues(controller);
@@ -63,7 +61,7 @@ public class GTNHExampleTests {
     @GameTest(template = "ebf", timeoutTicks = 20, batch = "gtnh")
     public static void maintenanceGatesRecipeEvenWithFullSupply(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
-        Multiblock ebf = gtnh.multiblock(at(1, 0, 0));
+        Multiblock ebf = gtnh.multiblock(helper.pos("controller"));
 
         ebf.assertFormed();
         ebf.inputBus(0)
@@ -73,7 +71,7 @@ public class GTNHExampleTests {
             .supply(TierEU.EV, 1, 20);
 
         gtnh.assertMachineHasIssues(
-            at(1, 0, 0),
+            helper.pos("controller"),
             MaintenanceType.WRENCH,
             MaintenanceType.SCREWDRIVER,
             MaintenanceType.SOFT_MALLET,
@@ -87,7 +85,7 @@ public class GTNHExampleTests {
     @GameTest(template = "ebf", timeoutTicks = 20, batch = "gtnh", required = false)
     public static void testMaintenanceIssueDetection(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
-        TestPos controller = new TestPos(1, 0, 0);
+        TestPos controller = helper.pos("controller");
 
         gtnh.assertMachineFormed(controller);
         gtnh.assertMachineHasIssues(controller, MaintenanceType.WRENCH);
@@ -98,7 +96,7 @@ public class GTNHExampleTests {
     @GameTest(template = "ebf", timeoutTicks = 20, batch = "gtnh")
     public static void testEnergyHatchAcceptsEU(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
-        TestPos energyHatch = new TestPos(0, 0, 0);
+        TestPos energyHatch = helper.pos("energy_hatch");
 
         gtnh.supplyEU(energyHatch, 512, 1, 100);
         gtnh.fastForwardTicks(100);
@@ -110,7 +108,7 @@ public class GTNHExampleTests {
     @GameTest(template = "ebf", timeoutTicks = 20, batch = "gtnh")
     public static void testFluidHatchFillAndAssert(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
-        TestPos inputBus = new TestPos(2, 0, 0);
+        TestPos inputBus = helper.pos("input_hatch");
 
         gtnh.fillHatch(inputBus, "nitrogen", 2000);
         gtnh.assertFluidInHatch(inputBus, "nitrogen", 2000);
@@ -121,7 +119,7 @@ public class GTNHExampleTests {
     @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
     public static void testSyntheticRecipe(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
-        Multiblock ebf = gtnh.multiblock(at(1, 0, 0));
+        Multiblock ebf = gtnh.multiblock(helper.pos("controller"));
         ebf.assertFormed();
         ebf.fixMaintenance();
 
@@ -146,7 +144,7 @@ public class GTNHExampleTests {
     @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
     public static void testParallelHelper(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
-        Multiblock ebf = gtnh.multiblock(at(1, 0, 0));
+        Multiblock ebf = gtnh.multiblock(helper.pos("controller"));
         ebf.assertFormed();
         ebf.fixMaintenance();
 
@@ -171,7 +169,7 @@ public class GTNHExampleTests {
     @GameTest(template = "distillation_tower_4", timeoutTicks = 1500, batch = "gtnh")
     public static void testDistillationTowerOutputRouting(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();
-        Multiblock dt = gtnh.multiblock(at(1, 0, 2));
+        Multiblock dt = gtnh.multiblock(helper.pos("controller"));
         dt.assertFormed();
         dt.fixMaintenance();
 
@@ -207,14 +205,14 @@ public class GTNHExampleTests {
     @GameTest(template = "ebf_no_coils", timeoutTicks = 60)
     public static void doesNotFormWithoutCoils(GameTestHelper helper) {
         Multiblock ebf = helper.gtnh()
-            .multiblock(at(1, 0, 0));
+            .multiblock(helper.pos("controller"));
         ebf.assertNeverForms("EBF formed without coils");
     }
 
     @GameTest(template = "cleanroom", timeoutTicks = 4600)
     public static void cleanroomEfficiencyClimbs(GameTestHelper helper) {
         Multiblock cleanroom = helper.gtnh()
-            .multiblock(at(2, 4, 2));
+            .multiblock(helper.pos("controller"));
 
         helper.succeedWhen(() -> cleanroom.getEfficiency() > 9000);
         helper.gtnh()

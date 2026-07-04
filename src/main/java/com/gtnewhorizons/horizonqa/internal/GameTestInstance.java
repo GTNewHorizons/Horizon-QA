@@ -14,12 +14,17 @@ import org.apache.logging.log4j.Logger;
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.api.GameTestAssertException;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
+import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
+import com.gtnewhorizons.horizonqa.api.LabelResolutionException;
 import com.gtnewhorizons.horizonqa.api.TestIsolationViolation;
 import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.event.AssertionFailed;
 import com.gtnewhorizons.horizonqa.api.event.IsolationViolation;
 import com.gtnewhorizons.horizonqa.api.event.TestFinished;
 import com.gtnewhorizons.horizonqa.api.event.TestStarted;
+import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
+import com.gtnewhorizons.horizonqa.structure.StructureAnnotations;
+import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
 
 public class GameTestInstance {
 
@@ -29,6 +34,10 @@ public class GameTestInstance {
     private final int originX;
     private final int originY;
     private final int originZ;
+    private final StructureAnnotations annotations;
+    private final int templateSizeX;
+    private final int templateSizeZ;
+    private final int rotation;
 
     private GameTestStatus status = GameTestStatus.NOT_STARTED;
     private int tickCount = 0;
@@ -47,10 +56,19 @@ public class GameTestInstance {
     private boolean hasFailPosition;
 
     public GameTestInstance(GameTestDefinition definition, int originX, int originY, int originZ) {
+        this(definition, originX, originY, originZ, null);
+    }
+
+    public GameTestInstance(GameTestDefinition definition, int originX, int originY, int originZ,
+        HybridStructureTemplate template) {
         this.definition = definition;
         this.originX = originX;
         this.originY = originY;
         this.originZ = originZ;
+        this.annotations = template != null ? template.getAnnotations() : StructureAnnotations.EMPTY;
+        this.templateSizeX = template != null ? template.getSizeX() : 0;
+        this.templateSizeZ = template != null ? template.getSizeZ() : 0;
+        this.rotation = definition != null ? definition.getRotation() : 0;
     }
 
     public void start(WorldServer world) {
@@ -167,7 +185,7 @@ public class GameTestInstance {
 
     public void fail(Throwable cause) {
         if (status != GameTestStatus.RUNNING) return;
-        status = GameTestStatus.FAILED;
+        status = cause instanceof GameTestInfrastructureException ? GameTestStatus.ERROR : GameTestStatus.FAILED;
         failureCause = cause;
         if (cause instanceof GameTestAssertException gae && gae.hasPosition()) {
             failX = gae.getX();
@@ -189,7 +207,7 @@ public class GameTestInstance {
                 pos);
         });
         String detail = cause != null ? cause.getMessage() : "unknown";
-        LOG.error("FAILED   {} - {}", definition.getTestId(), detail);
+        LOG.error("{}   {} - {}", status == GameTestStatus.ERROR ? "ERROR " : "FAILED", definition.getTestId(), detail);
         if (cause != null && !(cause instanceof GameTestAssertException)) {
             LOG.error("Caused by:", cause);
         }
@@ -363,6 +381,25 @@ public class GameTestInstance {
 
     public TestEventRecorder getRecorder() {
         return recorder;
+    }
+
+    public TestPos resolveLabel(String label) {
+        TestPos pos = annotations.get(label);
+        if (pos == null) {
+            String templateName = definition != null ? definition.getTemplateName() : "<unknown>";
+            String testId = definition != null ? definition.getTestId() : "<unknown>";
+            throw new LabelResolutionException(
+                "Unknown label '" + label
+                    + "' in template '"
+                    + templateName
+                    + "' for test '"
+                    + testId
+                    + "'; available: "
+                    + annotations.availableLabels());
+        }
+        int rx = StructurePlacer.rotatedLocalX(pos.x(), pos.z(), templateSizeX, templateSizeZ, rotation);
+        int rz = StructurePlacer.rotatedLocalZ(pos.x(), pos.z(), templateSizeX, templateSizeZ, rotation);
+        return new TestPos(rx, pos.y(), rz);
     }
 
     @Desugar

@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.github.bsideup.jabel.Desugar;
+import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 import com.gtnewhorizons.horizonqa.api.event.TestEvent;
 import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
 import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
@@ -221,6 +222,9 @@ public record CaseResult(String id, String classname, String name, Status status
     private static String failureType(GameTestInstance inst, Throwable cause) {
         GameTestStatus status = inst.getStatus();
         if (status == GameTestStatus.ERROR) {
+            if (cause instanceof GameTestInfrastructureException infrastructure) {
+                return infrastructure.kind();
+            }
             return CLEANUP_ERROR;
         }
         if (status == GameTestStatus.FAILED) {
@@ -238,7 +242,7 @@ public record CaseResult(String id, String classname, String name, Status status
 
     private static Throwable failureCauseForReport(GameTestInstance inst) {
         if (inst.getStatus() == GameTestStatus.ERROR) {
-            return inst.getCleanupFailureCause();
+            return inst.getCleanupFailureCause() != null ? inst.getCleanupFailureCause() : inst.getFailureCause();
         }
         return inst.getFailureCause();
     }

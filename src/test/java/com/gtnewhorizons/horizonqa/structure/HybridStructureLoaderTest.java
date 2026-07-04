@@ -68,6 +68,53 @@ public class HybridStructureLoaderTest {
     }
 
     @Test
+    public void annotationsLoadCoordinateLabels() throws Exception {
+        HybridStructureTemplate template = HybridStructureLoader.load("horizonqatest:annotated");
+
+        assertEquals(
+            new com.gtnewhorizons.horizonqa.api.TestPos(0, 0, 0),
+            template.getAnnotations()
+                .get("origin"));
+        assertEquals(
+            new com.gtnewhorizons.horizonqa.api.TestPos(1, 0, 2),
+            template.getAnnotations()
+                .get("corner"));
+    }
+
+    @Test
+    public void invalidAnnotationNameThrowsTemplateException() {
+        IOException error = assertThrows(
+            TemplateException.class,
+            () -> HybridStructureLoader.load("horizonqatest:bad_label_name"));
+
+        assertTrue(
+            error.getMessage()
+                .contains("label 'bad-name'"));
+    }
+
+    @Test
+    public void invalidAnnotationCoordinatesThrowTemplateException() {
+        IOException error = assertThrows(
+            TemplateException.class,
+            () -> HybridStructureLoader.load("horizonqatest:bad_label_coords"));
+
+        assertTrue(
+            error.getMessage()
+                .contains("must contain exactly three coordinates"));
+    }
+
+    @Test
+    public void outOfBoundsAnnotationThrowsTemplateException() {
+        IOException error = assertThrows(
+            TemplateException.class,
+            () -> HybridStructureLoader.load("horizonqatest:bad_label_bounds"));
+
+        assertTrue(
+            error.getMessage()
+                .contains("points outside template bounds"));
+    }
+
+    @Test
     public void malformedSnbtThrowsTemplateException() {
         IOException error = assertThrows(
             TemplateException.class,

@@ -28,5 +28,14 @@
       "BCB",
       "BBB"
     ]
-  ]
+  ],
+  "annotations": {
+    "labels": {
+      "controller": [1, 0, 0],
+      "energy_hatch": [0, 0, 0],
+      "input_bus": [1, 0, 1],
+      "input_hatch": [2, 0, 0],
+      "output_bus": [1, 0, 2]
+    }
+  }
 }

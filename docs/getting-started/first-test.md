@@ -31,20 +31,22 @@ Omitting `template` yields an empty void cell, useful for pure API smoke tests.
 ## Test with a structure
 
 ```java
-@GameTest(template = "platform", timeoutTicks = 40)
+@GameTest(template = "single_stone", timeoutTicks = 40)
 public static void blockStillThere(GameTestHelper helper) {
-    helper.assertBlockPresent(helper.absolute(0, 0, 0), Blocks.stone);
+    helper.assertBlockPresent(Blocks.stone, helper.pos("stone"));
     helper.succeed();
 }
 ```
 
-Template `platform` resolves to `mymod:platform`, which the loader reads from:
+Template `single_stone` resolves to `mymod:single_stone`, which the loader reads from:
 
 ```text
-assets/mymod/horizonqastructures/platform.json
-assets/mymod/horizonqastructures/platform.snbt   (optional; text structure data)
-assets/mymod/horizonqastructures/platform.nbt    (optional fallback; binary structure data)
+assets/mymod/horizonqastructures/single_stone.json
+assets/mymod/horizonqastructures/single_stone.snbt   (optional; text structure data)
+assets/mymod/horizonqastructures/single_stone.nbt    (optional fallback; binary structure data)
 ```
+
+The `stone` label is stored in the template JSON under `annotations.labels`. Labels keep the Java test readable and are automatically rotated with the structure.
 
 ## Success patterns
 
@@ -83,10 +85,10 @@ All failures include the test origin so the visual overlay can highlight the off
 
 ```java
 GTNHGameTestHelper gtnh = helper.gtnh();
-Multiblock ebf = gtnh.multiblock(at(1, 0, 0)); // controller, test-relative
+Multiblock ebf = gtnh.multiblock(helper.pos("controller"));
 ```
 
-Use **test-relative** positions via `TestPos.at(x, y, z)` or `helper.absolute(...)`. Hardcoded world coordinates couple a test to a single placement and break the moment the grid layout shifts. See [GTNH multiblock API](../guide/gtnh-api.md).
+Use named labels from the exported template for load-bearing coordinates such as controllers and hatches. Fall back to **test-relative** positions via `TestPos.at(x, y, z)` only for throwaway coordinates created inside the test. Hardcoded world coordinates couple a test to a single placement and break the moment the grid layout shifts. See [GTNH multiblock API](../guide/gtnh-api.md).
 
 ## Next steps
 

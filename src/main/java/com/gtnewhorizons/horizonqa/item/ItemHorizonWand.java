@@ -1,6 +1,9 @@
 package com.gtnewhorizons.horizonqa.item;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.creativetab.CreativeTabs;
@@ -16,6 +19,8 @@ import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.StatCollector;
 import net.minecraft.util.Vec3;
 import net.minecraft.world.World;
+
+import com.gtnewhorizons.horizonqa.structure.StructureAnnotations;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -33,6 +38,10 @@ public class ItemHorizonWand extends Item {
     public static final String TAG_POS2_Z = "pos2Z";
     public static final String TAG_POS2_SET = "pos2Set";
     public static final String TAG_PENDING = "pending";
+    public static final String TAG_LABELS = "labels";
+    private static final String TAG_LABEL_X = "x";
+    private static final String TAG_LABEL_Y = "y";
+    private static final String TAG_LABEL_Z = "z";
 
     // dx/dy/dz offsets indexed by face side (0=down,1=up,2=north,3=south,4=west,5=east)
     private static final int[][] FACE_NORMALS = { { 0, -1, 0 }, { 0, 1, 0 }, { 0, 0, -1 }, { 0, 0, 1 }, { -1, 0, 0 },
@@ -142,6 +151,7 @@ public class ItemHorizonWand extends Item {
         nbt.setBoolean(TAG_POS1_SET, true);
         nbt.setBoolean(TAG_POS2_SET, false);
         nbt.setBoolean(TAG_PENDING, true);
+        nbt.removeTag(TAG_LABELS);
         player.addChatMessage(
             new ChatComponentText(
                 EnumChatFormatting.GREEN
@@ -200,6 +210,7 @@ public class ItemHorizonWand extends Item {
         }
 
         list.add(StatCollector.translateToLocal("horizonqa.wand.tooltip.surface_mode"));
+        list.add(StatCollector.translateToLocal("horizonqa.wand.tooltip.label_key"));
     }
 
     public static NBTTagCompound getOrCreateNBT(ItemStack stack) {
@@ -207,5 +218,182 @@ public class ItemHorizonWand extends Item {
             stack.setTagCompound(new NBTTagCompound());
         }
         return stack.getTagCompound();
+    }
+
+    public static boolean isValidLabelName(String name) {
+        return StructureAnnotations.isValidLabelName(name);
+    }
+
+    public static int labelCount(ItemStack stack) {
+        return getLabels(stack).size();
+    }
+
+    public static Map<String, int[]> getLabels(ItemStack stack) {
+        TreeMap<String, int[]> labels = new TreeMap<>();
+        if (stack == null || !stack.hasTagCompound()) {
+            return labels;
+        }
+        NBTTagCompound root = stack.getTagCompound();
+        if (!root.hasKey(TAG_LABELS)) {
+            return labels;
+        }
+        NBTTagCompound labelsTag = root.getCompoundTag(TAG_LABELS);
+        Set<String> keys = labelsTag.func_150296_c();
+        for (String name : keys) {
+            NBTTagCompound labelTag = labelsTag.getCompoundTag(name);
+            labels.put(
+                name,
+                new int[] {
+                    labelTag.getInteger(TAG_LABEL_X),
+                    labelTag.getInteger(TAG_LABEL_Y),
+                    labelTag.getInteger(TAG_LABEL_Z) });
+        }
+        return labels;
+    }
+
+    public static String getLabelAt(ItemStack stack, int x, int y, int z) {
+        for (Map.Entry<String, int[]> entry : getLabels(stack).entrySet()) {
+            int[] pos = entry.getValue();
+            if (pos[0] == x && pos[1] == y && pos[2] == z) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    public static LabelMutationResult setLabel(ItemStack stack, String name, int x, int y, int z) {
+        if (!isValidLabelName(name)) {
+            return LabelMutationResult.invalidName(name);
+        }
+        NBTTagCompound root = getOrCreateNBT(stack);
+        NBTTagCompound labels = root.getCompoundTag(TAG_LABELS);
+        String oldNameAtPos = null;
+
+        Set<String> keys = labels.func_150296_c();
+        for (String existingName : keys) {
+            NBTTagCompound labelTag = labels.getCompoundTag(existingName);
+            int lx = labelTag.getInteger(TAG_LABEL_X);
+            int ly = labelTag.getInteger(TAG_LABEL_Y);
+            int lz = labelTag.getInteger(TAG_LABEL_Z);
+            boolean samePos = lx == x && ly == y && lz == z;
+            if (existingName.equals(name) && !samePos) {
+                return LabelMutationResult.duplicateName(name, lx, ly, lz);
+            }
+            if (samePos) {
+                oldNameAtPos = existingName;
+            }
+        }
+
+        if (oldNameAtPos != null && !oldNameAtPos.equals(name)) {
+            labels.removeTag(oldNameAtPos);
+        }
+
+        NBTTagCompound label = new NBTTagCompound();
+        label.setInteger(TAG_LABEL_X, x);
+        label.setInteger(TAG_LABEL_Y, y);
+        label.setInteger(TAG_LABEL_Z, z);
+        labels.setTag(name, label);
+        root.setTag(TAG_LABELS, labels);
+        return LabelMutationResult.success(oldNameAtPos, name, x, y, z);
+    }
+
+    public static boolean removeLabel(ItemStack stack, String name) {
+        if (stack == null || !stack.hasTagCompound()) {
+            return false;
+        }
+        NBTTagCompound root = stack.getTagCompound();
+        if (!root.hasKey(TAG_LABELS)) {
+            return false;
+        }
+        NBTTagCompound labels = root.getCompoundTag(TAG_LABELS);
+        if (!labels.hasKey(name)) {
+            return false;
+        }
+        labels.removeTag(name);
+        if (labels.func_150296_c()
+            .isEmpty()) {
+            root.removeTag(TAG_LABELS);
+        } else {
+            root.setTag(TAG_LABELS, labels);
+        }
+        return true;
+    }
+
+    public static int clearLabels(ItemStack stack) {
+        int count = labelCount(stack);
+        if (stack != null && stack.hasTagCompound()) {
+            stack.getTagCompound()
+                .removeTag(TAG_LABELS);
+        }
+        return count;
+    }
+
+    public static boolean hasCompleteSelection(ItemStack stack) {
+        NBTTagCompound nbt = stack != null ? stack.getTagCompound() : null;
+        return nbt != null && nbt.getBoolean(TAG_POS1_SET) && nbt.getBoolean(TAG_POS2_SET);
+    }
+
+    public static boolean isInsideSelection(ItemStack stack, int x, int y, int z) {
+        if (!hasCompleteSelection(stack)) {
+            return false;
+        }
+        NBTTagCompound nbt = stack.getTagCompound();
+        int minX = Math.min(nbt.getInteger(TAG_POS1_X), nbt.getInteger(TAG_POS2_X));
+        int minY = Math.min(nbt.getInteger(TAG_POS1_Y), nbt.getInteger(TAG_POS2_Y));
+        int minZ = Math.min(nbt.getInteger(TAG_POS1_Z), nbt.getInteger(TAG_POS2_Z));
+        int maxX = Math.max(nbt.getInteger(TAG_POS1_X), nbt.getInteger(TAG_POS2_X));
+        int maxY = Math.max(nbt.getInteger(TAG_POS1_Y), nbt.getInteger(TAG_POS2_Y));
+        int maxZ = Math.max(nbt.getInteger(TAG_POS1_Z), nbt.getInteger(TAG_POS2_Z));
+        return x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ;
+    }
+
+    public static int outsideSelectionLabelCount(ItemStack stack) {
+        if (!hasCompleteSelection(stack)) {
+            return 0;
+        }
+        int count = 0;
+        for (int[] pos : getLabels(stack).values()) {
+            if (!isInsideSelection(stack, pos[0], pos[1], pos[2])) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public static final class LabelMutationResult {
+
+        public enum Status {
+            SUCCESS,
+            INVALID_NAME,
+            DUPLICATE_NAME
+        }
+
+        public final Status status;
+        public final String oldName;
+        public final String name;
+        public final int x;
+        public final int y;
+        public final int z;
+
+        private LabelMutationResult(Status status, String oldName, String name, int x, int y, int z) {
+            this.status = status;
+            this.oldName = oldName;
+            this.name = name;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        private static LabelMutationResult success(String oldName, String name, int x, int y, int z) {
+            return new LabelMutationResult(Status.SUCCESS, oldName, name, x, y, z);
+        }
+
+        private static LabelMutationResult invalidName(String name) {
+            return new LabelMutationResult(Status.INVALID_NAME, null, name, 0, 0, 0);
+        }
+
+        private static LabelMutationResult duplicateName(String name, int x, int y, int z) {
+            return new LabelMutationResult(Status.DUPLICATE_NAME, null, name, x, y, z);
+        }
     }
 }

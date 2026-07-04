@@ -32,6 +32,7 @@ public final class HybridStructureTemplate {
     private final int[][][] blockData;
     private final NBTTagCompound tileData;
     private final NBTTagCompound entityData;
+    private final StructureAnnotations annotations;
 
     public HybridStructureTemplate(int sizeX, int sizeY, int sizeZ, PaletteEntry[] palette, char[] paletteKeys,
         int[][][] blockData, NBTTagCompound tileData) {
@@ -40,6 +41,11 @@ public final class HybridStructureTemplate {
 
     public HybridStructureTemplate(int sizeX, int sizeY, int sizeZ, PaletteEntry[] palette, char[] paletteKeys,
         int[][][] blockData, NBTTagCompound tileData, NBTTagCompound entityData) {
+        this(sizeX, sizeY, sizeZ, palette, paletteKeys, blockData, tileData, entityData, StructureAnnotations.EMPTY);
+    }
+
+    public HybridStructureTemplate(int sizeX, int sizeY, int sizeZ, PaletteEntry[] palette, char[] paletteKeys,
+        int[][][] blockData, NBTTagCompound tileData, NBTTagCompound entityData, StructureAnnotations annotations) {
         this.sizeX = sizeX;
         this.sizeY = sizeY;
         this.sizeZ = sizeZ;
@@ -48,6 +54,7 @@ public final class HybridStructureTemplate {
         this.blockData = blockData;
         this.tileData = tileData != null ? tileData : new NBTTagCompound();
         this.entityData = entityData != null ? entityData : new NBTTagCompound();
+        this.annotations = annotations != null ? annotations : StructureAnnotations.EMPTY;
     }
 
     public int getSizeX() {
@@ -83,5 +90,9 @@ public final class HybridStructureTemplate {
 
     public NBTTagList getEntities() {
         return entityData.getTagList("entities", 10);
+    }
+
+    public StructureAnnotations getAnnotations() {
+        return annotations;
     }
 }

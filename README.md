@@ -11,7 +11,7 @@ A key strength of Horizon QA is verifying that machines *don't* behave incorrect
 ```java
 @GameTest(template = "ebf_no_coils", timeoutTicks = 60)
 public static void doesNotFormWithoutCoils(GameTestHelper helper) {
-    Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0));
+    Multiblock ebf = helper.gtnh().multiblock(helper.pos("controller"));
     helper.onEachTick(() -> helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
     helper.succeedAtTimeout();
 }
@@ -25,12 +25,12 @@ public static void doesNotFormWithoutCoils(GameTestHelper helper) {
 * **Structure Support**: Tools to export, place, and verify multiblock structures via JSON or NBT.
 * **Visual Feedback**: In-game overlays, beacons, and ghost blocks to identify test failures visually.
 * **CI/CD Integration**: Generates JUnit-compatible XML reports for automated build pipelines.
-* **Horizon Wand**: An in-game tool to help with area selection and structure management.
+* **Horizon Wand**: An in-game tool to select structures and label important coordinates for tests.
 
 ## Usage
 
 1. Build your test structure in-game ([guide](https://GTNewHorizons.github.io/Horizon-QA/guide/structures/)).
-2. Select the area with the **Horizon Wand** and use `/qa export <name>` to create a template.
+2. Select the area with the **Horizon Wand**, press **L** to label important coordinates, and use `/qa export <name>` to create a template.
 3. Write a Java test class using `@GameTest` to define the logic and assertions ([first test](https://GTNewHorizons.github.io/Horizon-QA/getting-started/first-test/)).
 4. Run tests using the `/qa runall` command and view results in-game or in the build logs. For report files from a manually-started batch, pass `-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false`; for headless autoruns, pass `-Dhorizonqa.mode=ci` to the server JVM. Override specific behavior with flags such as `-Dhorizonqa.world=normal`, `-Dhorizonqa.stopServer=false`, or `-Dhorizonqa.gridOrigin=0,128,0` ([CI guide](https://GTNewHorizons.github.io/Horizon-QA/guide/ci/)).
 

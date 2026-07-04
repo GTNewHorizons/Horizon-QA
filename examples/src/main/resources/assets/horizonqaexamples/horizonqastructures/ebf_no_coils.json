@@ -27,5 +27,10 @@
       "BCB",
       "BBB"
     ]
-  ]
+  ],
+  "annotations": {
+    "labels": {
+      "controller": [1, 0, 0]
+    }
+  }
 }
