@@ -15,7 +15,7 @@ public final class FloatingText {
 
     private static final float SCALE = 0.025f;
     private static final int PAD = 2;
-    private static final double MAX_VIEW_DISTANCE_SQ = 5.0 * 5.0;
+    private static final double DEFAULT_MAX_VIEW_DISTANCE = 5.0;
     private static final int MAX_LINE_PIXEL_WIDTH = 240;
 
     private FloatingText() {}
@@ -33,6 +33,11 @@ public final class FloatingText {
 
     public static void render(double wx, double wy, double wz, String[] lines, float scaleMultiplier,
         float partialTicks) {
+        render(wx, wy, wz, lines, scaleMultiplier, partialTicks, DEFAULT_MAX_VIEW_DISTANCE);
+    }
+
+    public static void render(double wx, double wy, double wz, String[] lines, float scaleMultiplier, float partialTicks,
+        double maxViewDistance) {
         if (lines == null || lines.length == 0) return;
         Minecraft mc = Minecraft.getMinecraft();
         Entity view = mc.renderViewEntity != null ? mc.renderViewEntity : mc.thePlayer;
@@ -43,7 +48,8 @@ public final class FloatingText {
         double dx = wx - camX;
         double dy = wy - camY;
         double dz = wz - camZ;
-        if (dx * dx + dy * dy + dz * dz > MAX_VIEW_DISTANCE_SQ) return;
+        double maxViewDistanceSq = maxViewDistance * maxViewDistance;
+        if (maxViewDistance >= 0.0 && dx * dx + dy * dy + dz * dz > maxViewDistanceSq) return;
 
         FontRenderer fr = mc.fontRenderer;
         if (fr == null) return;
@@ -61,46 +67,56 @@ public final class FloatingText {
         int totalH = lines.length * (fr.FONT_HEIGHT + 1) - 1;
 
         GL11.glPushMatrix();
-        GL11.glTranslated(wx, wy, wz);
-        GL11.glRotatef(-RenderManager.instance.playerViewY, 0f, 1f, 0f);
-        GL11.glRotatef(RenderManager.instance.playerViewX, 1f, 0f, 0f);
-        GL11.glScalef(-s, -s, s);
+        try {
+            GL11.glTranslated(wx, wy, wz);
+            GL11.glRotatef(-RenderManager.instance.playerViewY, 0f, 1f, 0f);
+            GL11.glRotatef(RenderManager.instance.playerViewX, 1f, 0f, 0f);
+            GL11.glScalef(-s, -s, s);
 
-        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT);
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT);
+            try {
+                GL11.glDisable(GL11.GL_DEPTH_TEST);
+                GL11.glEnable(GL11.GL_BLEND);
+                GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        int bx0 = -maxW / 2 - PAD;
-        int bx1 = maxW / 2 + PAD;
-        int by0 = -PAD;
-        int by1 = totalH + PAD;
+                int bx0 = -maxW / 2 - PAD;
+                int bx1 = maxW / 2 + PAD;
+                int by0 = -PAD;
+                int by1 = totalH + PAD;
 
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        Tessellator tess = Tessellator.instance;
-        tess.startDrawingQuads();
-        tess.setColorRGBA_I(0x000000, 96);
-        tess.addVertex(bx0, by1, 0.0);
-        tess.setColorRGBA_I(0x000000, 96);
-        tess.addVertex(bx1, by1, 0.0);
-        tess.setColorRGBA_I(0x000000, 96);
-        tess.addVertex(bx1, by0, 0.0);
-        tess.setColorRGBA_I(0x000000, 96);
-        tess.addVertex(bx0, by0, 0.0);
-        tess.draw();
+                GL11.glDisable(GL11.GL_TEXTURE_2D);
+                Tessellator tess = Tessellator.instance;
+                tess.startDrawingQuads();
+                tess.setColorRGBA_I(0x000000, 96);
+                tess.addVertex(bx0, by1, 0.0);
+                tess.setColorRGBA_I(0x000000, 96);
+                tess.addVertex(bx1, by1, 0.0);
+                tess.setColorRGBA_I(0x000000, 96);
+                tess.addVertex(bx1, by0, 0.0);
+                tess.setColorRGBA_I(0x000000, 96);
+                tess.addVertex(bx0, by0, 0.0);
+                tess.draw();
 
-        GL11.glEnable(GL11.GL_TEXTURE_2D);
-        for (int i = 0; i < lines.length; i++) {
-            String line = lines[i];
-            int tw = fr.getStringWidth(line);
-            fr.drawStringWithShadow(line, -tw / 2, i * (fr.FONT_HEIGHT + 1), 0xFFFFFF);
+                GL11.glEnable(GL11.GL_TEXTURE_2D);
+                for (int i = 0; i < lines.length; i++) {
+                    String line = lines[i];
+                    int tw = fr.getStringWidth(line);
+                    fr.drawStringWithShadow(line, -tw / 2, i * (fr.FONT_HEIGHT + 1), 0xFFFFFF);
+                }
+            } finally {
+                GL11.glPopAttrib();
+            }
+        } finally {
+            GL11.glPopMatrix();
         }
-
-        GL11.glPopAttrib();
-        GL11.glPopMatrix();
     }
 
     public static void render(double wx, double wy, double wz, String[] lines, float partialTicks) {
         render(wx, wy, wz, lines, 1.0f, partialTicks);
+    }
+
+    public static void render(double wx, double wy, double wz, String[] lines, float partialTicks,
+        double maxViewDistance) {
+        render(wx, wy, wz, lines, 1.0f, partialTicks, maxViewDistance);
     }
 }
