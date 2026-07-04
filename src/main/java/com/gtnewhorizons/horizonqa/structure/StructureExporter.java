@@ -305,8 +305,7 @@ public final class StructureExporter {
         for (Map.Entry<String, int[]> entry : absoluteLabels.entrySet()) {
             String name = entry.getKey();
             if (!StructureAnnotations.isValidLabelName(name)) {
-                throw new IOException(
-                    "Label name '" + name + "' must match [A-Za-z_][A-Za-z0-9_]* before export");
+                throw new IOException("Label name '" + name + "' must match [A-Za-z_][A-Za-z0-9_]* before export");
             }
             int[] pos = entry.getValue();
             if (pos == null || pos.length != 3) {

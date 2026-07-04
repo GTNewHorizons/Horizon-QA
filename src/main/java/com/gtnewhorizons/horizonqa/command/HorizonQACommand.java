@@ -887,8 +887,7 @@ public class HorizonQACommand extends CommandBase {
             boolean inside = ItemHorizonWand.isInsideSelection(wand, pos[0], pos[1], pos[2]);
             sender.addChatMessage(
                 new ChatComponentText(
-                    (inside ? EnumChatFormatting.GRAY : EnumChatFormatting.RED)
-                        + "  "
+                    (inside ? EnumChatFormatting.GRAY : EnumChatFormatting.RED) + "  "
                         + entry.getKey()
                         + " -> "
                         + pos[0]
@@ -928,15 +927,14 @@ public class HorizonQACommand extends CommandBase {
                             + ")."));
                 break;
             case SUCCESS:
-                String action = result.oldName != null && !result.oldName.equals(name) ? "Renamed label "
-                    + EnumChatFormatting.YELLOW
-                    + result.oldName
-                    + EnumChatFormatting.GREEN
-                    + " to "
-                    + EnumChatFormatting.YELLOW
-                    + name : "Labeled "
+                String action = result.oldName != null && !result.oldName.equals(name)
+                    ? "Renamed label " + EnumChatFormatting.YELLOW
+                        + result.oldName
+                        + EnumChatFormatting.GREEN
+                        + " to "
                         + EnumChatFormatting.YELLOW
-                        + name;
+                        + name
+                    : "Labeled " + EnumChatFormatting.YELLOW + name;
                 sender.addChatMessage(
                     new ChatComponentText(
                         EnumChatFormatting.GREEN + action

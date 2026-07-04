@@ -243,9 +243,7 @@ public class ItemHorizonWand extends Item {
             NBTTagCompound labelTag = labelsTag.getCompoundTag(name);
             labels.put(
                 name,
-                new int[] {
-                    labelTag.getInteger(TAG_LABEL_X),
-                    labelTag.getInteger(TAG_LABEL_Y),
+                new int[] { labelTag.getInteger(TAG_LABEL_X), labelTag.getInteger(TAG_LABEL_Y),
                     labelTag.getInteger(TAG_LABEL_Z) });
         }
         return labels;
