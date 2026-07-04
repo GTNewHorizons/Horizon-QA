@@ -204,7 +204,7 @@ public class GameTestBatchRunner {
                 resultEntries.add(ResultEntry.result(p.templateError));
                 continue;
             }
-            GameTestInstance inst = new GameTestInstance(p.def, p.originX, p.originY, p.originZ);
+            GameTestInstance inst = new GameTestInstance(p.def, p.originX, p.originY, p.originZ, p.template);
             if (p.template != null) {
                 final String templateName = p.def.getTemplateName();
                 final int sx = p.tmplSizeX, sy = p.tmplSizeY, sz = p.tmplSizeZ;

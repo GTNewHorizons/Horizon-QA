@@ -10,5 +10,10 @@
       "SSS",
       "SSS"
     ]
-  ]
+  ],
+  "annotations": {
+    "labels": {
+      "corner": [0, 0, 0]
+    }
+  }
 }

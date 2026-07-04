@@ -44,5 +44,10 @@
       "EBBBE",
       "EEEEE"
     ]
-  ]
+  ],
+  "annotations": {
+    "labels": {
+      "controller": [2, 4, 2]
+    }
+  }
 }

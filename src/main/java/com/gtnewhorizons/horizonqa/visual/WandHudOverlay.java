@@ -2,6 +2,7 @@ package com.gtnewhorizons.horizonqa.visual;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.settings.GameSettings;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.MovingObjectPosition;
@@ -90,6 +91,31 @@ public final class WandHudOverlay {
                 x,
                 y,
                 0xFFFFFF);
+            y += lineH;
         }
+
+        int labels = ItemHorizonWand.labelCount(held);
+        int outside = ItemHorizonWand.outsideSelectionLabelCount(held);
+        if (outside > 0) {
+            fr.drawStringWithShadow(
+                String.format(StatCollector.translateToLocal("horizonqa.wand.hud.labels.outside"), labels, outside),
+                x,
+                y,
+                0xFFFFFF);
+        } else {
+            fr.drawStringWithShadow(
+                String.format(StatCollector.translateToLocal("horizonqa.wand.hud.labels"), labels),
+                x,
+                y,
+                0xFFFFFF);
+        }
+        y += lineH;
+        fr.drawStringWithShadow(
+            String.format(
+                StatCollector.translateToLocal("horizonqa.wand.hud.label_key"),
+                GameSettings.getKeyDisplayString(WandLabelInput.LABEL_KEY.getKeyCode())),
+            x,
+            y,
+            0xFFFFFF);
     }
 }

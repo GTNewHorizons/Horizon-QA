@@ -131,9 +131,9 @@ The differ snapshots `mProgresstime` once per simulated tick. A handful of edge 
 The log is reachable from inside a test, which is occasionally useful when an assertion is more naturally phrased over the event stream than over machine state:
 
 ```java
-@GameTest
+@GameTest(template = "ebf")
 public static void exactlyOneRecipeFinished(GameTestHelper helper) {
-    helper.gtnh().multiblock(at(1, 0, 0)).runRecipe();
+    helper.gtnh().multiblock(helper.pos("controller")).runRecipe();
 
     long finished = helper.getRecorder().snapshot().stream()
         .filter(RecipeFinished.class::isInstance)

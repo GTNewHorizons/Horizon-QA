@@ -327,7 +327,7 @@ public class InteractiveTestSession {
             plannedTest.cellMaxZ);
         knownCells.put(def.getTestId(), cell);
 
-        GameTestInstance inst = new GameTestInstance(def, originX, originY, originZ);
+        GameTestInstance inst = new GameTestInstance(def, originX, originY, originZ, template);
 
         int tmplMaxX = plannedTest.sizeX > 0 ? originX + plannedTest.sizeX - 1 : -1;
         int tmplMaxY = plannedTest.sizeY > 0 ? originY + plannedTest.sizeY - 1 : -1;

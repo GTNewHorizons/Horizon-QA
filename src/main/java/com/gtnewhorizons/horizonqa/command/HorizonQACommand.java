@@ -35,6 +35,7 @@ import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
+import com.gtnewhorizons.horizonqa.item.ItemHorizonWand.LabelMutationResult;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
@@ -46,7 +47,8 @@ import com.gtnewhorizons.horizonqa.structure.StructureExporter;
 public class HorizonQACommand extends CommandBase {
 
     private static final String[] SUBCOMMANDS = { "run", "runall", "runfailed", "tp", "runthis", "runthat", "pos",
-        "clearall", "export", "clear" };
+        "clearall", "export", "clear", "label", "labels" };
+    private static final String[] LABEL_SUBCOMMANDS = { "list", "remove", "clear" };
     private static final Set<String> LAST_REPORTED_FAILED_IDS = new LinkedHashSet<>();
     private static volatile boolean reportBatchRunning;
 
@@ -57,7 +59,7 @@ public class HorizonQACommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/horizonqa <run|runall|runfailed|tp|runthis|runthat|pos|clearall|export|clear>";
+        return "/horizonqa <run|runall|runfailed|tp|runthis|runthat|pos|clearall|export|clear|label|labels>";
     }
 
     @Override
@@ -109,6 +111,12 @@ public class HorizonQACommand extends CommandBase {
             case "clear":
                 handleClear(sender, args);
                 break;
+            case "label":
+                handleLabel(sender, args);
+                break;
+            case "labels":
+                handleLabels(sender, args);
+                break;
             default:
                 sender.addChatMessage(
                     new ChatComponentText(
@@ -141,6 +149,18 @@ public class HorizonQACommand extends CommandBase {
             }
             if ("tp".equals(args[0])) {
                 return getListOfStringsMatchingLastWord(args, knownCellIds());
+            }
+            if ("labels".equals(args[0])) {
+                return getListOfStringsMatchingLastWord(args, LABEL_SUBCOMMANDS);
+            }
+        }
+        if (args.length == 3 && "labels".equals(args[0]) && "remove".equals(args[1])) {
+            EntityPlayer player = sender instanceof EntityPlayer ? (EntityPlayer) sender : null;
+            ItemStack wand = player != null ? findWand(player) : null;
+            if (wand != null) {
+                Set<String> names = ItemHorizonWand.getLabels(wand)
+                    .keySet();
+                return getListOfStringsMatchingLastWord(args, names.toArray(new String[0]));
             }
         }
         return null;
@@ -661,7 +681,7 @@ public class HorizonQACommand extends CommandBase {
 
         if (wand == null) {
             sender.addChatMessage(
-                new ChatComponentText(EnumChatFormatting.RED + "Hold (or have in inventory) a GameTest Wand first."));
+                new ChatComponentText(EnumChatFormatting.RED + "Hold (or have in inventory) a Horizon Wand first."));
             return;
         }
 
@@ -699,7 +719,7 @@ public class HorizonQACommand extends CommandBase {
 
         try {
             StructureExporter.ExportResult result = StructureExporter
-                .export(world, minX, minY, minZ, maxX, maxY, maxZ, outputDir, name);
+                .export(world, minX, minY, minZ, maxX, maxY, maxZ, outputDir, name, ItemHorizonWand.getLabels(wand));
             sender.addChatMessage(
                 new ChatComponentText(
                     EnumChatFormatting.GREEN + "Exported '"
@@ -711,6 +731,15 @@ public class HorizonQACommand extends CommandBase {
                         + outputDir.getAbsolutePath()));
             sender.addChatMessage(
                 new ChatComponentText(EnumChatFormatting.GRAY + "  " + name + ".json        (block layout)"));
+            if (result.labelCount() > 0) {
+                sender.addChatMessage(
+                    new ChatComponentText(
+                        EnumChatFormatting.GRAY + "  labels: "
+                            + EnumChatFormatting.YELLOW
+                            + result.labelCount()
+                            + EnumChatFormatting.GRAY
+                            + " coordinate label(s)"));
+            }
             if (result.structureDataWritten()) {
                 sender.addChatMessage(
                     new ChatComponentText(
@@ -771,6 +800,183 @@ public class HorizonQACommand extends CommandBase {
         sender.addChatMessage(
             new ChatComponentText(
                 EnumChatFormatting.GREEN + StatCollector.translateToLocal("horizonqa.command.clear.success")));
+    }
+
+    private void handleLabel(ICommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Usage: /horizonqa label <name>"));
+            return;
+        }
+        EntityPlayer player = requirePlayer(sender);
+        if (player == null) return;
+        ItemStack wand = findWand(player);
+        if (wand == null) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + StatCollector.translateToLocal("horizonqa.command.clear.no_wand")));
+            return;
+        }
+
+        int[] target = ItemHorizonWand.getTargetedPosition(player);
+        applyLabel(sender, wand, args[1], target[0], target[1], target[2]);
+    }
+
+    private void handleLabels(ICommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.addChatMessage(
+                new ChatComponentText(EnumChatFormatting.RED + "Usage: /horizonqa labels <list|remove|clear>"));
+            return;
+        }
+        EntityPlayer player = requirePlayer(sender);
+        if (player == null) return;
+        ItemStack wand = findWand(player);
+        if (wand == null) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + StatCollector.translateToLocal("horizonqa.command.clear.no_wand")));
+            return;
+        }
+
+        switch (args[1]) {
+            case "list":
+                handleLabelsList(sender, wand);
+                break;
+            case "remove":
+                if (args.length < 3) {
+                    sender.addChatMessage(
+                        new ChatComponentText(EnumChatFormatting.RED + "Usage: /horizonqa labels remove <name>"));
+                    return;
+                }
+                removeLabel(sender, wand, args[2]);
+                break;
+            case "clear":
+                int cleared = ItemHorizonWand.clearLabels(wand);
+                if (cleared == 0) {
+                    sender.addChatMessage(new ChatComponentText(EnumChatFormatting.YELLOW + "No labels to clear."));
+                } else {
+                    sender.addChatMessage(
+                        new ChatComponentText(
+                            EnumChatFormatting.GREEN + "Cleared "
+                                + EnumChatFormatting.YELLOW
+                                + cleared
+                                + EnumChatFormatting.GREEN
+                                + " label(s)."));
+                }
+                break;
+            default:
+                sender.addChatMessage(
+                    new ChatComponentText(EnumChatFormatting.RED + "Usage: /horizonqa labels <list|remove|clear>"));
+        }
+    }
+
+    private static void handleLabelsList(ICommandSender sender, ItemStack wand) {
+        java.util.Map<String, int[]> labels = ItemHorizonWand.getLabels(wand);
+        if (labels.isEmpty()) {
+            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.YELLOW + "No labels on this wand."));
+            return;
+        }
+        int outside = ItemHorizonWand.outsideSelectionLabelCount(wand);
+        sender.addChatMessage(
+            new ChatComponentText(
+                EnumChatFormatting.GREEN + "Labels: "
+                    + EnumChatFormatting.YELLOW
+                    + labels.size()
+                    + (outside > 0 ? EnumChatFormatting.RED + " (" + outside + " outside selection)" : "")));
+        for (java.util.Map.Entry<String, int[]> entry : labels.entrySet()) {
+            int[] pos = entry.getValue();
+            boolean inside = ItemHorizonWand.isInsideSelection(wand, pos[0], pos[1], pos[2]);
+            sender.addChatMessage(
+                new ChatComponentText(
+                    (inside ? EnumChatFormatting.GRAY : EnumChatFormatting.RED) + "  "
+                        + entry.getKey()
+                        + " -> "
+                        + pos[0]
+                        + ", "
+                        + pos[1]
+                        + ", "
+                        + pos[2]
+                        + (inside || !ItemHorizonWand.hasCompleteSelection(wand) ? "" : " outside")));
+        }
+    }
+
+    public static void applyLabel(ICommandSender sender, ItemStack wand, String name, int x, int y, int z) {
+        LabelMutationResult result = ItemHorizonWand.setLabel(wand, name, x, y, z);
+        switch (result.status) {
+            case INVALID_NAME:
+                sender.addChatMessage(
+                    new ChatComponentText(
+                        EnumChatFormatting.RED + "Invalid label name '"
+                            + EnumChatFormatting.YELLOW
+                            + name
+                            + EnumChatFormatting.RED
+                            + "'. Use [A-Za-z_][A-Za-z0-9_]*."));
+                break;
+            case DUPLICATE_NAME:
+                sender.addChatMessage(
+                    new ChatComponentText(
+                        EnumChatFormatting.RED + "Label '"
+                            + EnumChatFormatting.YELLOW
+                            + name
+                            + EnumChatFormatting.RED
+                            + "' already exists at ("
+                            + result.x
+                            + ", "
+                            + result.y
+                            + ", "
+                            + result.z
+                            + ")."));
+                break;
+            case SUCCESS:
+                String action = result.oldName != null && !result.oldName.equals(name)
+                    ? "Renamed label " + EnumChatFormatting.YELLOW
+                        + result.oldName
+                        + EnumChatFormatting.GREEN
+                        + " to "
+                        + EnumChatFormatting.YELLOW
+                        + name
+                    : "Labeled " + EnumChatFormatting.YELLOW + name;
+                sender.addChatMessage(
+                    new ChatComponentText(
+                        EnumChatFormatting.GREEN + action
+                            + EnumChatFormatting.GREEN
+                            + " at ("
+                            + x
+                            + ", "
+                            + y
+                            + ", "
+                            + z
+                            + ")."));
+                sender.addChatMessage(
+                    new ChatComponentText(
+                        EnumChatFormatting.GRAY + "Use "
+                            + EnumChatFormatting.WHITE
+                            + "helper.pos(\""
+                            + name
+                            + "\")"
+                            + EnumChatFormatting.GRAY
+                            + " in tests."));
+                break;
+        }
+    }
+
+    public static void removeLabel(ICommandSender sender, ItemStack wand, String name) {
+        if (ItemHorizonWand.removeLabel(wand, name)) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.GREEN + "Removed label "
+                        + EnumChatFormatting.YELLOW
+                        + name
+                        + EnumChatFormatting.GREEN
+                        + "."));
+        } else {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + "No label named '"
+                        + EnumChatFormatting.YELLOW
+                        + name
+                        + EnumChatFormatting.RED
+                        + "'."));
+        }
     }
 
     private static GameTestDefinition findDefinition(String testId) {

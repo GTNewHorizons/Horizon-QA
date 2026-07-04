@@ -35,7 +35,7 @@ A common idiom is asserting every tick that something bad **does not** happen:
 ```java
 @GameTest(template = "ebf_no_coils", timeoutTicks = 60) // (1)!
 public static void doesNotFormWithoutCoils(GameTestHelper helper) {
-    Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0));
+    Multiblock ebf = helper.gtnh().multiblock(helper.pos("controller"));
     helper.onEachTick(() -> // (2)!
         helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
     helper.succeedAtTimeout(); // (3)!

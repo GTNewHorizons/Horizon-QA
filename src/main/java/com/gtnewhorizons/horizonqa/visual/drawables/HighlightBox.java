@@ -14,7 +14,16 @@ public final class HighlightBox {
 
     public static void render(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, float r,
         float g, float b, float alpha) {
+        render(minX, minY, minZ, maxX, maxY, maxZ, r, g, b, alpha, true);
+    }
 
+    public static void renderThroughWalls(double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
+        float r, float g, float b, float alpha) {
+        render(minX, minY, minZ, maxX, maxY, maxZ, r, g, b, alpha, false);
+    }
+
+    private static void render(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, float r,
+        float g, float b, float alpha, boolean depthTest) {
         Minecraft mc = Minecraft.getMinecraft();
         Entity view = mc.renderViewEntity != null ? mc.renderViewEntity : mc.thePlayer;
         if (view == null) return;
@@ -27,8 +36,12 @@ public final class HighlightBox {
 
         GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_LINE_BIT | GL11.GL_COLOR_BUFFER_BIT);
         try {
-            GL11.glEnable(GL11.GL_DEPTH_TEST);
-            GL11.glDepthFunc(GL11.GL_LEQUAL);
+            if (depthTest) {
+                GL11.glEnable(GL11.GL_DEPTH_TEST);
+                GL11.glDepthFunc(GL11.GL_LEQUAL);
+            } else {
+                GL11.glDisable(GL11.GL_DEPTH_TEST);
+            }
             GL11.glDepthMask(false);
             GL11.glDisable(GL11.GL_TEXTURE_2D);
             GL11.glDisable(GL11.GL_CULL_FACE);

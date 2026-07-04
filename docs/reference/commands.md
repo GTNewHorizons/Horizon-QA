@@ -22,10 +22,12 @@ Primary command: **`/horizonqa`** (alias **`/qa`**). Requires permission level *
 | `runthat`   | `/horizonqa runthat`            | Re-run the test cell in your line of sight (<= 64 blocks)                 |
 | `pos`       | `/horizonqa pos`                | Print world and test-relative coordinates; suggest `helper.absolute(...)` |
 | `clearall`  | `/horizonqa clearall`           | Clear all placed test cells and overlays                                  |
-| `clear`     | `/horizonqa clear`              | Clear Horizon Wand's selected position                                    |
+| `clear`     | `/horizonqa clear`              | Clear Horizon Wand's selected positions and labels                        |
 | `export`    | `/horizonqa export <name>`      | Export the wand selection to `horizonqastructures/`                       |
+| `label`     | `/horizonqa label <name>`       | Label the coordinate currently targeted by the Horizon Wand               |
+| `labels`    | `/horizonqa labels <subcommand>` | List, remove, or clear labels on the current Horizon Wand                 |
 
-Tab-completion is wired for subcommands, full test ids on `run`, placed test ids on `tp`, and namespaces on `runall`.
+Tab-completion is wired for subcommands, full test ids on `run`, placed test ids on `tp`, namespaces on `runall`, and label names on `labels remove`.
 
 When the server starts in a non-interactive reported-batch configuration, such as `-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false`, `run`, `runall`, and `runfailed` use the CI batch runner and write JUnit XML plus status JSON after the batch completes. The server stays running unless `-Dhorizonqa.stopServer=true` is set. Interactive cell commands such as `runthis`, `runthat`, `pos`, and `clearall` are available only in interactive mode.
 
@@ -37,6 +39,7 @@ Only one batch runner can be active at a time. If an automatic or reported batch
 - **Horizon Wand** in hand or inventory.
 - `pos1` and `pos2` set on the wand.
 - `<name>` characters: letters, digits, `_`, `-`.
+- Any labels stored on the wand must be inside the selected bounds.
 
 Output directory: `<serverDir>/horizonqastructures/`.
 
@@ -45,6 +48,21 @@ Exported files:
 - `<name>.json` for the block layout.
 - `<name>.snbt` for tile entity and non-player entity data, when the selection has any and the generated text round-trips losslessly.
 - `<name>.nbt` instead of `.snbt` when the structure data cannot be represented safely in Minecraft 1.7.10 SNBT.
+
+Coordinate labels are written into the JSON as optional `annotations.labels` entries. Tests can read them with `helper.pos("name")` for test-relative coordinates or `helper.absolute("name")` for world coordinates. Missing labels are reported as infrastructure errors with type `LABEL_ERROR`.
+
+## Label commands
+
+Labels live on the Horizon Wand until the structure is exported.
+
+| Command                          | Purpose                                                       |
+|----------------------------------|---------------------------------------------------------------|
+| `/horizonqa label <name>`        | Label the targeted coordinate, or rename the label at it      |
+| `/horizonqa labels list`         | Show all labels on the wand and warn about outside labels     |
+| `/horizonqa labels remove <name>` | Remove one label                                             |
+| `/horizonqa labels clear`        | Remove all labels from the wand                              |
+
+Label names must match `[A-Za-z_][A-Za-z0-9_]*`; prefer `snake_case` names such as `controller`, `input_bus`, and `energy_hatch`.
 
 ## Typical workflows
 

@@ -17,7 +17,7 @@ tags:
 public static void delayedAssert(GameTestHelper helper) {
     helper.startSequence()
         .thenIdle(10)
-        .thenExecute(() -> helper.assertBlockPresent(helper.absolute(0, 0, 0), Blocks.stone))
+        .thenExecute(() -> helper.assertBlockPresent(Blocks.stone, helper.pos("corner")))
         .thenSucceed();
 }
 ```
@@ -89,7 +89,7 @@ The test body runs immediately when the test starts, before the first counted ti
 public static void example(GameTestHelper helper) {
     helper.setBlock(0, 1, 0, Blocks.chest);
     helper.startSequence()
-        .thenWaitUntil(() -> helper.assertBlockPresent(helper.absolute(0, 1, 0), Blocks.chest))
+        .thenWaitUntil(() -> helper.assertBlockPresent(Blocks.chest, 0, 1, 0))
         .thenSucceed();
 }
 ```

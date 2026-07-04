@@ -51,6 +51,7 @@ public final class HybridStructureLoader {
         HybridStructureTemplate.PaletteEntry[] palette;
         char[] paletteKeys;
         int[][][] blockData;
+        StructureAnnotations annotations;
 
         try (InputStreamReader reader = new InputStreamReader(jsonStream, StandardCharsets.UTF_8)) {
             JsonObject root = GSON.fromJson(reader, JsonObject.class);
@@ -180,6 +181,8 @@ public final class HybridStructureLoader {
                     }
                 }
             }
+
+            annotations = StructureAnnotations.fromJson(root, templateName, sizeX, sizeY, sizeZ);
         } catch (RuntimeException e) {
             throw new TemplateException("Malformed template '" + templateName + "': " + errorMessage(e), e);
         }
@@ -207,7 +210,8 @@ public final class HybridStructureLoader {
             paletteKeys,
             blockData,
             structureData.tileData(),
-            structureData.entityData());
+            structureData.entityData(),
+            annotations);
     }
 
     private static StructureNbt.StructureData readStructureData(String templateName, String snbtResource,

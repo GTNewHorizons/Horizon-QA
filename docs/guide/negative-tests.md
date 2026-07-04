@@ -15,7 +15,7 @@ Horizon-QA is aimed at tests that assert a bad state **never** occurs over a tic
 ```java
 @GameTest(template = "ebf_no_coils", timeoutTicks = 60)
 public static void doesNotFormWithoutCoils(GameTestHelper helper) {
-    Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0));
+    Multiblock ebf = helper.gtnh().multiblock(helper.pos("controller"));
     ebf.assertNeverForms("EBF formed without coils");
 }
 ```

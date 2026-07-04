@@ -20,9 +20,7 @@ Both appear side by side in [Writing tests](writing-tests.md#imperative-vs-fluen
 ## Multiblock roles
 
 ```java
-import static com.gtnewhorizons.horizonqa.api.TestPos.at;
-
-Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0)); // (1)!
+Multiblock ebf = helper.gtnh().multiblock(helper.pos("controller")); // (1)!
 ebf.assertFormed();
 ebf.fixMaintenance(); // (2)!
 
@@ -37,12 +35,12 @@ ebf.runRecipe(); // (4)!
 ebf.outputs().assertContains(Materials.NickelAluminide.getIngots(4));
 ```
 
-1.  Controller position, test-relative. The `Multiblock` façade resolves hatch roles from the template's tile entity table.
+1.  Controller label from the template. `helper.pos(...)` returns test-relative coordinates and applies structure rotation.
 2.  Maintenance gates recipes even when EU and inputs are present. Most tests want it satisfied up front.
 3.  Voltage × amperage × duration in ticks. Over-tier supply explodes hatches. That is intentional, and the event log records the cause.
 4.  Time-warps until the controller reports idle, auto-registering it with the recorder so recipe events appear in the log.
 
-Hatch indices are **logical roles** defined by your template layout, not world coordinates. Re-export the template if you change hatch ordering.
+Hatch indices are **logical roles** defined by your template layout, not world coordinates. Label load-bearing coordinates in the template and re-export it if you change hatch ordering.
 
 ## Time-warp
 
@@ -108,7 +106,7 @@ Use `insert(...)` when the test should simulate normal insertion behavior.
 `assertFormed()` is the normal positive assertion. For invalid-template tests, use the negative helpers:
 
 ```java
-Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0));
+Multiblock ebf = helper.gtnh().multiblock(helper.pos("controller"));
 ebf.assertNeverForms("EBF formed without coils");
 ```
 

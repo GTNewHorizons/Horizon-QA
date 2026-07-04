@@ -65,6 +65,27 @@ public class GameTestHelper {
     }
 
     /**
+     * Resolve a named coordinate label from this test's structure template. Returned coordinates are
+     * test-local and include the test's {@code @GameTest(rotation = ...)} transform.
+     *
+     * @throws LabelResolutionException if this test has no such label
+     */
+    public TestPos pos(String label) {
+        return instance.resolveLabel(label);
+    }
+
+    /**
+     * Resolve a named coordinate label to world-absolute coordinates. The label is first resolved with
+     * {@link #pos(String)}, so test rotation is applied.
+     *
+     * @throws LabelResolutionException if this test has no such label
+     */
+    public TestPos absolute(String label) {
+        TestPos pos = pos(label);
+        return absolute(pos.x(), pos.y(), pos.z());
+    }
+
+    /**
      * Create and attach a new {@link GameTestSequence} to this test. Must be called at most once per
      * test method. Returns the sequence so the caller can chain step methods.
      */
@@ -511,6 +532,13 @@ public class GameTestHelper {
     }
 
     /**
+     * Assert that the block at test-local position {@code pos} is {@code expected}.
+     */
+    public void assertBlockPresent(Block expected, TestPos pos) {
+        assertBlockPresent(expected, pos.x(), pos.y(), pos.z());
+    }
+
+    /**
      * Assert that the block at test-local position is {@code expected} with the given metadata.
      * Pass {@code meta < 0} to skip the meta check.
      */
@@ -552,6 +580,13 @@ public class GameTestHelper {
                     .getNameForObject(unexpected) + " at (" + x + "," + y + "," + z + ") but found it",
                 pos);
         }
+    }
+
+    /**
+     * Assert that the block at test-local position {@code pos} is NOT {@code unexpected}.
+     */
+    public void assertBlockAbsent(Block unexpected, TestPos pos) {
+        assertBlockAbsent(unexpected, pos.x(), pos.y(), pos.z());
     }
 
     /**

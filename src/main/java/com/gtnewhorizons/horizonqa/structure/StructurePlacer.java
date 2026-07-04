@@ -206,7 +206,7 @@ public final class StructurePlacer {
         spawnEntities(templateName, template, world, originX, originY, originZ, rotationSteps, strict);
     }
 
-    static int rotatedLocalX(int x, int z, int sizeX, int sizeZ, int rotation) {
+    public static int rotatedLocalX(int x, int z, int sizeX, int sizeZ, int rotation) {
         return switch (rotation) {
             case 1 -> sizeZ - 1 - z;
             case 2 -> sizeX - 1 - x;
@@ -215,7 +215,7 @@ public final class StructurePlacer {
         };
     }
 
-    static int rotatedLocalZ(int x, int z, int sizeX, int sizeZ, int rotation) {
+    public static int rotatedLocalZ(int x, int z, int sizeX, int sizeZ, int rotation) {
         return switch (rotation) {
             case 1 -> x;
             case 2 -> sizeZ - 1 - z;

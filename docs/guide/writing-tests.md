@@ -46,6 +46,18 @@ Example: `mymod:AssemblerTests.processesOneRecipe`. Use this id with `/horizonqa
 | `template = "ebf"`                | `<holder>:ebf`, or `<holder>:<prefix>/ebf` when `templatePrefix` is set |
 | `template = "other:path/to/cell"` | Used verbatim as a fully qualified `namespace:path`                     |
 
+## Template labels
+
+Exported templates can carry named coordinate labels under `annotations.labels`. Prefer labels for every meaningful coordinate in a structure-backed test:
+
+```java
+TestPos controller = helper.pos("controller");
+TestPos outputBus = helper.pos("output_bus");
+Multiblock ebf = helper.gtnh().multiblock(controller);
+```
+
+`helper.pos("name")` returns test-relative coordinates with structure rotation applied. `helper.absolute("name")` returns the rotated world coordinate. If the label is missing, the test is reported as an infrastructure error with type `LABEL_ERROR`, because the fixture and Java code disagree.
+
 ## Batches
 
 Tests sharing the same `batch = "name"` are placed in one grid sweep. Hook setup and teardown with batch-scoped lifecycle methods:
@@ -102,7 +114,7 @@ Two styles are supported. Both compile to the same calls; pick by what is most l
 === "Fluent (`Multiblock`)"
 
     ```java
-    Multiblock ebf = helper.gtnh().multiblock(at(1, 0, 0));
+    Multiblock ebf = helper.gtnh().multiblock(helper.pos("controller"));
     ebf.assertFormed();
     ebf.inputBus(0).insert(...).programmedCircuit(0);
     ebf.energyHatch(0).supply(TierEU.EV, 1, 900);
@@ -113,13 +125,17 @@ Two styles are supported. Both compile to the same calls; pick by what is most l
 === "Imperative (`GTNHGameTestHelper`)"
 
     ```java
+    TestPos controller = helper.pos("controller");
+    TestPos energyHatch = helper.pos("energy_hatch");
+    TestPos outputBus = helper.pos("output_bus");
+
     gtnh.assertMachineFormed(controller);
     gtnh.supplyEU(energyHatch, TierEU.EV, 1, 900);
     gtnh.runUntilMachineIdle(controller, 1500);
     gtnh.assertItemInBus(outputBus, stack);
     ```
 
-Prefer **role-based** hatch indices (`inputBus(0)`) over raw coordinates when using `Multiblock`. Coordinates belong in the template, not throughout the test method.
+Prefer **role-based** hatch indices (`inputBus(0)`) over raw coordinates when using `Multiblock`. Coordinates belong in template labels, not throughout the test method.
 
 ## Further reading
 

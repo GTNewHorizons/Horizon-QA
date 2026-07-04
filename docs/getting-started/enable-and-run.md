@@ -73,13 +73,15 @@ In `ci` mode with `-Dhorizonqa.autoRun=false`, `/horizonqa run`, `/horizonqa run
 
 ## Horizon Wand
 
-A creative-tab item used to define export bounds.
+A creative-tab item used to define export bounds and label important coordinates.
 
 1. ++left-button++ a block → position 1.
 2. ++right-button++ a block → position 2. Right-click also works at range via the targeted block, and sneaking selects the adjacent (air) block instead, which is useful for capturing clearance above a multiblock.
-3. `/horizonqa export <name>` → writes `horizonqastructures/<name>.json` and, when needed, `<name>.snbt` or `<name>.nbt` under the server directory.
+3. Hold the wand and press ++l++ to label the targeted coordinate. Press ++l++ on an existing label to rename it or remove it. Sneak while pressing ++l++ to label the adjacent air coordinate.
+4. `/horizonqa labels list` checks the labels before export.
+5. `/horizonqa export <name>` → writes `horizonqastructures/<name>.json` and, when needed, `<name>.snbt` or `<name>.nbt` under the server directory.
 
-Move the exported files into `src/main/resources/assets/<modid>/horizonqastructures/` in your mod. Full export details: [Structure templates](../guide/structures.md).
+Move the exported files into `src/main/resources/assets/<modid>/horizonqastructures/` in your mod. Use `helper.pos("label_name")` in tests instead of repeating raw local coordinates. Full export details: [Structure templates](../guide/structures.md).
 
 ## Interactive debugging
 

@@ -41,11 +41,13 @@ public final class StructureExporter {
         private final int tileEntityCount;
         private final int entityCount;
         private final String structureDataExtension;
+        private final int labelCount;
 
-        private ExportResult(int tileEntityCount, int entityCount, String structureDataExtension) {
+        private ExportResult(int tileEntityCount, int entityCount, String structureDataExtension, int labelCount) {
             this.tileEntityCount = tileEntityCount;
             this.entityCount = entityCount;
             this.structureDataExtension = structureDataExtension;
+            this.labelCount = labelCount;
         }
 
         public int tileEntityCount() {
@@ -63,16 +65,26 @@ public final class StructureExporter {
         public String structureDataExtension() {
             return structureDataExtension;
         }
+
+        public int labelCount() {
+            return labelCount;
+        }
     }
 
     private StructureExporter() {}
 
     public static ExportResult export(WorldServer world, int x1, int y1, int z1, int x2, int y2, int z2, File outputDir,
         String name) throws IOException {
+        return export(world, x1, y1, z1, x2, y2, z2, outputDir, name, null);
+    }
+
+    public static ExportResult export(WorldServer world, int x1, int y1, int z1, int x2, int y2, int z2, File outputDir,
+        String name, Map<String, int[]> absoluteLabels) throws IOException {
 
         int sizeX = x2 - x1 + 1;
         int sizeY = y2 - y1 + 1;
         int sizeZ = z2 - z1 + 1;
+        Map<String, int[]> relativeLabels = relativizeLabels(absoluteLabels, x1, y1, z1, sizeX, sizeY, sizeZ);
 
         String[][][] blockNames = new String[sizeX][sizeY][sizeZ];
         int[][][] blockMetas = new int[sizeX][sizeY][sizeZ];
@@ -214,7 +226,32 @@ public final class StructureExporter {
                 if (y < sizeY - 1) writer.write(",");
                 writer.write("\n");
             }
-            writer.write("  ]\n");
+            writer.write("  ]");
+            if (!relativeLabels.isEmpty()) {
+                writer.write(",\n");
+                writer.write("  \"annotations\": {\n");
+                writer.write("    \"labels\": {\n");
+                int labelIndex = 0;
+                for (Map.Entry<String, int[]> entry : relativeLabels.entrySet()) {
+                    int[] pos = entry.getValue();
+                    writer.write("      \"");
+                    writer.write(escapeJson(entry.getKey()));
+                    writer.write("\": [");
+                    writer.write(String.valueOf(pos[0]));
+                    writer.write(", ");
+                    writer.write(String.valueOf(pos[1]));
+                    writer.write(", ");
+                    writer.write(String.valueOf(pos[2]));
+                    writer.write("]");
+                    if (labelIndex < relativeLabels.size() - 1) writer.write(",");
+                    writer.write("\n");
+                    labelIndex++;
+                }
+                writer.write("    }\n");
+                writer.write("  }\n");
+            } else {
+                writer.write("\n");
+            }
             writer.write("}\n");
         }
         LOG.info("StructureExporter: wrote layout -> {}", jsonFile.getAbsolutePath());
@@ -252,7 +289,45 @@ public final class StructureExporter {
         deleteStale(new File(outputDir, name + "_tiles.nbt"), "legacy tile entity data");
         deleteStale(new File(outputDir, name + "_entities.nbt"), "legacy entity data");
 
-        return new ExportResult(StructureNbt.tileEntityCount(tileData), entityCount, structureDataExtension);
+        return new ExportResult(
+            StructureNbt.tileEntityCount(tileData),
+            entityCount,
+            structureDataExtension,
+            relativeLabels.size());
+    }
+
+    private static Map<String, int[]> relativizeLabels(Map<String, int[]> absoluteLabels, int minX, int minY, int minZ,
+        int sizeX, int sizeY, int sizeZ) throws IOException {
+        TreeMap<String, int[]> relative = new TreeMap<>();
+        if (absoluteLabels == null || absoluteLabels.isEmpty()) {
+            return relative;
+        }
+        for (Map.Entry<String, int[]> entry : absoluteLabels.entrySet()) {
+            String name = entry.getKey();
+            if (!StructureAnnotations.isValidLabelName(name)) {
+                throw new IOException("Label name '" + name + "' must match [A-Za-z_][A-Za-z0-9_]* before export");
+            }
+            int[] pos = entry.getValue();
+            if (pos == null || pos.length != 3) {
+                throw new IOException("Label '" + name + "' has invalid coordinates");
+            }
+            int x = pos[0] - minX;
+            int y = pos[1] - minY;
+            int z = pos[2] - minZ;
+            if (x < 0 || x >= sizeX || y < 0 || y >= sizeY || z < 0 || z >= sizeZ) {
+                throw new IOException(
+                    "Label '" + name
+                        + "' at ("
+                        + pos[0]
+                        + ", "
+                        + pos[1]
+                        + ", "
+                        + pos[2]
+                        + ") is outside the wand selection");
+            }
+            relative.put(name, new int[] { x, y, z });
+        }
+        return relative;
     }
 
     private static int exportEntities(WorldServer world, int x1, int y1, int z1, int x2, int y2, int z2,
