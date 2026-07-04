@@ -6,9 +6,9 @@ import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.visual.GameTestOverlayRenderer;
 import com.gtnewhorizons.horizonqa.visual.SelectionOutlineClientRenderer;
 import com.gtnewhorizons.horizonqa.visual.VisualManager;
+import com.gtnewhorizons.horizonqa.visual.WandHudOverlay;
 import com.gtnewhorizons.horizonqa.visual.WandLabelInput;
 import com.gtnewhorizons.horizonqa.visual.WandLabelRenderer;
-import com.gtnewhorizons.horizonqa.visual.WandHudOverlay;
 
 import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.event.FMLInitializationEvent;

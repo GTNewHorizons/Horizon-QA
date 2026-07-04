@@ -88,29 +88,10 @@ public final class WandLabelRenderer {
         float b = outside ? 0.15f : 1.0f;
         float alpha = throughWalls ? BOX_ALPHA_THROUGH : BOX_ALPHA_DEPTH_TESTED;
         if (throughWalls) {
-            HighlightBox.renderThroughWalls(
-                pos[0],
-                pos[1],
-                pos[2],
-                pos[0] + 1.0,
-                pos[1] + 1.0,
-                pos[2] + 1.0,
-                r,
-                g,
-                b,
-                alpha);
+            HighlightBox
+                .renderThroughWalls(pos[0], pos[1], pos[2], pos[0] + 1.0, pos[1] + 1.0, pos[2] + 1.0, r, g, b, alpha);
         } else {
-            HighlightBox.render(
-                pos[0],
-                pos[1],
-                pos[2],
-                pos[0] + 1.0,
-                pos[1] + 1.0,
-                pos[2] + 1.0,
-                r,
-                g,
-                b,
-                alpha);
+            HighlightBox.render(pos[0], pos[1], pos[2], pos[0] + 1.0, pos[1] + 1.0, pos[2] + 1.0, r, g, b, alpha);
         }
     }
 

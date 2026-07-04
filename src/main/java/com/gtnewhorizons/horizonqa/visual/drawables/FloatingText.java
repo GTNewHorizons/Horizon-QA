@@ -36,8 +36,8 @@ public final class FloatingText {
         render(wx, wy, wz, lines, scaleMultiplier, partialTicks, DEFAULT_MAX_VIEW_DISTANCE);
     }
 
-    public static void render(double wx, double wy, double wz, String[] lines, float scaleMultiplier, float partialTicks,
-        double maxViewDistance) {
+    public static void render(double wx, double wy, double wz, String[] lines, float scaleMultiplier,
+        float partialTicks, double maxViewDistance) {
         if (lines == null || lines.length == 0) return;
         Minecraft mc = Minecraft.getMinecraft();
         Entity view = mc.renderViewEntity != null ? mc.renderViewEntity : mc.thePlayer;

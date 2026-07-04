@@ -87,12 +87,7 @@ public final class WandLabelPrompt extends GuiScreen {
         drawDefaultBackground();
         String title = existingName != null ? "Rename label" : "Create label";
         drawCenteredString(fontRendererObj, title, width / 2, height / 2 - 34, 0xFFFFFF);
-        drawCenteredString(
-            fontRendererObj,
-            "Target: " + x + ", " + y + ", " + z,
-            width / 2,
-            height / 2 - 22,
-            0xAAAAAA);
+        drawCenteredString(fontRendererObj, "Target: " + x + ", " + y + ", " + z, width / 2, height / 2 - 22, 0xAAAAAA);
         input.drawTextBox();
         if (!error.isEmpty()) {
             drawCenteredString(fontRendererObj, error, width / 2, height / 2 + 20, 0xFF5555);

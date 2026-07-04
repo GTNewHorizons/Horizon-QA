@@ -53,9 +53,7 @@ public final class StructureAnnotations {
             .entrySet()) {
             String label = entry.getKey();
             if (!isValidLabelName(label)) {
-                throw malformed(
-                    templateName,
-                    "label '" + label + "' must match " + LABEL_NAME.pattern());
+                throw malformed(templateName, "label '" + label + "' must match " + LABEL_NAME.pattern());
             }
             JsonElement value = entry.getValue();
             if (value == null || !value.isJsonArray()) {

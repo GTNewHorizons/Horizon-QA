@@ -49,7 +49,14 @@ public class GameTestLabelTest {
 
     private static GameTestInstance instance(String id, String methodName, int rotation) throws Exception {
         Method method = TestDefinitions.class.getMethod(methodName, GameTestHelper.class);
-        GameTestDefinition definition = new GameTestDefinition(id, method, "horizonqatest:annotated", 100, "", true, rotation);
+        GameTestDefinition definition = new GameTestDefinition(
+            id,
+            method,
+            "horizonqatest:annotated",
+            100,
+            "",
+            true,
+            rotation);
         return new GameTestInstance(definition, 10, 64, 30, template());
     }
 
