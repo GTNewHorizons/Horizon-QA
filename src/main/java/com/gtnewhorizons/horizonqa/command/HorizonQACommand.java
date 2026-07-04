@@ -847,23 +847,7 @@ public class HorizonQACommand extends CommandBase {
                         new ChatComponentText(EnumChatFormatting.RED + "Usage: /horizonqa labels remove <name>"));
                     return;
                 }
-                if (ItemHorizonWand.removeLabel(wand, args[2])) {
-                    sender.addChatMessage(
-                        new ChatComponentText(
-                            EnumChatFormatting.GREEN + "Removed label "
-                                + EnumChatFormatting.YELLOW
-                                + args[2]
-                                + EnumChatFormatting.GREEN
-                                + "."));
-                } else {
-                    sender.addChatMessage(
-                        new ChatComponentText(
-                            EnumChatFormatting.RED + "No label named '"
-                                + EnumChatFormatting.YELLOW
-                                + args[2]
-                                + EnumChatFormatting.RED
-                                + "'."));
-                }
+                removeLabel(sender, wand, args[2]);
                 break;
             case "clear":
                 int cleared = ItemHorizonWand.clearLabels(wand);
@@ -974,6 +958,26 @@ public class HorizonQACommand extends CommandBase {
                             + EnumChatFormatting.GRAY
                             + " in tests."));
                 break;
+        }
+    }
+
+    public static void removeLabel(ICommandSender sender, ItemStack wand, String name) {
+        if (ItemHorizonWand.removeLabel(wand, name)) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.GREEN + "Removed label "
+                        + EnumChatFormatting.YELLOW
+                        + name
+                        + EnumChatFormatting.GREEN
+                        + "."));
+        } else {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + "No label named '"
+                        + EnumChatFormatting.YELLOW
+                        + name
+                        + EnumChatFormatting.RED
+                        + "'."));
         }
     }
 

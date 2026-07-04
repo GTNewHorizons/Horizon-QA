@@ -1,6 +1,7 @@
 package com.gtnewhorizons.horizonqa.visual;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 
@@ -11,6 +12,8 @@ import com.gtnewhorizons.horizonqa.network.HorizonQANetwork;
 import com.gtnewhorizons.horizonqa.network.WandLabelMessage;
 
 public final class WandLabelPrompt extends GuiScreen {
+
+    private static final int BUTTON_REMOVE = 1;
 
     private final int x;
     private final int y;
@@ -34,6 +37,9 @@ public final class WandLabelPrompt extends GuiScreen {
         input.setMaxStringLength(64);
         input.setFocused(true);
         input.setText(existingName != null ? existingName : "");
+        if (existingName != null) {
+            buttonList.add(new GuiButton(BUTTON_REMOVE, (width - 80) / 2, height / 2 + 38, 80, 20, "Remove"));
+        }
     }
 
     @Override
@@ -58,7 +64,17 @@ public final class WandLabelPrompt extends GuiScreen {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) {
+        super.mouseClicked(mouseX, mouseY, button);
         input.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    protected void actionPerformed(GuiButton button) {
+        if (button.id == BUTTON_REMOVE && existingName != null) {
+            HorizonQANetwork.CHANNEL.sendToServer(new WandLabelMessage(existingName, x, y, z, true));
+            Minecraft.getMinecraft()
+                .displayGuiScreen(null);
+        }
     }
 
     @Override

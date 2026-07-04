@@ -51,7 +51,7 @@ flowchart LR
 
 1. Build the structure in a dev world with Horizon-QA enabled.
 2. Select bounds with the **Horizon Wand**: ++left-button++ for pos1, ++right-button++ for pos2.
-3. Hold the wand and press ++l++ to label important coordinates such as `controller`, `input_bus`, or `energy_hatch`. Sneak while pressing ++l++ to label the adjacent air block.
+3. Hold the wand and press ++l++ to label important coordinates such as `controller`, `input_bus`, or `energy_hatch`. Press ++l++ on an existing label to rename it or remove it. Sneak while pressing ++l++ to label the adjacent air block.
 4. Run `/horizonqa labels list` and fix any labels outside the selection.
 5. Run `/horizonqa export <name>`. Allowed characters: letters, digits, `_`, `-`.
 6. The server writes to `<serverDir>/horizonqastructures/`:

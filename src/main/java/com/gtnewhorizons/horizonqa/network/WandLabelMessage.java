@@ -20,15 +20,21 @@ public class WandLabelMessage implements IMessage {
     private int x;
     private int y;
     private int z;
+    private boolean remove;
 
     @SuppressWarnings("unused")
     public WandLabelMessage() {}
 
     public WandLabelMessage(String name, int x, int y, int z) {
+        this(name, x, y, z, false);
+    }
+
+    public WandLabelMessage(String name, int x, int y, int z, boolean remove) {
         this.name = name;
         this.x = x;
         this.y = y;
         this.z = z;
+        this.remove = remove;
     }
 
     @Override
@@ -37,6 +43,7 @@ public class WandLabelMessage implements IMessage {
         x = buf.readInt();
         y = buf.readInt();
         z = buf.readInt();
+        remove = buf.readBoolean();
     }
 
     @Override
@@ -45,6 +52,7 @@ public class WandLabelMessage implements IMessage {
         buf.writeInt(x);
         buf.writeInt(y);
         buf.writeInt(z);
+        buf.writeBoolean(remove);
     }
 
     public static final class Handler implements IMessageHandler<WandLabelMessage, IMessage> {
@@ -61,7 +69,11 @@ public class WandLabelMessage implements IMessage {
                     new ChatComponentText(EnumChatFormatting.RED + "Hold a Horizon Wand to create labels."));
                 return null;
             }
-            HorizonQACommand.applyLabel(player, held, message.name, message.x, message.y, message.z);
+            if (message.remove) {
+                HorizonQACommand.removeLabel(player, held, message.name);
+            } else {
+                HorizonQACommand.applyLabel(player, held, message.name, message.x, message.y, message.z);
+            }
             player.inventoryContainer.detectAndSendChanges();
             return null;
         }
