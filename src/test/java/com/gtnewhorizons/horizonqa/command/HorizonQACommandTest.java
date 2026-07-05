@@ -1,6 +1,8 @@
 package com.gtnewhorizons.horizonqa.command;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Field;
@@ -81,6 +83,33 @@ public class HorizonQACommandTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void loadTabCompletionListsDiscoveredTemplates() throws Exception {
+        seedRegistry(
+            Arrays.asList(
+                definition("good:Suite.withTemplate", "good:machines/ebf"),
+                definition("good:Suite.empty", "")),
+            Collections.emptyList());
+
+        List<String> completions = new HorizonQACommand()
+            .addTabCompletionOptions(new RecordingSender(), new String[] { "load", "" });
+
+        assertTrue(completions.contains("good:machines/ebf"));
+        assertFalse(completions.contains(""));
+    }
+
+    @Test
+    public void templateNameMapsToSafeExportPath() {
+        assertEquals("machines/ebf", HorizonQACommand.exportNameFromTemplateName("good:machines/ebf"));
+        assertEquals("single_stone", HorizonQACommand.exportNameFromTemplateName("good:single_stone"));
+
+        assertNull(HorizonQACommand.exportNameFromTemplateName("missing_namespace"));
+        assertNull(HorizonQACommand.exportNameFromTemplateName(":missing_namespace"));
+        assertNull(HorizonQACommand.exportNameFromTemplateName("good:../outside"));
+        assertNull(HorizonQACommand.exportNameFromTemplateName("good:machines//ebf"));
+    }
+
+    @Test
     public void runKnownInvalidTestReportsInvalidInsteadOfUnknown() throws Exception {
         String invalidId = "bad:Broken.invalid";
         seedRegistry(
@@ -133,7 +162,11 @@ public class HorizonQACommandTest {
     }
 
     private static GameTestDefinition definition(String testId) throws Exception {
-        return new GameTestDefinition(testId, dummyMethod(), "", 20, "", true, 0);
+        return definition(testId, "");
+    }
+
+    private static GameTestDefinition definition(String testId, String templateName) throws Exception {
+        return new GameTestDefinition(testId, dummyMethod(), templateName, 20, "", true, 0);
     }
 
     private static InvalidTestDefinition invalid(String testId) throws Exception {

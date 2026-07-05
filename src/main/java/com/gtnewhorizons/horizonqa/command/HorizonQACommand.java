@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.command.CommandBase;
@@ -27,6 +28,8 @@ import net.minecraft.world.WorldServer;
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
+import com.gtnewhorizons.horizonqa.api.TestPos;
+import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
 import com.gtnewhorizons.horizonqa.internal.DiscoveryIssue;
 import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
@@ -42,12 +45,15 @@ import com.gtnewhorizons.horizonqa.report.IssueResult;
 import com.gtnewhorizons.horizonqa.report.ReportPathPreflight;
 import com.gtnewhorizons.horizonqa.report.RunReportWriter;
 import com.gtnewhorizons.horizonqa.report.RunResult;
+import com.gtnewhorizons.horizonqa.structure.HybridStructureLoader;
+import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
 import com.gtnewhorizons.horizonqa.structure.StructureExporter;
+import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
 
 public class HorizonQACommand extends CommandBase {
 
     private static final String[] SUBCOMMANDS = { "run", "runall", "runfailed", "tp", "runthis", "runthat", "pos",
-        "clearall", "export", "clear", "label", "labels" };
+        "clearall", "load", "export", "clear", "label", "labels" };
     private static final String[] LABEL_SUBCOMMANDS = { "list", "remove", "clear" };
     private static final Set<String> LAST_REPORTED_FAILED_IDS = new LinkedHashSet<>();
     private static volatile boolean reportBatchRunning;
@@ -59,7 +65,7 @@ public class HorizonQACommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/horizonqa <run|runall|runfailed|tp|runthis|runthat|pos|clearall|export|clear|label|labels>";
+        return "/horizonqa <run|runall|runfailed|tp|runthis|runthat|pos|clearall|load|export|clear|label|labels>";
     }
 
     @Override
@@ -105,6 +111,9 @@ public class HorizonQACommand extends CommandBase {
             case "clearall":
                 handleClearAll(sender, args);
                 break;
+            case "load":
+                handleLoad(sender, args);
+                break;
             case "export":
                 handleExport(sender, args);
                 break;
@@ -149,6 +158,9 @@ public class HorizonQACommand extends CommandBase {
             }
             if ("tp".equals(args[0])) {
                 return getListOfStringsMatchingLastWord(args, knownCellIds());
+            }
+            if ("load".equals(args[0])) {
+                return getListOfStringsMatchingLastWord(args, knownTemplateNames());
             }
             if ("labels".equals(args[0])) {
                 return getListOfStringsMatchingLastWord(args, LABEL_SUBCOMMANDS);
@@ -664,12 +676,106 @@ public class HorizonQACommand extends CommandBase {
                     + " test cell(s)."));
     }
 
-    private void handleExport(ICommandSender sender, String[] args) {
+    private void handleLoad(ICommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Usage: /horizonqa export <name>"));
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + "Usage: /horizonqa load <namespace:path> [rotation 0-3]"));
+            return;
+        }
+        if (rejectInteractiveOnly(sender)) return;
+        if (rejectBatchRunning(sender)) return;
+
+        EntityPlayer player = requirePlayer(sender);
+        if (player == null) return;
+        ItemStack wand = findWand(player);
+        if (wand == null) {
+            sender.addChatMessage(
+                new ChatComponentText(EnumChatFormatting.RED + "Hold (or have in inventory) a Horizon Wand first."));
+            return;
+        }
+        if (!(player.worldObj instanceof WorldServer world)) {
+            sender.addChatMessage(
+                new ChatComponentText(EnumChatFormatting.RED + "This command must be run by a server-side player."));
             return;
         }
 
+        String templateName = args[1];
+        String exportName = exportNameFromTemplateName(templateName);
+        if (exportName == null) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + "Template must be a namespace:path, and path must be exportable. "
+                        + StructureExporter.templatePathRules()));
+            return;
+        }
+
+        Integer rotation = parseRotation(sender, args);
+        if (rotation == null) return;
+
+        int[] origin = ItemHorizonWand.getTargetedPosition(player);
+        try {
+            HybridStructureTemplate template = HybridStructureLoader.load(templateName);
+            StructurePlacer.placeStrict(
+                templateName,
+                template,
+                world,
+                origin[0],
+                origin[1],
+                origin[2],
+                rotation,
+                GTNHGameTestHelper::rotateStructureTileNbt);
+
+            int labelCount = armWandForTemplate(wand, template, origin[0], origin[1], origin[2], rotation, exportName);
+            int placedSizeX = StructurePlacer.placedSizeX(template, rotation);
+            int placedSizeZ = StructurePlacer.placedSizeZ(template, rotation);
+
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.GREEN + "Loaded '"
+                        + EnumChatFormatting.YELLOW
+                        + templateName
+                        + EnumChatFormatting.GREEN
+                        + "' at "
+                        + EnumChatFormatting.WHITE
+                        + formatBlockPos(origin[0], origin[1], origin[2])
+                        + EnumChatFormatting.GREEN
+                        + "."));
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.GRAY + "Wand selection set to "
+                        + placedSizeX
+                        + "x"
+                        + template.getSizeY()
+                        + "x"
+                        + placedSizeZ
+                        + " with "
+                        + labelCount
+                        + " label(s)."));
+
+            ChatComponentText exportHint = new ChatComponentText(
+                EnumChatFormatting.GRAY + "Edit it, then "
+                    + EnumChatFormatting.GREEN
+                    + "/qa export"
+                    + EnumChatFormatting.GRAY
+                    + " to write "
+                    + EnumChatFormatting.YELLOW
+                    + exportName
+                    + EnumChatFormatting.GRAY
+                    + ".");
+            exportHint.setChatStyle(
+                new ChatStyle().setChatClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/qa export")));
+            sender.addChatMessage(exportHint);
+        } catch (IOException e) {
+            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Load failed: " + e.getMessage()));
+            HorizonQAMod.LOG.error("Structure load failed for '{}'", templateName, e);
+        } catch (RuntimeException e) {
+            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Load failed: " + e.getMessage()));
+            HorizonQAMod.LOG.error("Structure placement failed for '{}'", templateName, e);
+        }
+    }
+
+    private void handleExport(ICommandSender sender, String[] args) {
         if (!(sender instanceof EntityPlayer)) {
             sender.addChatMessage(
                 new ChatComponentText(EnumChatFormatting.RED + "This command must be run by a player."));
@@ -695,11 +801,22 @@ public class HorizonQACommand extends CommandBase {
             return;
         }
 
-        String name = args[1];
-        if (!name.matches("[A-Za-z0-9_-]+")) {
+        String name = args.length >= 2 ? args[1] : rememberedExportName(wand);
+        if (name == null || name.isEmpty()) {
+            sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Usage: /horizonqa export [name]"));
             sender.addChatMessage(
                 new ChatComponentText(
-                    EnumChatFormatting.RED + "Name must contain only letters, digits, underscores, and hyphens."));
+                    EnumChatFormatting.GRAY + "Run "
+                        + EnumChatFormatting.WHITE
+                        + "/qa load <namespace:path>"
+                        + EnumChatFormatting.GRAY
+                        + " first, or pass an explicit export name."));
+            return;
+        }
+        if (!StructureExporter.isValidTemplatePath(name)) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.RED + StructureExporter.templatePathRules()));
             return;
         }
 
@@ -720,6 +837,7 @@ public class HorizonQACommand extends CommandBase {
         try {
             StructureExporter.ExportResult result = StructureExporter
                 .export(world, minX, minY, minZ, maxX, maxY, maxZ, outputDir, name, ItemHorizonWand.getLabels(wand));
+            rememberExportName(wand, name);
             sender.addChatMessage(
                 new ChatComponentText(
                     EnumChatFormatting.GREEN + "Exported '"
@@ -756,6 +874,98 @@ public class HorizonQACommand extends CommandBase {
             sender.addChatMessage(new ChatComponentText(EnumChatFormatting.RED + "Export failed: " + e.getMessage()));
             HorizonQAMod.LOG.error("StructureExporter failed for '{}'", name, e);
         }
+    }
+
+    private static boolean rejectInteractiveOnly(ICommandSender sender) {
+        if (HorizonQAProperties.interactiveFeaturesEnabled()) {
+            return false;
+        }
+        sender.addChatMessage(
+            new ChatComponentText(EnumChatFormatting.RED + "That command is only available in interactive mode."));
+        return true;
+    }
+
+    private static Integer parseRotation(ICommandSender sender, String[] args) {
+        if (args.length < 3) {
+            return 0;
+        }
+        try {
+            int rotation = Integer.parseInt(args[2]);
+            if (rotation >= 0 && rotation <= 3) {
+                return rotation;
+            }
+        } catch (NumberFormatException ignored) {}
+        sender.addChatMessage(
+            new ChatComponentText(
+                EnumChatFormatting.RED + "Rotation must be 0, 1, 2, or 3 quarter-turns clockwise."));
+        return null;
+    }
+
+    private static int armWandForTemplate(ItemStack wand, HybridStructureTemplate template, int originX, int originY,
+        int originZ, int rotation, String exportName) {
+        int placedSizeX = StructurePlacer.placedSizeX(template, rotation);
+        int placedSizeZ = StructurePlacer.placedSizeZ(template, rotation);
+
+        NBTTagCompound nbt = ItemHorizonWand.getOrCreateNBT(wand);
+        nbt.setInteger(ItemHorizonWand.TAG_POS1_X, originX);
+        nbt.setInteger(ItemHorizonWand.TAG_POS1_Y, originY);
+        nbt.setInteger(ItemHorizonWand.TAG_POS1_Z, originZ);
+        nbt.setBoolean(ItemHorizonWand.TAG_POS1_SET, true);
+        nbt.setInteger(ItemHorizonWand.TAG_POS2_X, originX + placedSizeX - 1);
+        nbt.setInteger(ItemHorizonWand.TAG_POS2_Y, originY + template.getSizeY() - 1);
+        nbt.setInteger(ItemHorizonWand.TAG_POS2_Z, originZ + placedSizeZ - 1);
+        nbt.setBoolean(ItemHorizonWand.TAG_POS2_SET, true);
+        nbt.setBoolean(ItemHorizonWand.TAG_PENDING, false);
+        nbt.removeTag(ItemHorizonWand.TAG_LABELS);
+        nbt.setString(ItemHorizonWand.TAG_EXPORT_NAME, exportName);
+
+        int labelCount = 0;
+        for (Map.Entry<String, TestPos> entry : template.getAnnotations()
+            .labels()
+            .entrySet()) {
+            TestPos pos = entry.getValue();
+            int x = originX + StructurePlacer.rotatedLocalX(pos.x(), pos.z(), template.getSizeX(), template.getSizeZ(),
+                rotation);
+            int y = originY + pos.y();
+            int z = originZ + StructurePlacer.rotatedLocalZ(pos.x(), pos.z(), template.getSizeX(), template.getSizeZ(),
+                rotation);
+            ItemHorizonWand.setLabel(wand, entry.getKey(), x, y, z);
+            labelCount++;
+        }
+        return labelCount;
+    }
+
+    static String exportNameFromTemplateName(String templateName) {
+        if (templateName == null) {
+            return null;
+        }
+        int separator = templateName.indexOf(':');
+        if (separator <= 0 || separator == templateName.length() - 1) {
+            return null;
+        }
+        String namespace = templateName.substring(0, separator);
+        String path = templateName.substring(separator + 1);
+        if (!namespace.matches("[A-Za-z0-9_.-]+") || !StructureExporter.isValidTemplatePath(path)) {
+            return null;
+        }
+        return path;
+    }
+
+    private static String rememberedExportName(ItemStack wand) {
+        NBTTagCompound nbt = wand != null ? wand.getTagCompound() : null;
+        if (nbt == null || !nbt.hasKey(ItemHorizonWand.TAG_EXPORT_NAME)) {
+            return null;
+        }
+        return nbt.getString(ItemHorizonWand.TAG_EXPORT_NAME);
+    }
+
+    private static void rememberExportName(ItemStack wand, String name) {
+        ItemHorizonWand.getOrCreateNBT(wand)
+            .setString(ItemHorizonWand.TAG_EXPORT_NAME, name);
+    }
+
+    private static String formatBlockPos(int x, int y, int z) {
+        return "(" + x + ", " + y + ", " + z + ")";
     }
 
     private static void reportInvalidTest(ICommandSender sender, InvalidTestDefinition invalidTest) {
@@ -1003,6 +1213,19 @@ public class HorizonQACommand extends CommandBase {
         }
         ids.sort(String::compareTo);
         return ids.toArray(new String[0]);
+    }
+
+    private static String[] knownTemplateNames() {
+        Set<String> names = new LinkedHashSet<>();
+        for (GameTestDefinition def : GameTestRegistry.getAllTests()) {
+            String templateName = def.getTemplateName();
+            if (templateName != null && !templateName.isEmpty()) {
+                names.add(templateName);
+            }
+        }
+        List<String> sorted = new ArrayList<>(names);
+        sorted.sort(String::compareTo);
+        return sorted.toArray(new String[0]);
     }
 
     private static EntityPlayer requirePlayer(ICommandSender sender) {

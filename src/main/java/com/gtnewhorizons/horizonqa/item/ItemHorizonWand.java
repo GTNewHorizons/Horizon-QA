@@ -39,6 +39,7 @@ public class ItemHorizonWand extends Item {
     public static final String TAG_POS2_SET = "pos2Set";
     public static final String TAG_PENDING = "pending";
     public static final String TAG_LABELS = "labels";
+    public static final String TAG_EXPORT_NAME = "exportName";
     private static final String TAG_LABEL_X = "x";
     private static final String TAG_LABEL_Y = "y";
     private static final String TAG_LABEL_Z = "z";
@@ -152,6 +153,7 @@ public class ItemHorizonWand extends Item {
         nbt.setBoolean(TAG_POS2_SET, false);
         nbt.setBoolean(TAG_PENDING, true);
         nbt.removeTag(TAG_LABELS);
+        nbt.removeTag(TAG_EXPORT_NAME);
         player.addChatMessage(
             new ChatComponentText(
                 EnumChatFormatting.GREEN

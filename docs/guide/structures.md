@@ -53,12 +53,14 @@ flowchart LR
 2. Select bounds with the **Horizon Wand**: ++left-button++ for pos1, ++right-button++ for pos2.
 3. Hold the wand and press ++l++ to label important coordinates such as `controller`, `input_bus`, or `energy_hatch`. Press ++l++ on an existing label to rename it or remove it. Sneak while pressing ++l++ to label the adjacent air block.
 4. Run `/horizonqa labels list` and fix any labels outside the selection.
-5. Run `/horizonqa export <name>`. Allowed characters: letters, digits, `_`, `-`.
+5. Run `/horizonqa export <name>`. Template path segments may use letters, digits, `_`, `-`, and `.` with `/` between segments.
 6. The server writes to `<serverDir>/horizonqastructures/`:
    - `<name>.json` with the block palette and layers.
    - `<name>.snbt` with tile entity and non-player entity data, if the generated text round-trips losslessly.
    - `<name>.nbt` instead of `.snbt` when the NBT contains data that Minecraft 1.7.10's SNBT parser cannot represent safely, such as compound keys containing `:`.
 7. Move the exported files into your mod's `assets/<modid>/horizonqastructures/`.
+
+To revise an existing template, target the coordinate where the template should start and run `/horizonqa load <modid:path/to/template>`. Horizon-QA places the structure, restores labels onto the wand, and remembers `path/to/template` as the export path. After editing, `/horizonqa export` writes the updated files under `<serverDir>/horizonqastructures/path/to/template.*`.
 
 !!! tip "Label the coordinates the Java code will name"
 

@@ -83,6 +83,8 @@ A creative-tab item used to define export bounds and label important coordinates
 
 Move the exported files into `src/main/resources/assets/<modid>/horizonqastructures/` in your mod. Use `helper.pos("label_name")` in tests instead of repeating raw local coordinates. Full export details: [Structure templates](../guide/structures.md).
 
+To fix an existing fixture, target the placement coordinate and run `/horizonqa load <modid:path/to/template>`. Horizon-QA places the structure, restores labels onto the wand, and remembers the export path; after editing, `/horizonqa export` writes the updated files under the same server `horizonqastructures/` path.
+
 ## Interactive debugging
 
 After `/horizonqa runall`, failed cells **stay placed** on the grid with their overlays. These commands are designed for the in-world triage loop:

@@ -35,6 +35,7 @@ public final class StructureExporter {
 
     private static final String KEY_SEQUENCE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final String ENTITIES_KEY = "entities";
+    private static final String TEMPLATE_PATH_PATTERN = "[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*";
 
     public static final class ExportResult {
 
@@ -80,6 +81,7 @@ public final class StructureExporter {
 
     public static ExportResult export(WorldServer world, int x1, int y1, int z1, int x2, int y2, int z2, File outputDir,
         String name, Map<String, int[]> absoluteLabels) throws IOException {
+        validateTemplatePath(name);
 
         int sizeX = x2 - x1 + 1;
         int sizeY = y2 - y1 + 1;
@@ -179,6 +181,7 @@ public final class StructureExporter {
         }
 
         File jsonFile = new File(outputDir, name + ".json");
+        ensureParentDirectory(jsonFile);
         try (FileWriter writer = new FileWriter(jsonFile)) {
             writer.write("{\n");
             writer.write("  \"format_version\": " + VERSION_NUMBER + ",\n");
@@ -259,6 +262,8 @@ public final class StructureExporter {
         NBTTagCompound structureData = StructureNbt.combine(tileData, entityData);
         File snbtFile = new File(outputDir, name + ".snbt");
         File nbtFile = new File(outputDir, name + ".nbt");
+        ensureParentDirectory(snbtFile);
+        ensureParentDirectory(nbtFile);
         String structureDataExtension = null;
         if (!StructureNbt.isEmpty(structureData)) {
             String snbt = StructureNbt.toSnbtIfLossless(structureData);
@@ -294,6 +299,31 @@ public final class StructureExporter {
             entityCount,
             structureDataExtension,
             relativeLabels.size());
+    }
+
+    public static boolean isValidTemplatePath(String name) {
+        if (name == null || name.isEmpty() || name.startsWith("/") || name.endsWith("/") || name.contains("\\")
+            || name.contains(":") || !name.matches(TEMPLATE_PATH_PATTERN)) {
+            return false;
+        }
+        String[] segments = name.split("/");
+        for (String segment : segments) {
+            if (segment.equals(".") || segment.equals("..")) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static String templatePathRules() {
+        return "Name must be a template path using letters, digits, underscores, hyphens, dots, "
+            + "and '/' between path segments; '.' and '..' segments are not allowed.";
+    }
+
+    private static void validateTemplatePath(String name) throws IOException {
+        if (!isValidTemplatePath(name)) {
+            throw new IOException(templatePathRules());
+        }
     }
 
     private static Map<String, int[]> relativizeLabels(Map<String, int[]> absoluteLabels, int minX, int minY, int minZ,
@@ -414,6 +444,13 @@ public final class StructureExporter {
     private static void deleteStale(File file, String description) throws IOException {
         if (file.exists() && !file.delete()) {
             throw new IOException("Could not delete stale " + description + " file: " + file.getAbsolutePath());
+        }
+    }
+
+    private static void ensureParentDirectory(File file) throws IOException {
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+            throw new IOException("Could not create output directory: " + parent.getAbsolutePath());
         }
     }
 
