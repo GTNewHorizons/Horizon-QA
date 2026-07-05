@@ -34,12 +34,8 @@
  * For more details, see https://docs.gradle.org/8.0.1/userguide/java_library_plugin.html#sec:java_library_configurations_graph
  */
 dependencies {
-    //runtimeOnlyNonPublishable("com.github.GTNewHorizons:NotEnoughItems:2.8.93-GTNH:dev")
+    compileOnly("com.github.GTNewHorizons:GT5-Unofficial:5.09.54.15:dev")
 
-    // GT5-Unofficial: compileOnly so the framework can reference GT types without bundling GT into the jar.
-    // The consuming modpack supplies GT5U at runtime. Update the version to match your modpack's GT5U build.
-    compileOnly("com.github.GTNewHorizons:GT5-Unofficial:5.09.52.584:dev")
-
-    testImplementation("com.github.GTNewHorizons:GT5-Unofficial:5.09.52.584:dev") { transitive = false }
+    testImplementation("com.github.GTNewHorizons:GT5-Unofficial:5.09.54.15:dev") { transitive = false }
     testImplementation("junit:junit:4.13.2")
 }
