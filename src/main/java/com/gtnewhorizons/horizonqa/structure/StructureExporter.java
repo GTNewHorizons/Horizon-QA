@@ -302,8 +302,12 @@ public final class StructureExporter {
     }
 
     public static boolean isValidTemplatePath(String name) {
-        if (name == null || name.isEmpty() || name.startsWith("/") || name.endsWith("/") || name.contains("\\")
-            || name.contains(":") || !name.matches(TEMPLATE_PATH_PATTERN)) {
+        if (name == null || name.isEmpty()
+            || name.startsWith("/")
+            || name.endsWith("/")
+            || name.contains("\\")
+            || name.contains(":")
+            || !name.matches(TEMPLATE_PATH_PATTERN)) {
             return false;
         }
         String[] segments = name.split("/");

@@ -86,9 +86,8 @@ public class HorizonQACommandTest {
     @SuppressWarnings("unchecked")
     public void loadTabCompletionListsDiscoveredTemplates() throws Exception {
         seedRegistry(
-            Arrays.asList(
-                definition("good:Suite.withTemplate", "good:machines/ebf"),
-                definition("good:Suite.empty", "")),
+            Arrays
+                .asList(definition("good:Suite.withTemplate", "good:machines/ebf"), definition("good:Suite.empty", "")),
             Collections.emptyList());
 
         List<String> completions = new HorizonQACommand()

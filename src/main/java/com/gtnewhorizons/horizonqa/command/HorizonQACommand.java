@@ -814,9 +814,8 @@ public class HorizonQACommand extends CommandBase {
             return;
         }
         if (!StructureExporter.isValidTemplatePath(name)) {
-            sender.addChatMessage(
-                new ChatComponentText(
-                    EnumChatFormatting.RED + StructureExporter.templatePathRules()));
+            sender
+                .addChatMessage(new ChatComponentText(EnumChatFormatting.RED + StructureExporter.templatePathRules()));
             return;
         }
 
@@ -896,8 +895,7 @@ public class HorizonQACommand extends CommandBase {
             }
         } catch (NumberFormatException ignored) {}
         sender.addChatMessage(
-            new ChatComponentText(
-                EnumChatFormatting.RED + "Rotation must be 0, 1, 2, or 3 quarter-turns clockwise."));
+            new ChatComponentText(EnumChatFormatting.RED + "Rotation must be 0, 1, 2, or 3 quarter-turns clockwise."));
         return null;
     }
 
@@ -924,11 +922,11 @@ public class HorizonQACommand extends CommandBase {
             .labels()
             .entrySet()) {
             TestPos pos = entry.getValue();
-            int x = originX + StructurePlacer.rotatedLocalX(pos.x(), pos.z(), template.getSizeX(), template.getSizeZ(),
-                rotation);
+            int x = originX
+                + StructurePlacer.rotatedLocalX(pos.x(), pos.z(), template.getSizeX(), template.getSizeZ(), rotation);
             int y = originY + pos.y();
-            int z = originZ + StructurePlacer.rotatedLocalZ(pos.x(), pos.z(), template.getSizeX(), template.getSizeZ(),
-                rotation);
+            int z = originZ
+                + StructurePlacer.rotatedLocalZ(pos.x(), pos.z(), template.getSizeX(), template.getSizeZ(), rotation);
             ItemHorizonWand.setLabel(wand, entry.getKey(), x, y, z);
             labelCount++;
         }
