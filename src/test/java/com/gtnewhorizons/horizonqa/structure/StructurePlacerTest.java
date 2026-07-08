@@ -29,6 +29,17 @@ public class StructurePlacerTest {
     }
 
     @Test
+    public void exportPathValidationAllowsNestedPathsButRejectsTraversal() {
+        assertTrue(StructureExporter.isValidTemplatePath("single_stone"));
+        assertTrue(StructureExporter.isValidTemplatePath("machines/ebf.v2"));
+
+        assertFalse(StructureExporter.isValidTemplatePath("../outside"));
+        assertFalse(StructureExporter.isValidTemplatePath("machines//ebf"));
+        assertFalse(StructureExporter.isValidTemplatePath("/absolute"));
+        assertFalse(StructureExporter.isValidTemplatePath("mod:ebf"));
+    }
+
+    @Test
     public void rotationMapsSourceCoordinatesIntoRotatedBounds() {
         assertRotated(0, 0, 0, 0, 0);
         assertRotated(0, 1, 2, 1, 2);
