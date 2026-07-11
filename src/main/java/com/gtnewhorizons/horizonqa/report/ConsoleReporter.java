@@ -37,7 +37,7 @@ public final class ConsoleReporter {
                     dumpOutputTail(resultCase);
                     break;
                 case TIMED_OUT:
-                    LOG.error("  [TIME] {} (timed out after {} ticks)", resultCase.id(), resultCase.tickCount());
+                    LOG.error("  [TIME] {} - {}", resultCase.id(), detail(resultCase));
                     dumpOutputTail(resultCase);
                     break;
                 case ERROR:

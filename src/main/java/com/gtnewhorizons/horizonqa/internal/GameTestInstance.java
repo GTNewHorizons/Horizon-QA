@@ -217,8 +217,16 @@ public class GameTestInstance {
 
     private void timeout() {
         if (status != GameTestStatus.RUNNING) return;
+        String message = "Timed out after " + tickCount + " ticks";
+        AssertionError lastAssertion = null;
+        if (sequence != null) {
+            message += ". " + sequence.describeActiveStep(tickCount);
+            GameTestSequence.SequenceStepSnapshot activeStep = sequence.getActiveStep();
+            if (activeStep != null) lastAssertion = activeStep.lastAssertion();
+        }
+        failureCause = new GameTestTimeoutException(message, lastAssertion);
         status = GameTestStatus.TIMED_OUT;
-        LOG.warn("TIMEOUT  {} (timed out after {} ticks)", definition.getTestId(), tickCount);
+        LOG.warn("TIMEOUT  {} - {}", definition.getTestId(), message);
         runCleanup();
         recordFinished();
     }

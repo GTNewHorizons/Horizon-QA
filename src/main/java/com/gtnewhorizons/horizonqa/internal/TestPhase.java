@@ -1,6 +1,6 @@
 package com.gtnewhorizons.horizonqa.internal;
 
-enum TestPhase {
+public enum TestPhase {
     START,
     END
 }
