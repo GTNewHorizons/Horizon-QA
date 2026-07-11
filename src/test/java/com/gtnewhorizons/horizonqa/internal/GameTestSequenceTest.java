@@ -74,7 +74,7 @@ public class GameTestSequenceTest {
     }
 
     @Test
-    public void successfulBoundedWaitKeepsReservedScheduling() {
+    public void successfulBoundedWaitContinuesImmediately() {
         GameTestInstance instance = new GameTestInstance(null, 0, 0, 0);
         GameTestSequence sequence = new GameTestSequence(instance);
         AtomicInteger attempts = new AtomicInteger();
@@ -84,28 +84,83 @@ public class GameTestSequenceTest {
             .thenExecute(executions::incrementAndGet);
 
         sequence.tick(1, TestPhase.END);
+
+        assertEquals(1, attempts.get());
+        assertEquals(0, executions.get());
+
         sequence.tick(2, TestPhase.END);
 
         assertEquals(2, attempts.get());
-        assertEquals(0, executions.get());
+        assertEquals(1, executions.get());
         assertEquals(
             StepState.COMPLETED,
             sequence.getSteps()
                 .get(0)
                 .state());
         assertEquals(
-            3,
-            sequence.getActiveStep()
-                .scheduledTick());
-
-        sequence.tick(3, TestPhase.END);
-
-        assertEquals(1, executions.get());
-        assertEquals(
             StepState.COMPLETED,
             sequence.getSteps()
                 .get(1)
                 .state());
+        assertEquals(
+            2,
+            sequence.getSteps()
+                .get(1)
+                .completedTick());
+    }
+
+    @Test
+    public void successfulStartPhaseBoundedWaitContinuesAtEndOfSameTick() {
+        GameTestSequence sequence = new GameTestSequence(new GameTestInstance(null, 0, 0, 0));
+        AtomicInteger attempts = new AtomicInteger();
+        AtomicInteger executions = new AtomicInteger();
+
+        sequence
+            .thenWaitUntilAtStart(3, () -> { if (attempts.incrementAndGet() < 2) throw new AssertionError("not yet"); })
+            .thenExecuteAtEnd(executions::incrementAndGet);
+
+        sequence.tick(1, TestPhase.START);
+        sequence.tick(1, TestPhase.END);
+        sequence.tick(2, TestPhase.START);
+
+        assertEquals(2, attempts.get());
+        assertEquals(0, executions.get());
+
+        sequence.tick(2, TestPhase.END);
+
+        assertEquals(1, executions.get());
+        assertEquals(
+            2,
+            sequence.getSteps()
+                .get(1)
+                .completedTick());
+    }
+
+    @Test
+    public void idleAfterBoundedWaitStartsWhenTheWaitCompletes() {
+        GameTestSequence sequence = new GameTestSequence(new GameTestInstance(null, 0, 0, 0));
+        AtomicInteger attempts = new AtomicInteger();
+        AtomicInteger executions = new AtomicInteger();
+
+        sequence.thenWaitUntil(5, () -> { if (attempts.incrementAndGet() < 3) throw new AssertionError("not yet"); })
+            .thenIdle(2)
+            .thenExecute(executions::incrementAndGet);
+
+        sequence.tick(1, TestPhase.END);
+        sequence.tick(2, TestPhase.END);
+        sequence.tick(3, TestPhase.END);
+        sequence.tick(4, TestPhase.END);
+
+        assertEquals(3, attempts.get());
+        assertEquals(0, executions.get());
+        assertEquals(
+            5,
+            sequence.getActiveStep()
+                .scheduledTick());
+
+        sequence.tick(5, TestPhase.END);
+
+        assertEquals(1, executions.get());
     }
 
     @Test
