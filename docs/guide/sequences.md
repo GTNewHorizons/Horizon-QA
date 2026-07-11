@@ -38,7 +38,7 @@ One sequence per test. For an immediate pass use `helper.succeed()` directly.
 | `thenWaitUntil(Runnable)`                  | END   | Retry each tick until runnable does not throw |
 | `thenWaitUntilAtStart(Runnable)`           | START | Same, before world tick                       |
 | `thenWaitUntilAtEnd(Runnable)`             | END   | Alias of `thenWaitUntil`                      |
-| `thenWaitUntil(maxTicks, Runnable)`        | END   | Same, reserve up to `maxTicks` ticks          |
+| `thenWaitUntil(maxTicks, Runnable)`        | END   | Retry for at most `maxTicks`, then fail       |
 | `thenWaitUntilAtStart(maxTicks, Runnable)` | START | Same, before world tick                       |
 | `thenWaitUntilAtEnd(maxTicks, Runnable)`   | END   | Alias of bounded `thenWaitUntil`              |
 | `thenSucceed()`                            | END   | Pass the test                                 |
@@ -113,6 +113,24 @@ Throw any `AssertionError` subclass. It propagates through the sequence and fail
 ```
 
 is more reliable than `thenIdle(fixedRecipeLength)`. See [Design principle 4](../contributing/principles.md).
+
+Bounded waits attempt their condition once per matching phase, including both their first and final scheduled ticks. If
+the final attempt still throws an assertion, the test fails immediately with the step number, declaration callsite,
+attempt count, and latest assertion message. Successful bounded waits retain the existing reserved schedule, so the
+next step still runs at the end of the declared window.
+
+Optional labels make failure output easier to scan:
+
+```java
+helper.startSequence()
+    .thenWaitUntil("network becomes active", 100, () -> assertNetworkActive(controller))
+    .thenExecute("install encoded pattern", () -> installPattern(pattern))
+    .thenWaitUntil("crafted output reaches storage", 260, () -> assertStored(output))
+    .thenSucceed();
+```
+
+Unlabelled steps are still identified automatically by their sequence index and source file line. Sequence state is
+also available through `getSteps()` and `getActiveStep()` for investigation tooling.
 
 ## Interaction with warp
 

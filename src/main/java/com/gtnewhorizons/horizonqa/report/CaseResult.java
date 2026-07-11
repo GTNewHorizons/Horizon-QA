@@ -211,7 +211,8 @@ public record CaseResult(String id, String classname, String name, Status status
             return cause != null && cause.getMessage() != null ? cause.getMessage() : "Test failed";
         }
         if (status == GameTestStatus.TIMED_OUT) {
-            return "Timed out after " + inst.getTickCount() + " ticks";
+            return cause != null && cause.getMessage() != null ? cause.getMessage()
+                : "Timed out after " + inst.getTickCount() + " ticks";
         }
         if (status != GameTestStatus.PASSED) {
             return "Test did not complete (status: " + status + ")";
