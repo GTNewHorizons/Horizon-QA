@@ -108,9 +108,7 @@ public class GameTestSequence {
 
     public GameTestSequence thenWaitUntilAtStart(String label, int maxTicks, Runnable condition) {
         validateMaxTicks(maxTicks);
-        addStep(TestPhase.START, StepKind.WAIT_UNTIL, label, condition, maxTicks);
-        advanceAfterBoundedWait(maxTicks);
-        return this;
+        return addStep(TestPhase.START, StepKind.WAIT_UNTIL, label, condition, maxTicks);
     }
 
     public GameTestSequence thenWaitUntilAtEnd(int maxTicks, Runnable condition) {
@@ -119,9 +117,7 @@ public class GameTestSequence {
 
     public GameTestSequence thenWaitUntilAtEnd(String label, int maxTicks, Runnable condition) {
         validateMaxTicks(maxTicks);
-        addStep(TestPhase.END, StepKind.WAIT_UNTIL, label, condition, maxTicks);
-        advanceAfterBoundedWait(maxTicks);
-        return this;
+        return addStep(TestPhase.END, StepKind.WAIT_UNTIL, label, condition, maxTicks);
     }
 
     public void thenSucceed() {
@@ -200,10 +196,6 @@ public class GameTestSequence {
         return phase == TestPhase.START ? currentScheduledTick + 1 : currentScheduledTick;
     }
 
-    private void advanceAfterBoundedWait(int maxTicks) {
-        currentScheduledTick += maxTicks - 1L;
-    }
-
     private static void validateMaxTicks(int maxTicks) {
         if (maxTicks <= 0) throw new IllegalArgumentException("maxTicks must be greater than zero");
     }
@@ -222,8 +214,10 @@ public class GameTestSequence {
                 head.attempts++;
                 try {
                     head.action.run();
+                    long schedulingDelay = currentTick - head.scheduledTick;
                     head.complete(currentTick);
                     pendingSteps.poll();
+                    shiftPendingSteps(schedulingDelay);
                 } catch (AssertionError e) {
                     head.lastAssertion = e;
                     if (head.deadlineTick >= 0 && currentTick >= head.deadlineTick) {
@@ -245,6 +239,15 @@ public class GameTestSequence {
                     throw e;
                 }
             }
+        }
+    }
+
+    private void shiftPendingSteps(long ticks) {
+        if (ticks <= 0) return;
+        // Steps are stored at declaration-time absolute ticks. Rebase them after a wait finishes late so
+        // explicit thenIdle gaps remain relative to the wait's actual completion.
+        for (SequenceStep step : pendingSteps) {
+            step.scheduledTick += ticks;
         }
     }
 
@@ -432,7 +435,7 @@ public class GameTestSequence {
     private static final class SequenceStep {
 
         final int index;
-        final long scheduledTick;
+        long scheduledTick;
         final int maxTicks;
         final TestPhase phase;
         final StepKind kind;

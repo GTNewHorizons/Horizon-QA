@@ -116,8 +116,9 @@ is more reliable than `thenIdle(fixedRecipeLength)`. See [Design principle 4](..
 
 Bounded waits attempt their condition once per matching phase, including both their first and final scheduled ticks. If
 the final attempt still throws an assertion, the test fails immediately with the step number, declaration callsite,
-attempt count, and latest assertion message. Successful bounded waits retain the existing reserved schedule, so the
-next step still runs at the end of the declared window.
+attempt count, and latest assertion message. When the condition succeeds, the sequence continues immediately at the
+next legal phase. Add an explicit `thenIdle(...)` when a test intentionally needs fixed spacing or a minimum observation
+period; an idle following a wait is measured from the tick when that wait actually completes.
 
 Optional labels make failure output easier to scan:
 
