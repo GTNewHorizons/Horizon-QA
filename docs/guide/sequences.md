@@ -1,12 +1,9 @@
 ---
-title: Sequences & timing
+title: Sequences and timing
 description: GameTestSequence for ordered steps, delays, and bounded waits without real-time sleeps.
-tags:
-  - guides
-  - timing
 ---
 
-# Sequences & timing
+# Sequences and timing
 
 `GameTestSequence` schedules actions on future test ticks. Use it when a test needs to do something, wait a bit, then check the result.
 
@@ -35,10 +32,10 @@ One sequence per test. For an immediate pass use `helper.succeed()` directly.
 | `thenExecuteFor(n, Runnable)`              | END   | Run every tick for `n` ticks                  |
 | `thenExecuteForAtStart(n, Runnable)`       | START | Same, before world tick                       |
 | `thenExecuteForAtEnd(n, Runnable)`         | END   | Alias of `thenExecuteFor`                     |
-| `thenWaitUntil(Runnable)`                  | END   | Retry each tick until runnable does not throw |
+| `thenWaitUntil(Runnable)`                  | END   | Retry while the callback throws `AssertionError` |
 | `thenWaitUntilAtStart(Runnable)`           | START | Same, before world tick                       |
 | `thenWaitUntilAtEnd(Runnable)`             | END   | Alias of `thenWaitUntil`                      |
-| `thenWaitUntil(maxTicks, Runnable)`        | END   | Retry for at most `maxTicks`, then fail       |
+| `thenWaitUntil(maxTicks, Runnable)`        | END   | Retry assertion failures for at most `maxTicks` |
 | `thenWaitUntilAtStart(maxTicks, Runnable)` | START | Same, before world tick                       |
 | `thenWaitUntilAtEnd(maxTicks, Runnable)`   | END   | Alias of bounded `thenWaitUntil`              |
 | `thenSucceed()`                            | END   | Pass the test                                 |
@@ -49,6 +46,25 @@ One sequence per test. For an immediate pass use `helper.succeed()` directly.
 Every server tick has a START phase and an END phase. World logic (tile entity updates, hopper transfers, machine processing) runs between them.
 
 Default sequence methods run at END, so assertions see the world after it has ticked. Use the `AtStart` variants to deliver input before the world ticks, which is what you want when testing machines that consume their input during the tick.
+
+```mermaid
+sequenceDiagram
+    accTitle: START, world, and END phase order
+    accDescr: The test registers work before tick one. Each tick runs START actions, world logic, END actions, and then the timeout check.
+    participant Body as Test body
+    participant Start as START phase
+    participant World as Minecraft world logic
+    participant End as END phase
+
+    Body->>Start: Register callbacks and sequence steps before tick 1
+    loop Each counted test tick
+        Start->>Start: Advance clock, delayed actions, START steps
+        Start->>World: Continue the server tick
+        World->>End: Blocks and machines expose updated state
+        End->>End: onEachTick, succeedWhen, END steps
+        End->>End: Check timeout last
+    end
+```
 
 ```java
 // insert at START so the machine sees it during the tick, assert at END
@@ -68,7 +84,7 @@ Within one scheduled tick, START must come before END. The builder throws `Illeg
 ```java
 helper.startSequence()
     .thenExecute(assertion)
-    .thenExecuteAtStart(stimulus);  // throws -- can't go back to START
+    .thenExecuteAtStart(stimulus);  // throws: START cannot follow END in the same tick
 ```
 
 Use `thenIdle(1)` to push the START event to the next tick:
@@ -114,11 +130,9 @@ Throw any `AssertionError` subclass. It propagates through the sequence and fail
 
 is more reliable than `thenIdle(fixedRecipeLength)`. See [Design principle 4](../contributing/principles.md).
 
-Bounded waits attempt their condition once per matching phase, including both their first and final scheduled ticks. If
-the final attempt still throws an assertion, the test fails immediately with the step number, declaration callsite,
-attempt count, and latest assertion message. When the condition succeeds, the sequence continues immediately at the
-next legal phase. Add an explicit `thenIdle(...)` when a test intentionally needs fixed spacing or a minimum observation
-period; an idle following a wait is measured from the tick when that wait actually completes.
+Wait steps retry only `AssertionError`, which includes Horizon-QA assertion failures. A runtime exception or another error fails the test immediately instead of being treated as a condition that may become true later.
+
+Bounded waits attempt their condition once per matching phase, including both their first and final scheduled ticks. If the final attempt still throws an assertion, the test fails immediately with the step number, declaration callsite, attempt count, and latest assertion message. When the condition succeeds, the sequence continues immediately at the next legal phase. Add an explicit `thenIdle(...)` when a test intentionally needs fixed spacing or a minimum observation period; an idle following a wait is measured from the tick when that wait actually completes.
 
 Optional labels make failure output easier to scan:
 
@@ -130,7 +144,7 @@ helper.startSequence()
     .thenSucceed();
 ```
 
-Unlabelled steps are still identified automatically by their sequence index and source file line. Sequence state is
+Unlabeled steps are still identified automatically by their sequence index and source file line. Sequence state is
 also available through `getSteps()` and `getActiveStep()` for investigation tooling.
 
 ## Interaction with warp

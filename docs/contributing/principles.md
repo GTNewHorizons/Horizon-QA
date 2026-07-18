@@ -1,9 +1,6 @@
 ---
 title: Design principles
 description: Eight constraints that keep Horizon-QA tests honest, portable, and diagnosable.
-tags:
-  - contributing
-  - principles
 ---
 
 # Design principles
@@ -14,7 +11,7 @@ Reference this document in PR reviews. If a contribution conflicts with one of t
 
 ## 1. Functional tests, not unit tests
 
-A test boots a real server, places real blocks, and runs the real machine. We do not reimplement GT logic in mocks. If GT changes behaviour, our tests should catch it, not break silently because the mock has diverged.
+A test boots a real server, places real blocks, and runs the real machine. We do not reimplement GT logic in mocks. If GT changes behavior, our tests should catch it, not break silently because the mock has diverged.
 
 ## 2. Mock supply, not validation
 
@@ -38,7 +35,7 @@ The primary idiom is asserting **every tick** that something bad has *not* happe
 
 A test must not permanently mutate global registries, recipe maps, or player data. If a test requires a synthetic recipe or material, it must remove it during teardown. Global state mutation is the failure mode where one test silently poisons another, and the resulting flakiness is among the hardest to diagnose.
 
-## 7. Tests organised by system, not by file
+## 7. Tests organized by system, not by file
 
 E2E tests live in a package hierarchy that mirrors the **system under test**, not the source class that implements it. Single-mod multiblock tests go under `multiblock/<machine-name>/`. Cross-mod compatibility tests go under `compatibility/<mod-a>_<mod-b>/`. The `examples/` directory in this repository is reserved for the framework's own documented examples.
 
@@ -48,4 +45,4 @@ See [Package layout](../reference/package-layout.md).
 
 A passing test is cheap. **Every failure must be diagnosable from the JUnit XML alone**: what went in, what state the machine was in, what was expected versus observed, and the event sequence leading up to the failure. If a contributor cannot identify the root cause from the XML report, the failure output is a bug. Fix it before merging the feature.
 
-See [Test event log](../reference/events.md) and [CI & JUnit reports](../guide/ci.md).
+See [Test event log](../reference/events.md) and [CI and JUnit reports](../guide/ci.md).

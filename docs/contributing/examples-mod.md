@@ -1,9 +1,6 @@
 ---
 title: Examples mod
 description: The examples/ Gradle subproject, a runnable reference and regression coverage for the framework.
-tags:
-  - contributing
-  - examples
 ---
 
 # Examples mod
@@ -41,27 +38,29 @@ Holder namespace: `horizonqaexamples` (`@GameTestHolder("horizonqaexamples")`).
 
 Interactive mode is the default, so no JVM flag is required for local example runs.
 
-Then, in-game:
+Start with one passing smoke test:
 
 ```text
-/horizonqa runall horizonqaexamples
+/horizonqa run horizonqaexamples:BasicTests.immediatePass
 ```
+
+`/horizonqa runall horizonqaexamples` also runs optional examples that fail or time out intentionally to exercise reporting and visual diagnostics. Those cases are expected and do not make the overall run fail by themselves.
 
 ## What each test class covers
 
 | Class                | Focus                                                              |
 |----------------------|--------------------------------------------------------------------|
 | `BasicTests`         | Pass / fail / timeout, optional `required = false`, batch hooks    |
-| `HelperApiTests`     | `GameTestHelper` blocks, items, fluids, redstone, fake players     |
+| `HelperApiTests`     | Blocks, inventories, NBT, entities, redstone, world controls, fake players |
 | `SequencePhaseTests` | START/END tick phases, ordering rules, timeout-boundary behavior   |
 | `StructureTests`     | Template loading and block-level assertions                        |
-| `GTNHExampleTests`   | EBF recipes, maintenance gating, EU supply, synthetic recipes, negative formation |
+| `GTNHExampleTests`   | EBF recipes, fluid hatches, maintenance flags, EU supply, temporary recipes, negative formation |
 
 ## Adding an example
 
 When introducing a new **author-facing** feature:
 
-1. Add a focused test method with a clear, behaviour-describing name.
+1. Add a focused test method with a clear, behavior-describing name.
 2. Add or extend a structure template if needed.
 3. Link the new method from the relevant page under `docs/guide/`.
 

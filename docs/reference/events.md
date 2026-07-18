@@ -1,141 +1,160 @@
 ---
 title: Test event log
-description: Event format, full catalog, differ behavior, and programmatic access from inside a test.
-tags:
-  - reference
-  - events
-  - ci
+description: Emitted event types, trace timing, JUnit output, warp differ behavior, and programmatic access.
 ---
 
 # Test event log
 
-Every test appends an ordered log of typed events. The same log is written to JUnit `<system-out>` for each `<testcase>` and to the server console (last 20 lines on failure). The goal is plain: **a CI failure must be diagnosable from the XML alone, without starting the client**. For the workflow built on top of this log, see [Debugging failed tests](../guide/debugging.md).
+Every test owns an ordered log of typed events. Reported batches write that log to the test case's JUnit `<system-out>`. The CI console summary also prints the last 20 trace lines for a failed case.
 
-Set `-Dhorizonqa.events=off` on the server JVM to disable recording. Emit sites use `Supplier`; when recording is off those suppliers are not called and payload work is skipped. See [JVM & system properties](jvm-flags.md).
+Interactive failures are logged immediately, but they do not print the same 20-line console tail. Use the in-world cell and `helper.getRecorder()` when investigating an interactive run.
 
-## Format
+Set `-Dhorizonqa.events=off` on the server JVM to disable recording. Event suppliers are not evaluated while recording is disabled, so payload work is skipped.
 
-Each line is `[t=NNN] [category] summary`. The tick is **simulated machine ticks** since test start, not wall-clock server ticks. A 200-tick recipe shows `t=200` even though the warp completed in milliseconds.
+## Line format and clock
+
+Reporters format each entry as:
 
 ```text
-[FAIL] mymod.assembler.basic - Expected 64× copper plate but found 32×
-       [t=0]   [lifecycle] Test started at TestPos{x=256, y=5, z=256}
-       [t=0]   [structure] MTEAssemblyLine formed (OBSERVED_ON_FIRST_POLL, 2ib/1ob/1eh)
-       [t=0]   [resource]  Inserted 64× Aluminium Plate
-       [t=0]   [energy]    EU supply: 480 EU/t × 1 A for 250t
-       [t=2]   [recipe]    Started (480 EU/t × 200t)
-       [t=202] [recipe]    Finished (took 200t)
-       [t=202] [failure]   Expected 64× copper plate but found 32×
+[t=  201] [recipe     ] Recipe finished at TestPos{x=256, y=64, z=256} (took 200t)
 ```
 
-Reading the trace: inputs, EU supply, and recipe completion all look correct; only the output count is wrong. That pattern almost always indicates a recipe-definition problem rather than bad test setup.
+The clock is logical test time:
 
-## Where events come from
+- Normal server test ticks advance it once at START.
+- Every simulated time-warp tick also advances it once.
+- Wall-clock time is not represented.
 
-Three sources, in roughly the order they appear in a typical trace:
+The sequence scheduler and time-warp use different loops, even though both contribute to the recorder clock.
 
-1. **Test API methods.** `fillHatch`, `Bus.insert`, `supplyEU`, `assertMachineFormed`, and similar helpers emit on success, at the call site.
-2. **The warp differ.** During `Multiblock.runRecipe` or `fastForwardTicks(ticks, watched)`, the framework snapshots each watched controller after every simulated tick and diffs against the previous snapshot. `mProgresstime` going from 0 to positive becomes `RecipeStarted`; the controller TE vanishing becomes `MachineExploded`; and so on.
-3. **Test lifecycle.** `TestStarted`, `TestFinished`, `AssertionFailed`, and `IsolationViolation` come from the runner itself.
+## Representative trace
 
-!!! note "The differ only watches controllers you register"
+```text
+[t=    0] [lifecycle  ] Placed template 'mymod:ebf' at TestPos{x=256, y=64, z=256} (5×4×5)
+[t=    0] [lifecycle  ] Test mymod:EbfTests.smelt started at TestPos{x=256, y=64, z=256}
+[t=    0] [structure  ] MTEElectricBlastFurnace formed at TestPos{x=258, y=64, z=258} (OBSERVED_ON_FIRST_POLL, 2ib/1ob/1eh)
+[t=    0] [resource   ] Inserted 1× Nickel Dust into TestPos{x=257, y=64, z=258}
+[t=    0] [energy     ] EU supply job: 1920 EU/t × 1 A for 900t into TestPos{x=259, y=64, z=258}
+[t=    0] [lifecycle  ] Time-warp started (maxTicks=1500, watching 1 controller(s))
+[t=    1] [recipe     ] Recipe started at TestPos{x=258, y=64, z=258} (1920 EU/t × 200t, 1p)
+[t=  201] [recipe     ] Recipe finished at TestPos{x=258, y=64, z=258} (took 200t)
+[t=  201] [lifecycle  ] Time-warp finished after 201 simulated tick(s) (predicate)
+```
 
-    `fastForwardTicks(1000)` with no watched list emits no recipe events for that warp. `Multiblock.runRecipe` registers its controller automatically; the imperative helpers expect you to pass a list explicitly.
+Read the trace in order: fixture, setup, supply, processing, and result. Absence is useful too. If a warp finishes without `RecipeStarted`, the controller never exposed an active recipe during that observed window.
 
-## Catalog
+## Event sources
 
-Records live in `com.gtnewhorizons.horizonqa.api.event`. All are Java records, all carry a `tick` and a one-line `summary()`.
+Events come from three places:
+
+1. **Author-facing helpers** record successful setup or assertion-related actions such as bus insertion, fluid filling, EU job registration, maintenance repair, and temporary recipe changes.
+2. **The warp differ** snapshots watched controllers and emits formation, recipe, maintenance, and explosion transitions.
+3. **The test instance and runners** record test start, failure, finish, and supported isolation failures. The reported batch runner also records successful structure placement.
+
+`Multiblock.runRecipe` watches its controller automatically. `fastForwardTicks(n)` does not watch any controller unless the absolute positions are passed to its overload.
+
+## Emitted event catalog
+
+This catalog lists event records with active emit sites in the current implementation. Other record classes may exist in the API package for future work, but tests should not expect them until they are listed here.
 
 ### Lifecycle
 
-`TestStarted`, `TestFinished`, `StructurePlaced`, `WarpStarted`, `WarpFinished`, `BeforeBatchRan`, `AfterBatchRan`.
+| Record | Emitted when |
+|---|---|
+| `StructurePlaced` | The reported batch runner places a template successfully |
+| `TestStarted` | The test body is about to run |
+| `WarpStarted` | A time-warp begins |
+| `WarpFinished` | A time-warp ends |
+| `TestFinished` | Cleanup has run and the final status is known |
 
-`BeforeBatchRan` / `AfterBatchRan` carry the batch name and the hook method name, so a setup-order question can be answered from the trace.
+`WarpFinished.stopReason` is:
 
-`WarpFinished.stopReason` is one of:
+- `completed` when a fixed warp runs its full length.
+- `predicate` when a stop condition succeeds before the bound.
+- `timeout` when a conditional warp reaches the bound.
 
-`completed`
-:   The warp ran for its full duration without a stop predicate intervening.
+### Structure and safety
 
-`predicate`
-:   The warp's stop condition fired, typical for `runRecipe` ending when the machine returns to idle.
+| Record | Emitted when |
+|---|---|
+| `MachineFormed` | `assertFormed` succeeds or a watched controller becomes formed |
+| `MachineDeformed` | A watched formed controller becomes unformed, including after an observed explosion |
+| `MachineExploded` | A watched controller tile disappears, or `assertMachineExploded` succeeds |
+| `StructureCheckRan` | The fluent facade calls `checkStructure(...)` |
 
-`timeout`
-:   The warp hit its `maxTicks` cap without the predicate triggering.
+`MachineFormed.cause` distinguishes a controller already formed at the first poll, a forced assertion check, and formation during a warp.
 
-### Structure
-
-| Record               | When it fires                                                                |
-|----------------------|------------------------------------------------------------------------------|
-| `MachineFormed`      | `assertFormed` succeeds, or the differ sees `mMachine` flip to true          |
-| `MachineDeformed`    | `mMachine` flipped to false while the controller TE is still present         |
-| `MachineExploded`    | Controller TE is gone, or `assertMachineExploded` passes                     |
-| `MachineDisabled`    | Active machine stops without finishing a recipe                              |
-| `StructureCheckRan`  | A multiblock helper ran `checkStructure(...)`                                |
-
-`MachineFormed.cause` distinguishes "template loaded already formed" from "assertion forced it" from "formed mid-warp":
-
-`OBSERVED_ON_FIRST_POLL`
-:   The controller already reported formed at the first poll. Usually the structure template loaded a pre-formed multi.
-
-`FORCED_BY_ASSERTION`
-:   `assertFormed` found `mMachine == false`, ran `checkStructure(forceReset=true)`, and the machine then formed. A `StructureCheckRan` event sits immediately before this one.
-
-`FORMED_DURING_WARP`
-:   The controller flipped to formed mid-warp. Rare; usually a delayed block update.
+Explosion events currently use an `UNKNOWN` cause. Do not infer hatch-tier or cable behavior from that value.
 
 ### Recipe
 
-| Record                                       | When it fires                                                   |
-|----------------------------------------------|-----------------------------------------------------------------|
-| `RecipeStarted`                              | `mProgresstime` went from 0 to positive                         |
-| `RecipeProgressed`                           | Progress crossed 25 / 50 / 75 %                                 |
-| `RecipeFinished`                             | Progress reached max and then dropped                           |
-| `RecipeAborted`                              | Progress dropped before reaching max                            |
-| `RecipeNotFound`                             | `runUntilMachineIdle` exited and no recipe ever started         |
-| `TestRecipeInjected` / `TestRecipeRemoved`   | `withTestRecipe` injection / end-of-test cleanup                |
+| Record | Emitted when |
+|---|---|
+| `RecipeStarted` | Watched progress changes from idle to active |
+| `RecipeProgressed` | Watched progress crosses 25%, 50%, or 75% |
+| `RecipeFinished` | Active progress reaches its end and returns to idle |
+| `RecipeAborted` | Active progress returns to idle before its expected end |
+| `TestRecipeInjected` | `withTestRecipe` adds a temporary recipe |
+| `TestRecipeRemoved` | Cleanup removes that temporary recipe |
 
-`RecipeAborted.reason` is the raw `CheckRecipeResult` id from GT (`item_output_full`, `power_overflow`, `no_fuel_found`, …). That id is usually enough on its own to identify the abort cause.
+`RecipeAborted.reason` is the `CheckRecipeResult` ID observed after the stop when one is available. Treat it as diagnostic context, not a complete causal model.
 
-### Resource
+### Resources and energy
 
-`BusInserted` (bus, itemDisplay, count), `HatchFilled` (hatch, fluidName, amountMb, accepted), `ProgrammedCircuitSet` (bus, config).
+| Record | Emitted when |
+|---|---|
+| `BusInserted` | A fluent bus insert succeeds |
+| `HatchFilled` | A fluent or imperative fluid fill succeeds |
+| `ProgrammedCircuitSet` | A circuit is written through a helper |
+| `EUSupplyJobRegistered` | Virtual EU supply is scheduled |
+| `EUBufferOverflow` | A scheduled job attempts another push while the hatch buffer is already at capacity |
 
-### Energy
+Virtual EU supply directly fills the buffer during simulated ticks. It does not model packet-tier rejection, cable loss, or hatch explosions.
 
-`EUSupplyJobRegistered` (hatch, voltage, amperage, durationTicks) fires whenever you call `supplyEU` or `Hatch.supply`. `EUBufferOverflow` fires when a supply job tries to push more EU than the hatch can hold; you rarely want to see this in a test log. `HatchVoltageMismatch` is emitted alongside an explosion when the last supply job exceeded the hatch tier.
+### Maintenance and diagnostics
 
-### Maintenance
+| Record | Emitted when |
+|---|---|
+| `MaintenanceIssueAppeared` | A watched controller gains a new maintenance issue during a warp |
+| `MaintenanceFixed` | A maintenance helper repairs a controller |
+| `PollutionEmitted` | `assertPollutionEmitted` succeeds and records the measured amount |
+| `CleanroomEfficiencyChanged` | `assertCleanroomStatus` succeeds and records the observed efficiency |
+| `EventOverflow` | The per-test event cap is reached |
 
-`MaintenanceIssueAppeared` fires when the differ sees one of the six tool flags flip from OK to broken. `issueType` is the tool name: `WRENCH`, `SCREWDRIVER`, `SOFT_MALLET`, `HARD_HAMMER`, `SOLDERING_TOOL`, `CROWBAR`. `MaintenanceFixed` fires from `fixAllMaintenanceIssues` and `Multiblock.fixMaintenance`.
-
-### Diagnostic
-
-`PollutionEmitted` (originChunk, amount, cumulative), `CleanroomEfficiencyChanged` (controller, efficiencyTenThousandths in `0-10000`, i.e. 0.00 to 100.00 %). `EventOverflow` is emitted at most once per test when the 10 000-event cap is exceeded.
+An issue that already exists in the pre-warp snapshot does not emit `MaintenanceIssueAppeared`; the event represents a transition.
 
 ### Failure
 
-`AssertionFailed` (message, throwableType, failPos) and `IsolationViolation` (culprit, landedAtAbs, detail). Both also show up in the standard `<failure>` and `<error>` JUnit elements; the event-log copy gives each failure a tick position relative to the rest of the run.
+| Record | Emitted when |
+|---|---|
+| `AssertionFailed` | A started test instance fails from an assertion, exception, or in-test infrastructure failure |
+| `IsolationViolation` | Cleanup finds a GregTech tile entity in the protected outer cell margin |
 
-## Differ notes
+The isolation scanner also adds warnings for non-air blocks outside a placed template's footprint. It does not inspect arbitrary entities, fluids, fake players, world rules, or global registries.
 
-The differ snapshots `mProgresstime` once per simulated tick. A handful of edge cases follow from that:
+## Differ behavior
 
-- A recipe that starts and completes within one tick may emit only `RecipeFinished` with no `RecipeStarted`, because progress never appears non-zero between snapshots. Check the recipe duration if that looks wrong.
-- `RecipeFinished` vs. `RecipeAborted`: the last observed progress within one tick of max counts as finished; a drop earlier counts as aborted. Hitting max and then failing post-processing on the next tick yields `RecipeFinished` followed by an explosion or deformation, **not** `RecipeAborted`.
-- Maintenance changes are bitmask-diffed. Multiple flags flipping in one tick produce multiple `MaintenanceIssueAppeared` events in fixed tool order (wrench, screwdriver, soft mallet, …).
-- The event clock advances **inside** the warp loop. Events from `runRecipe` use simulated ticks (e.g. `t=50` for a recipe that starts 50 ticks into a 200-tick warp), not the outer `@GameTest` wall tick. This is intentional.
+The warp differ compares one snapshot per watched controller after each simulated tick.
+
+- A recipe that begins and finishes between observable snapshots may emit `RecipeFinished` without a preceding `RecipeStarted`.
+- A progress drop at least one tick before the expected maximum is classified as `RecipeAborted`; a drop at the end is classified as `RecipeFinished`.
+- Multiple newly broken maintenance flags in one tick produce multiple events in fixed tool order.
+- If a watched controller tile disappears, the differ emits `MachineExploded` and, if it was formed, `MachineDeformed`.
 
 ## Programmatic access
 
-The log is reachable from inside a test, which is occasionally useful when an assertion is more naturally phrased over the event stream than over machine state:
+Use the typed log when an assertion is naturally about history:
 
 ```java
 @GameTest(template = "ebf")
 public static void exactlyOneRecipeFinished(GameTestHelper helper) {
-    helper.gtnh().multiblock(helper.pos("controller")).runRecipe();
+    helper.gtnh()
+        .multiblock(helper.pos("controller"))
+        .runRecipe();
 
-    long finished = helper.getRecorder().snapshot().stream()
+    long finished = helper.getRecorder()
+        .snapshot()
+        .stream()
         .filter(RecipeFinished.class::isInstance)
         .count();
 
@@ -144,16 +163,14 @@ public static void exactlyOneRecipeFinished(GameTestHelper helper) {
 }
 ```
 
-`snapshot()` returns an unmodifiable list in emit order. Pattern-match on the concrete record type to read typed payload fields.
+`snapshot()` returns an unmodifiable list in emission order. Pattern-match or cast to a concrete record type to read its payload.
 
-## Cost
+## Cost and limits
 
-With `-Dhorizonqa.events=off`, emit sites are `Supplier` instances that are never invoked: no payload work and no allocations.
+With recording disabled, `record(...)` returns without evaluating the supplied event factory.
 
-With recording enabled, each simulated tick during a warp performs one adapter read per watched controller: six `int` fields and a comparison. An event record is allocated only when the diff detects a change. Typical counts: about five events for a 200-tick recipe, about ten for a 20 000-tick fusion run.
+With recording enabled, watched warps pay for controller snapshots and comparisons on each simulated tick. Event objects are created only when a helper emits one or the differ detects a transition.
 
-The per-test cap is **10 000 events** (`EventOverflow` is emitted at most once if you exceed it). Reaching the cap almost always means the test is emitting from a tight loop; file an issue if you have a genuine reason to go higher.
+The cap is 10,000 events per test. The final slot becomes one `EventOverflow` record and later events are dropped.
 
-## When GT fields change
-
-All GT-internal reads go through `GT5UnofficialAdapter`. If GT5 renames `mProgresstime`, splits `MTEMultiBlockBase`, or reshapes `CheckRecipeResult`, exactly one file fails to compile. Event records do not import `gregtech.*` directly, so adapter churn does not cascade into the public API.
+Compatibility-sensitive warp snapshots are read through `GT5UnofficialAdapter`. Other facade and recipe-scope code also accesses GregTech APIs directly, so GT updates can affect more than the adapter alone.

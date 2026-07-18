@@ -1,4 +1,3 @@
-
 name: Build and test
 
 on:
@@ -11,3 +10,22 @@ jobs:
   build-and-test:
     uses: GTNewHorizons/GTNH-Actions-Workflows/.github/workflows/build-and-test.yml@master
     secrets: inherit
+
+  documentation:
+    name: Validate documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install documentation dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build documentation
+        run: mkdocs build --strict

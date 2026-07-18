@@ -1,8 +1,6 @@
 ---
 title: Contributing
 description: Setup, review expectations, and the bar for changes to Horizon-QA itself.
-tags:
-  - contributing
 ---
 
 # Contributing
@@ -14,7 +12,7 @@ This section is for **framework contributors** and reviewers. Mod authors adopti
 1. Read [Design principles](principles.md). If a change conflicts with one of them, cite the principle number in the PR description and explain why.
 2. Read the [Clean-room policy](legal.md): **no modern Minecraft decompiled source** under any circumstances.
 3. Run the relevant tests via `examples`.
-4. Update the documentation if you change author-facing behaviour (annotations, commands, events, JVM flags).
+4. Update the documentation if you change author-facing behavior (annotations, commands, events, JVM flags).
 
 ## Development setup
 
@@ -35,7 +33,7 @@ The site is served at `http://127.0.0.1:8000` with live reload.
 
 ## Pull request checklist
 
-- [ ] Behaviour matches an existing design principle or extends one deliberately
+- [ ] Behavior matches an existing design principle or extends one deliberately
 - [ ] Failure output remains actionable (event log + JUnit XML)
 - [ ] Public API changes marked `@Stable` / `@Experimental` appropriately
 - [ ] Examples mod updated if the feature is user-visible
@@ -43,10 +41,10 @@ The site is served at `http://127.0.0.1:8000` with live reload.
 
 ## Edit documentation
 
-Every page has an **Edit this page** action (Material `content.action.edit`) pointing at `docs/` on GitHub. Use it; the PR diff is the review surface.
+Documentation articles have an **Edit this page** action (Material `content.action.edit`) pointing at `docs/` on GitHub. The homepage intentionally omits it. Use the action on the page you are changing; the PR diff is the review surface.
 
 ## Related links
 
 - [Examples mod](examples-mod.md)
 - [Repository](https://github.com/GTNewHorizons/Horizon-QA)
-- [Published docs](https://GTNewHorizons.github.io/Horizon-QA/)
+- [Published docs](https://www.gtnewhorizons.com/Horizon-QA/)

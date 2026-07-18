@@ -1,9 +1,6 @@
 ---
 title: Clean-room policy
 description: Legal constraints on contributions to Horizon-QA. No Mojang decompiled source, ever.
-tags:
-  - contributing
-  - legal
 ---
 
 # Clean-room policy
@@ -14,7 +11,7 @@ tags:
 
 ## What that means
 
-- **No proprietary code.** The framework is developed from public documentation, talks, videos, and observed behaviour, never from decompiled Mojang sources.
+- **No proprietary code.** The framework is developed from public documentation, talks, videos, and observed behavior, never from decompiled Mojang sources.
 - **Transformative work.** Concepts are adapted to the 1.7.10 architecture with GTNH-specific extensions (EU supply, maintenance, time-warp, typed event log).
 - **License.** MIT. See the repository `LICENSE` file.
 
@@ -26,7 +23,7 @@ tags:
 
 When implementing new API surface:
 
-- Match the **behavioural** ergonomics of modern GameTest where helpful to authors.
+- Match the **behavioral** ergonomics of modern GameTest where helpful to authors.
 - Write **new** 1.7.10 / Forge / GTNH-specific code paths from scratch.
 - Document author-facing APIs on this site and in the Javadoc.
 

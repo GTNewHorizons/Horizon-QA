@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <rect x="2" y="2" width="60" height="60" rx="13" fill="#0b1f33"/>
+  <circle cx="32" cy="41.5" r="7.5" fill="#f2c84b"/>
+  <path fill="#f8fafc" fill-rule="evenodd" d="M25 8h14a3 3 0 0 1 0 6h-1v10l13 24a6 6 0 0 1-5 9H18a6 6 0 0 1-5-9l13-24V14h-1a3 3 0 0 1 0-6Zm4 20h6l9 16Q32 37 20 44Z"/>
+</svg>

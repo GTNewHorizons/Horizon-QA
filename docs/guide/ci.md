@@ -1,12 +1,9 @@
 ---
-title: CI & JUnit reports
+title: CI and JUnit reports
 description: Headless CI mode, JUnit XML, status JSON, selectors, exit codes, and GitHub Actions wiring.
-tags:
-  - guides
-  - ci
 ---
 
-# CI & JUnit reports
+# CI and JUnit reports
 
 Horizon-QA CI runs are normal dedicated-server runs with the Horizon-QA mode set on the **Minecraft server JVM**:
 
@@ -14,14 +11,25 @@ Horizon-QA CI runs are normal dedicated-server runs with the Horizon-QA mode set
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci"
 ```
 
-`--mcJvmArgs` is provided by Retrofuturagradle (RFG). Do not pass `-Dhorizonqa.mode=ci` directly to Gradle; that sets the property on the Gradle daemon, where the Minecraft server cannot read it.
+`--mcJvmArgs` is provided by RetroFuturaGradle (RFG). Do not pass `-Dhorizonqa.mode=ci` directly to Gradle; that sets the property on the Gradle daemon, where the Minecraft server cannot read it.
 
 In `horizonqa.mode=ci`, Horizon-QA discovers tests, runs the selected batch automatically after the server is ready, writes reports, and exits the process with a deterministic status code. Local authoring should use `horizonqa.mode=interactive` or omit the mode property, because interactive is the default.
+
+```mermaid
+flowchart LR
+    accTitle: CI process boundary and outputs
+    accDescr: The runServer command forwards Minecraft JVM arguments to the server, which runs a reported batch and produces three outputs.
+    Gradle["runServer with --mcJvmArgs"] --> JVM["Minecraft server JVM"]
+    JVM --> Batch["Horizon-QA reported batch"]
+    Batch --> XML["TEST-horizonqa.xml"]
+    Batch --> JSON["horizonqa-result.json"]
+    Batch --> Exit["Process exit 0, 1, or 2"]
+```
 
 Use `horizonqa.mode=ci -Dhorizonqa.autoRun=false` when you want report files from a manually-started non-interactive batch without CI lifetime management:
 
 ```text
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
 Manual reported batches use the same report formats as automatic CI and default to the same void world policy. Then run `/horizonqa run <testId>`, `/horizonqa runall [namespace]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` and `horizonqa.allowNoTests` only affect automatic execution; for manual reported batches, use the command arguments to choose tests.
@@ -39,7 +47,7 @@ Modes are presets. Override specific behavior when the workflow needs it:
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.world=normal -Dhorizonqa.gridOrigin=0,128,0"
 
 # Manual reported batches with CI overrides
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
 ## Report files
@@ -54,8 +62,8 @@ horizonqa-result.json
 For CI, send them to a predictable artifact directory:
 
 ```text
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
 Report path flags:
@@ -66,7 +74,7 @@ Report path flags:
 | `horizonqa.reportFile` | Exact JUnit XML output path; takes precedence over `horizonqa.reportDir`           |
 | `horizonqa.statusFile` | Exact status JSON output path                                                      |
 
-Relative paths resolve from the server process working directory. When `horizonqa.reportDir` is set and `horizonqa.statusFile` is not set, the status JSON is written to `horizonqa-result.json` in that same directory.
+Relative paths resolve from the Minecraft server process working directory, which GTNH projects normally set to `run/server` rather than the repository root. Use an absolute path in CI when later steps expect artifacts under the workspace. When `horizonqa.reportDir` is set and `horizonqa.statusFile` is not set, the status JSON is written to `horizonqa-result.json` in that same directory.
 
 ## JUnit XML
 
@@ -82,7 +90,7 @@ Relative paths resolve from the server process working directory. When `horizonq
 
 | Field        | Meaning                                |
 |--------------|----------------------------------------|
-| `classname`  | Test id prefix, for example `mymod:AssemblerTests` |
+| `classname`  | Test ID prefix, for example `mymod:AssemblerTests` |
 | `name`       | Method name                            |
 | `time`       | Duration in seconds (`testTicks / 20`) |
 
@@ -121,7 +129,7 @@ Disable event recording only for performance investigations:
     "allowNoTests": false,
     "eventsEnabled": true,
     "reportFile": null,
-    "reportDir": "build/horizonqa",
+    "reportDir": "/workspace/project/build/horizonqa",
     "statusFile": null
   },
   "counts": {
@@ -139,8 +147,8 @@ Disable event recording only for performance investigations:
     "junitSkipped": 0
   },
   "reports": {
-    "junit": "build/horizonqa/TEST-horizonqa.xml",
-    "status": "build/horizonqa/horizonqa-result.json"
+    "junit": "/workspace/project/build/horizonqa/TEST-horizonqa.xml",
+    "status": "/workspace/project/build/horizonqa/horizonqa-result.json"
   },
   "issues": [],
   "tests": []
@@ -179,8 +187,8 @@ exact-test-id := namespace ":" class-and-method
 Rules:
 
 - unset or empty `horizonqa.tests` selects all valid tests,
-- a namespace selector matches every valid test id that starts with `namespace:`,
-- an exact selector must contain exactly one `:` and match the full test id,
+- a namespace selector matches every valid test ID that starts with `namespace:`,
+- an exact selector must contain exactly one `:` and match the full test ID,
 - whitespace around comma-separated tokens is trimmed,
 - empty tokens such as `a,,b` are invalid,
 - `*` is not supported; omit the property or set it to an empty value to run everything,
@@ -230,7 +238,7 @@ jobs:
       - name: Run Horizon-QA
         run: >
           ./gradlew runServer
-          --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
+          --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=${{ github.workspace }}/build/horizonqa"
 
       - name: Upload Horizon-QA reports
         if: always()

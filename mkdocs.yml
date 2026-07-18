@@ -2,25 +2,25 @@
 site_name: Horizon-QA
 site_description: End-to-end GameTest framework for GT New Horizons. Write, run, and debug multiblock tests on Minecraft 1.7.10.
 site_author: GTNewHorizons
-site_url: https://GTNewHorizons.github.io/Horizon-QA/
+site_url: https://www.gtnewhorizons.com/Horizon-QA/
 repo_url: https://github.com/GTNewHorizons/Horizon-QA
 repo_name: GTNewHorizons/Horizon-QA
 edit_uri: edit/master/docs/
 
-copyright: Copyright &copy; GTNewHorizons (MIT License)
+copyright: Copyright &copy; GTNewHorizons. Released under the <a href="https://github.com/GTNewHorizons/Horizon-QA/blob/master/LICENSE">MIT License</a>.
 
 theme:
   name: material
   language: en
+  logo: assets/horizon-qa-flask-navbar.svg
+  favicon: assets/favicon.svg
+  font: false
   icon:
-    logo: material/flask-outline
     repo: fontawesome/brands/github
     edit: material/pencil
     view: material/eye
   features:
-    - announce.dismiss
     - content.action.edit
-    - content.action.view
     - content.code.annotate
     - content.code.copy
     - content.tabs.link
@@ -30,16 +30,12 @@ theme:
     - navigation.instant
     - navigation.instant.progress
     - navigation.path
-    - navigation.sections
     - navigation.tabs
-    - navigation.tabs.sticky
     - navigation.top
     - navigation.tracking
     - search.highlight
-    - search.share
     - search.suggest
     - toc.follow
-    - toc.integrate
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -56,8 +52,10 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/GTNewHorizons/Horizon-QA
+      name: Horizon-QA on GitHub
     - icon: fontawesome/solid/book
-      link: https://GTNewHorizons.github.io/Horizon-QA/javadoc/
+      link: https://www.gtnewhorizons.com/Horizon-QA/javadoc/
+      name: Horizon-QA Javadoc
   generator: false
 
 extra_css:
@@ -115,40 +113,51 @@ plugins:
   - search:
       lang: en
       separator: '[\s\-]+'
-  - tags
   - minify:
       minify_html: true
 
 nav:
   - Home: index.md
-  - Getting started:
+  - Get started:
     - getting-started/index.md
-    - Enable & run: getting-started/enable-and-run.md
-    - Your first test: getting-started/first-test.md
-    - Mod project setup: getting-started/mod-setup.md
+    - Add Horizon-QA to your mod: getting-started/mod-setup.md
+    - Write your first test: getting-started/first-test.md
+    - Run tests: getting-started/enable-and-run.md
+    - Explore runnable examples: contributing/examples-mod.md
+  - Learn:
+    - concepts/index.md
+    - Runtime lifecycle: concepts/runtime-lifecycle.md
+    - Execution model: concepts/execution-model.md
+    - Fixtures, coordinates, and isolation: concepts/fixtures-and-isolation.md
+    - Design principles: contributing/principles.md
   - Guides:
     - guide/index.md
-    - Writing tests: guide/writing-tests.md
-    - Structure templates: guide/structures.md
-    - GTNH multiblock API: guide/gtnh-api.md
-    - Negative assertions: guide/negative-tests.md
-    - Sequences & timing: guide/sequences.md
-    - CI & JUnit reports: guide/ci.md
-    - Debugging failed tests: guide/debugging.md
+    - Author tests:
+      - Writing tests: guide/writing-tests.md
+      - Structure templates: guide/structures.md
+      - GTNH multiblock testing: guide/gtnh-api.md
+      - Negative assertions: guide/negative-tests.md
+      - Sequences and timing: guide/sequences.md
+    - Run and diagnose:
+      - CI and JUnit reports: guide/ci.md
+      - Setup troubleshooting: guide/troubleshooting.md
+      - Debugging failed tests: guide/debugging.md
   - Reference:
     - reference/index.md
-    - Annotations: reference/annotations.md
-    - Versioning: reference/versioning.md
-    - Commands: reference/commands.md
-    - JVM & system properties: reference/jvm-flags.md
-    - Test event log: reference/events.md
-    - Package layout: reference/package-layout.md
-  - Contributing:
-    - contributing/index.md
-    - Design principles: contributing/principles.md
+    - Author API:
+      - Core helper API: reference/helper-api.md
+      - Annotations: reference/annotations.md
+    - Runtime and output:
+      - Commands: reference/commands.md
+      - JVM properties: reference/jvm-flags.md
+      - Test event log: reference/events.md
+    - Conventions:
+      - Package layout: reference/package-layout.md
+      - Versioning: reference/versioning.md
+  - Project:
+    - Contributing: contributing/index.md
     - Clean-room policy: contributing/legal.md
-    - Examples mod: contributing/examples-mod.md
-  - Javadoc API: https://GTNewHorizons.github.io/Horizon-QA/javadoc/index.html
+  - Javadoc API: https://www.gtnewhorizons.com/Horizon-QA/javadoc/index.html
 
 strict: true
 
@@ -158,5 +167,5 @@ validation:
   unrecognized_links: warn
   anchors: warn
 
-not_in_nav: |
+exclude_docs: |
   includes/*
