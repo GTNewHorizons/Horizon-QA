@@ -1,13 +1,13 @@
 package com.gtnewhorizons.horizonqa.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.*;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
@@ -35,9 +35,55 @@ public class InventoryHelperTest {
     }
 
     @Test
+    public void countRejectsNullArguments() {
+        assertIllegalArgument("inventory must not be null", () -> InventoryHelper.count(null, null));
+        assertIllegalArgument("template must not be null", () -> InventoryHelper.count(EMPTY_INVENTORY, null));
+    }
+
+    @Test
     public void inventoryQueriesRejectNullInventory() {
         assertIllegalArgument("inventory must not be null", () -> InventoryHelper.isEmpty(null));
         assertIllegalArgument("inventory must not be null", () -> InventoryHelper.getSlot(null, 0));
+    }
+
+    @Test
+    public void directSlotMutationRejectsNullArguments() {
+        ItemStack stack = new ItemStack(new Item());
+        assertIllegalArgument("inventory must not be null", () -> InventoryHelper.setSlot(null, 0, stack));
+        assertIllegalArgument("stack must not be null", () -> InventoryHelper.setSlot(EMPTY_INVENTORY, 0, null));
+        assertIllegalArgument("inventory must not be null", () -> InventoryHelper.clearSlot(null, 0));
+    }
+
+    @Test
+    public void countSumsMatchingStacksAcrossEverySlot() {
+        Item expectedItem = new Item();
+        Item otherItem = new Item();
+        SidedInventory inventory = new SidedInventory(
+            stack(expectedItem, 3, 2, "expected"),
+            stack(otherItem, 11, 2, "expected"),
+            stack(expectedItem, 5, 3, "expected"),
+            stack(expectedItem, 7, 2, "expected"),
+            stack(expectedItem, 13, 2, "other"));
+
+        assertEquals(10L, InventoryHelper.count(inventory, stack(expectedItem, 64, 2, "expected")));
+        assertEquals(0L, InventoryHelper.count(inventory, new ItemStack(new Item())));
+    }
+
+    @Test
+    public void directSlotMutationCopiesStackAndMarksInventoryDirty() {
+        SidedInventory inventory = new SidedInventory((ItemStack) null);
+        ItemStack supplied = new ItemStack(new Item(), 3);
+
+        InventoryHelper.setSlot(inventory, 0, supplied);
+
+        assertEquals(3, inventory.getStackInSlot(0).stackSize);
+        assertNotSame(supplied, inventory.getStackInSlot(0));
+        assertEquals(1, inventory.dirtyCount);
+
+        InventoryHelper.clearSlot(inventory, 0);
+
+        assertNull(inventory.getStackInSlot(0));
+        assertEquals(2, inventory.dirtyCount);
     }
 
     @Test
@@ -49,12 +95,20 @@ public class InventoryHelperTest {
 
         assertEquals(4, extracted);
         assertEquals(3, inventory.getStackInSlot(0).stackSize);
-        assertEquals(null, inventory.getStackInSlot(1));
+        assertNull(inventory.getStackInSlot(1));
     }
 
     private static void assertIllegalArgument(String message, ThrowingRunnable action) {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, action);
         assertEquals(message, exception.getMessage());
+    }
+
+    private static ItemStack stack(Item item, int size, int damage, String marker) {
+        ItemStack stack = new ItemStack(item, size, damage);
+        NBTTagCompound nbt = new NBTTagCompound();
+        nbt.setString("marker", marker);
+        stack.setTagCompound(nbt);
+        return stack;
     }
 
     private static final class EmptyInventory implements IInventory {
@@ -120,6 +174,7 @@ public class InventoryHelperTest {
     private static final class SidedInventory implements ISidedInventory {
 
         private final ItemStack[] stacks;
+        private int dirtyCount;
 
         private SidedInventory(ItemStack... stacks) {
             this.stacks = stacks;
@@ -188,7 +243,9 @@ public class InventoryHelperTest {
         }
 
         @Override
-        public void markDirty() {}
+        public void markDirty() {
+            dirtyCount++;
+        }
 
         @Override
         public boolean isUseableByPlayer(EntityPlayer player) {

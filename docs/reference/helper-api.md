@@ -71,10 +71,16 @@ All coordinates in these methods are test-local.
 | Task | Methods |
 |---|---|
 | Insert or extract an item | `insertItem`, `extractItem` |
-| Assert inventory contents | `assertInventoryContains`, `assertInventoryEmpty`, `assertSlot` |
+| Count items | `countItems` |
+| Set up or clear a specific slot | `setSlot`, `clearSlot` |
+| Assert inventory contents | `assertInventoryContains`, `assertInventoryCount`, `assertInventoryEmpty`, `assertSlot` |
 | Insert or inspect fluid | `insertFluid`, `assertFluidTank`, `assertFluidTankEmpty` |
 
-`assertInventoryContains` honors the expected `ItemStack` size. The fluent GregTech `Bus.assertContains(ItemStack)` API matches item identity and metadata but ignores stack size; use `ItemMatcher.count(...)` there when quantity matters.
+`countItems` and `assertInventoryCount` sum matching item, damage, and NBT across every slot while ignoring the template stack size. Exact counts may be zero. `setSlot` and `clearSlot` bypass normal sided insertion and extraction rules for fixture setup and mark the inventory dirty after mutation.
+
+When a test already has an `IInventory`, the corresponding low-level operations are `InventoryHelper.count`, `InventoryHelper.setSlot`, and `InventoryHelper.clearSlot`.
+
+`assertInventoryContains` honors the expected `ItemStack` size as a minimum. The fluent GregTech `Bus.assertContains(ItemStack)` API matches item identity and metadata but ignores stack size; use `ItemMatcher.count(...)` there when quantity matters.
 
 ## Entities and players
 
