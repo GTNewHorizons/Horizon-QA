@@ -184,7 +184,11 @@ public final class Bus {
     public Bus setSlot(int index, ItemStack stack) {
         IInventory inv = inventory();
         checkSlotIndex(inv, index);
-        inv.setInventorySlotContents(index, stack == null ? null : stack.copy());
+        if (stack == null) {
+            InventoryHelper.clearSlot(inv, index);
+        } else {
+            InventoryHelper.setSlot(inv, index, stack);
+        }
         return this;
     }
 
@@ -193,7 +197,7 @@ public final class Bus {
         if (stack == null) throw new IllegalArgumentException("stack must not be null");
         IInventory inv = inventory();
         for (int i = 0; i < inv.getSizeInventory(); i++) {
-            inv.setInventorySlotContents(i, stack.copy());
+            InventoryHelper.setSlot(inv, i, stack);
         }
         return this;
     }
@@ -202,7 +206,7 @@ public final class Bus {
     public Bus clear() {
         IInventory inv = inventory();
         for (int i = 0; i < inv.getSizeInventory(); i++) {
-            inv.setInventorySlotContents(i, null);
+            InventoryHelper.clearSlot(inv, i);
         }
         return this;
     }

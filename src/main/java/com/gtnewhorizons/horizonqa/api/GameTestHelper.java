@@ -1009,6 +1009,54 @@ public class GameTestHelper {
     }
 
     /**
+     * Count all items matching {@code template} (item, damage, and NBT) in the inventory at test-local position.
+     * The template's stack size is ignored.
+     */
+    public long countItems(int x, int y, int z, ItemStack template) {
+        return InventoryHelper.count(getInventoryAt(x, y, z), template);
+    }
+
+    /**
+     * Count all items matching {@code template} in the inventory at a test-local (relative) TestPos.
+     */
+    public long countItems(TestPos pos, ItemStack template) {
+        return countItems(pos.x(), pos.y(), pos.z(), template);
+    }
+
+    /**
+     * Assert that exactly {@code expectedCount} items matching {@code template} exist across the inventory at
+     * test-local position. The template's stack size is ignored and {@code expectedCount} may be zero.
+     */
+    public void assertInventoryCount(int x, int y, int z, ItemStack template, long expectedCount) {
+        if (expectedCount < 0) {
+            throw new IllegalArgumentException("expectedCount must be >= 0, got " + expectedCount);
+        }
+        long actualCount = countItems(x, y, z, template);
+        if (actualCount != expectedCount) {
+            throw new GameTestAssertException(
+                "Inventory at (" + x
+                    + ","
+                    + y
+                    + ","
+                    + z
+                    + ") expected exactly "
+                    + expectedCount
+                    + "x "
+                    + template.getDisplayName()
+                    + " but found "
+                    + actualCount,
+                absolute(x, y, z));
+        }
+    }
+
+    /**
+     * Assert an exact matching item count across the inventory at a test-local (relative) TestPos.
+     */
+    public void assertInventoryCount(TestPos pos, ItemStack template, long expectedCount) {
+        assertInventoryCount(pos.x(), pos.y(), pos.z(), template, expectedCount);
+    }
+
+    /**
      * Assert that every slot of the inventory at test-local position is empty.
      */
     public void assertInventoryEmpty(int x, int y, int z) {
@@ -1060,6 +1108,32 @@ public class GameTestHelper {
                     + actualStr,
                 absolute(x, y, z));
         }
+    }
+
+    /**
+     * Directly set an inventory slot at test-local position to a copy of {@code stack}, bypassing normal insertion
+     * rules, then mark the inventory dirty.
+     */
+    public void setSlot(int x, int y, int z, int slot, ItemStack stack) {
+        InventoryHelper.setSlot(getInventoryAt(x, y, z), slot, stack);
+    }
+
+    /** Directly set an inventory slot at a test-local (relative) TestPos. */
+    public void setSlot(TestPos pos, int slot, ItemStack stack) {
+        setSlot(pos.x(), pos.y(), pos.z(), slot, stack);
+    }
+
+    /**
+     * Directly clear an inventory slot at test-local position, bypassing normal extraction rules, then mark the
+     * inventory dirty.
+     */
+    public void clearSlot(int x, int y, int z, int slot) {
+        InventoryHelper.clearSlot(getInventoryAt(x, y, z), slot);
+    }
+
+    /** Directly clear an inventory slot at a test-local (relative) TestPos. */
+    public void clearSlot(TestPos pos, int slot) {
+        clearSlot(pos.x(), pos.y(), pos.z(), slot);
     }
 
     /**

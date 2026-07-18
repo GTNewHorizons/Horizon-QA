@@ -92,6 +92,20 @@ public final class InventoryHelper {
         return false;
     }
 
+    /** Count all items matching {@code template} by item, damage, and NBT across the inventory. */
+    public static long count(IInventory inventory, ItemStack template) {
+        requireInventory(inventory);
+        requireStack(template, "template");
+        long amount = 0;
+        for (int i = 0; i < inventory.getSizeInventory(); i++) {
+            ItemStack slot = inventory.getStackInSlot(i);
+            if (stacksMatch(slot, template) && slot.stackSize > 0) {
+                amount += slot.stackSize;
+            }
+        }
+        return amount;
+    }
+
     /** Check if every slot in the inventory is null or has stackSize 0. */
     public static boolean isEmpty(IInventory inventory) {
         requireInventory(inventory);
@@ -107,6 +121,25 @@ public final class InventoryHelper {
         requireInventory(inventory);
         if (slot < 0 || slot >= inventory.getSizeInventory()) return null;
         return inventory.getStackInSlot(slot);
+    }
+
+    /**
+     * Directly set a slot to a copy of {@code stack}, bypassing normal insertion rules, then mark the inventory dirty.
+     */
+    public static void setSlot(IInventory inventory, int slot, ItemStack stack) {
+        requireInventory(inventory);
+        requireStack(stack, "stack");
+        requireSlot(inventory, slot);
+        inventory.setInventorySlotContents(slot, stack.copy());
+        inventory.markDirty();
+    }
+
+    /** Directly clear a slot, bypassing normal extraction rules, then mark the inventory dirty. */
+    public static void clearSlot(IInventory inventory, int slot) {
+        requireInventory(inventory);
+        requireSlot(inventory, slot);
+        inventory.setInventorySlotContents(slot, null);
+        inventory.markDirty();
     }
 
     /**
@@ -128,6 +161,13 @@ public final class InventoryHelper {
 
     private static void requireStack(ItemStack stack, String name) {
         if (stack == null) throw new IllegalArgumentException(name + " must not be null");
+    }
+
+    private static void requireSlot(IInventory inventory, int slot) {
+        if (slot < 0 || slot >= inventory.getSizeInventory()) {
+            throw new IndexOutOfBoundsException(
+                "slot must be in range [0, " + inventory.getSizeInventory() + "), got " + slot);
+        }
     }
 
     private static int mergeIntoSlot(IInventory inv, int slot, ItemStack toInsert) {

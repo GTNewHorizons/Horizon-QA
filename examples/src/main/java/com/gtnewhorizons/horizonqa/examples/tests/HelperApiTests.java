@@ -71,6 +71,25 @@ public class HelperApiTests {
     }
 
     @GameTest(timeoutTicks = 20)
+    public static void chestDirectSlotsAndExactCount(GameTestHelper helper) {
+        helper.setBlock(0, 0, 0, Blocks.chest);
+        helper.startSequence()
+            .thenIdle(1)
+            .thenExecute(() -> {
+                ItemStack template = new ItemStack(Items.diamond);
+                helper.setSlot(0, 0, 0, 0, new ItemStack(Items.diamond, 3));
+                helper.setSlot(0, 0, 0, 1, new ItemStack(Items.diamond, 2));
+                helper.assertEquals(5L, helper.countItems(0, 0, 0, template));
+                helper.assertInventoryCount(0, 0, 0, template, 5);
+
+                helper.clearSlot(0, 0, 0, 0);
+                helper.clearSlot(0, 0, 0, 1);
+                helper.assertInventoryCount(0, 0, 0, template, 0);
+            })
+            .thenSucceed();
+    }
+
+    @GameTest(timeoutTicks = 20)
     public static void itemStackEqualityIncludesNbt(GameTestHelper helper) {
         ItemStack expected = new ItemStack(Items.diamond, 3, 0);
         NBTTagCompound nbt = new NBTTagCompound();
