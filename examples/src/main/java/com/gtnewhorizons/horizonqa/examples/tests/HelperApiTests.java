@@ -71,6 +71,17 @@ public class HelperApiTests {
     }
 
     @GameTest(timeoutTicks = 20)
+    public static void itemStackEqualityIncludesNbt(GameTestHelper helper) {
+        ItemStack expected = new ItemStack(Items.diamond, 3, 0);
+        NBTTagCompound nbt = new NBTTagCompound();
+        nbt.setString("source", "example");
+        expected.setTagCompound(nbt);
+
+        helper.assertItemEqual(expected, expected.copy(), "Crafting output mismatch");
+        helper.succeed();
+    }
+
+    @GameTest(timeoutTicks = 20)
     public static void chestExtractAndEmpty(GameTestHelper helper) {
         helper.setBlock(0, 0, 0, Blocks.chest);
         helper.startSequence()
