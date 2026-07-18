@@ -5,6 +5,8 @@ import static org.junit.Assert.assertThrows;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.ISidedInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
 import org.junit.Test;
@@ -36,6 +38,18 @@ public class InventoryHelperTest {
     public void inventoryQueriesRejectNullInventory() {
         assertIllegalArgument("inventory must not be null", () -> InventoryHelper.isEmpty(null));
         assertIllegalArgument("inventory must not be null", () -> InventoryHelper.getSlot(null, 0));
+    }
+
+    @Test
+    public void extractRespectsSidedInventoryRules() {
+        Item item = new Item();
+        SidedInventory inventory = new SidedInventory(new ItemStack(item, 3), new ItemStack(item, 4));
+
+        int extracted = InventoryHelper.extract(inventory, new ItemStack(item), 5);
+
+        assertEquals(4, extracted);
+        assertEquals(3, inventory.getStackInSlot(0).stackSize);
+        assertEquals(null, inventory.getStackInSlot(1));
     }
 
     private static void assertIllegalArgument(String message, ThrowingRunnable action) {
@@ -71,6 +85,96 @@ public class InventoryHelperTest {
         @Override
         public String getInventoryName() {
             return "empty";
+        }
+
+        @Override
+        public boolean hasCustomInventoryName() {
+            return false;
+        }
+
+        @Override
+        public int getInventoryStackLimit() {
+            return 64;
+        }
+
+        @Override
+        public void markDirty() {}
+
+        @Override
+        public boolean isUseableByPlayer(EntityPlayer player) {
+            return false;
+        }
+
+        @Override
+        public void openInventory() {}
+
+        @Override
+        public void closeInventory() {}
+
+        @Override
+        public boolean isItemValidForSlot(int slot, ItemStack stack) {
+            return false;
+        }
+    }
+
+    private static final class SidedInventory implements ISidedInventory {
+
+        private final ItemStack[] stacks;
+
+        private SidedInventory(ItemStack... stacks) {
+            this.stacks = stacks;
+        }
+
+        @Override
+        public int[] getAccessibleSlotsFromSide(int side) {
+            return side == 0 ? new int[] { 0, 1 } : new int[0];
+        }
+
+        @Override
+        public boolean canInsertItem(int slot, ItemStack stack, int side) {
+            return false;
+        }
+
+        @Override
+        public boolean canExtractItem(int slot, ItemStack stack, int side) {
+            return slot == 1;
+        }
+
+        @Override
+        public int getSizeInventory() {
+            return stacks.length;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return stacks[slot];
+        }
+
+        @Override
+        public ItemStack decrStackSize(int slot, int amount) {
+            ItemStack stack = stacks[slot];
+            if (stack == null) return null;
+            int removed = Math.min(amount, stack.stackSize);
+            ItemStack result = stack.copy();
+            result.stackSize = removed;
+            stack.stackSize -= removed;
+            if (stack.stackSize == 0) stacks[slot] = null;
+            return result;
+        }
+
+        @Override
+        public ItemStack getStackInSlotOnClosing(int slot) {
+            return stacks[slot];
+        }
+
+        @Override
+        public void setInventorySlotContents(int slot, ItemStack stack) {
+            stacks[slot] = stack;
+        }
+
+        @Override
+        public String getInventoryName() {
+            return "sided";
         }
 
         @Override
