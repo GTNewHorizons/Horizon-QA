@@ -37,3 +37,4 @@ addon.late.local.gradle.kts
 layout.json
 .claude/
 /site/
+.codegraph/*

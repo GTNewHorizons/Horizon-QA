@@ -91,6 +91,9 @@ Common helpers on `GameTestHelper`:
 `assertEquals` / `assertNotEquals`
 :   Standard equality assertions with `expected` / `actual` formatting.
 
+`assertItemEqual`
+:   Exact item stack comparison by item ID, damage, stack size, and NBT, with all fields printed on mismatch.
+
 `assertBlockPresent` / `assertBlockAbsent`
 :   Block-level assertions at a **test-local** position. Pass raw local coordinates or a label from `helper.pos("name")`.
 

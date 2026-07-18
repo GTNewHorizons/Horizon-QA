@@ -37,6 +37,7 @@ The helper includes familiar assertion families:
 
 - `assertTrue`, `assertFalse`, `assertNull`, and `assertNotNull`
 - `assertEquals` and `assertNotEquals` for objects, integers, and floating-point values with a delta
+- `assertItemEqual` for exact `ItemStack` equality, including item ID, damage, stack size, and NBT
 - `assertSame`, `assertNotSame`, and `assertInstanceOf`
 - `assertThrows`
 - `assertIterableEquals`
@@ -44,6 +45,15 @@ The helper includes familiar assertion families:
 - `fail`
 
 Prefer overloads with a useful message when the default output does not explain the expected and observed state.
+
+Use `assertItemEqual(expected, actual)` when every part of an item stack matters. A mismatch prints the item registry ID, damage, stack size, and NBT for both stacks, or `null` when either value is absent:
+
+```java
+helper.assertItemEqual(expectedOutput, outputBus.getStackInSlot(0),
+    "Crafting output mismatch");
+```
+
+The examples mod includes a focused [`itemStackEqualityIncludesNbt`](https://github.com/GTNewHorizons/Horizon-QA/blob/master/examples/src/main/java/com/gtnewhorizons/horizonqa/examples/tests/HelperApiTests.java) runnable case.
 
 ## Blocks and tile entities
 

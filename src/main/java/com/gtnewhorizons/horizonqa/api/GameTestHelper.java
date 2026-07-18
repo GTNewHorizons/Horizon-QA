@@ -12,6 +12,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
 import net.minecraft.init.Blocks;
 import net.minecraft.inventory.IInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
@@ -199,6 +200,46 @@ public class GameTestHelper {
             originX,
             originY,
             originZ);
+    }
+
+    /**
+     * Fail if {@code expected} and {@code actual} differ by item, damage, stack size, or NBT.
+     * The failure message prints all four fields for both stacks. Two {@code null} stacks compare equal.
+     */
+    public void assertItemEqual(ItemStack expected, ItemStack actual, String message) {
+        if (!itemStacksEqual(expected, actual)) throw new GameTestAssertException(
+            message + ": expected <" + describeItemStack(expected) + "> but found <" + describeItemStack(actual) + ">",
+            originX,
+            originY,
+            originZ);
+    }
+
+    /**
+     * Fail if {@code expected} and {@code actual} differ by item, damage, stack size, or NBT.
+     * The failure message prints all four fields for both stacks. Two {@code null} stacks compare equal.
+     */
+    public void assertItemEqual(ItemStack expected, ItemStack actual) {
+        assertItemEqual(expected, actual, "Item mismatch");
+    }
+
+    private static boolean itemStacksEqual(ItemStack expected, ItemStack actual) {
+        if (expected == actual) return true;
+        if (expected == null || actual == null) return false;
+        return expected.getItem() == actual.getItem() && expected.getItemDamage() == actual.getItemDamage()
+            && expected.stackSize == actual.stackSize
+            && Objects.equals(expected.getTagCompound(), actual.getTagCompound());
+    }
+
+    private static String describeItemStack(ItemStack stack) {
+        if (stack == null) return "null";
+        String itemId = Item.itemRegistry.getNameForObject(stack.getItem());
+        return "item ID=" + (itemId != null ? itemId : "<unregistered>")
+            + ", damage="
+            + stack.getItemDamage()
+            + ", stack size="
+            + stack.stackSize
+            + ", NBT="
+            + stack.getTagCompound();
     }
 
     /** Fail if {@code expected != actual}. */
