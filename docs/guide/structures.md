@@ -1,9 +1,6 @@
 ---
 title: Structure templates
 description: Export, format, placement, and rotation of GameTest structure templates.
-tags:
-  - guides
-  - structures
 ---
 
 # Structure templates
@@ -35,19 +32,42 @@ Reference from tests:
 @GameTestHolder("mymod")
 public class MyTests {
     @GameTest(template = "multiblock/ebf") // resolves to mymod:multiblock/ebf
+    public static void forms(GameTestHelper helper) {
+        helper.gtnh().multiblock(helper.pos("controller")).assertFormed();
+        helper.succeed();
+    }
 }
 ```
 
 ## Export workflow
 
-```mermaid
-flowchart LR
-    A[Build the structure<br/>in a dev world] --> B[Wand: left-click pos1,<br/>right-click pos2]
-    B --> C[Press L to label<br/>important coordinates]
-    C --> D["/horizonqa export name"]
-    D --> E[Server writes JSON + structure data<br/>under serverDir/horizonqastructures/]
-    E --> F[Move into<br/>assets/modid/horizonqastructures/]
-```
+<div class="grid cards horizon-flow" markdown>
+
+-   :material-selection-drag:{ .lg .middle } **Select**
+
+    ---
+
+    Build the fixture, then set both corners with the Horizon Wand.
+
+-   :material-label-outline:{ .lg .middle } **Label**
+
+    ---
+
+    Name controllers, hatches, buses, sensors, and other positions used by Java.
+
+-   :material-export-variant:{ .lg .middle } **Export**
+
+    ---
+
+    Run `/horizonqa export name` to write JSON and optional structure data.
+
+-   :material-package-variant-closed:{ .lg .middle } **Package**
+
+    ---
+
+    Move the files into your mod's `assets/<modid>/horizonqastructures/` directory.
+
+</div>
 
 1. Build the structure in a dev world with Horizon-QA enabled.
 2. Select bounds with the **Horizon Wand**: ++left-button++ for pos1, ++right-button++ for pos2.
@@ -110,11 +130,25 @@ TestPos controllerWorld = helper.absolute("controller");
 
 ## Placement in the grid
 
-The batch runner places each test's template into a dedicated grid cell with margin for clearance. CI defaults to Horizon-QA's void world, but `-Dhorizonqa.world=normal` leaves the server's configured or existing world type in place, and `-Dhorizonqa.gridOrigin=x,y,z` moves the grid start. Structure placement emits `StructurePlaced` in the [event log](../reference/events.md), so a missing structure surfaces in CI without a manual rerun.
+The reported batch runner places each test's template into a dedicated grid cell with margin for clearance. CI defaults to Horizon-QA's void world, but `-Dhorizonqa.world=normal` leaves the server's configured or existing world type in place, and `-Dhorizonqa.gridOrigin=x,y,z` moves the grid start. Successful reported placement emits `StructurePlaced` in the [event log](../reference/events.md). A missing or invalid template becomes a reported infrastructure error.
+
+The normal interactive runner also allocates a dedicated cell, but a template load failure is currently logged and the test continues with an empty fixture. If a structure-backed interactive test looks unexpectedly empty, inspect the server log.
 
 ## Rotation
 
-Set `rotation` on `@GameTest` (values `0-3`) to validate that role indices and `Multiblock` wiring still match after 90° steps. Blocks, tile entities, and exported entities are rotated together. If a test only passes at `rotation = 0`, document why in a short comment; that asymmetry almost always points at a coordinate that should have been a role lookup.
+Set `rotation` on `@GameTest` (values `0-3`) to validate that labels, facings, and GregTech hatch lists still behave after 90° steps. Blocks, tile entities, exported entities, and labels are rotated together. If a test only passes at `rotation = 0`, check for raw coordinates or facing assumptions before documenting the limitation.
+
+```mermaid
+flowchart LR
+    accTitle: Template rotation pipeline
+    accDescr: Quarter-turn rotation transforms extents, coordinates, block and tile facings, and entities before adding the cell origin and placing the fixture.
+    Local["Template-local fixture data"] --> Rotation{"rotation = 0, 1, 2, or 3"}
+    Rotation --> Geometry["Rotate extents and coordinates"]
+    Rotation --> State["Rotate block, tile, and entity state"]
+    Geometry --> World["Add the test-cell origin"]
+    State --> Fixture["Place one consistent fixture"]
+    World --> Fixture
+```
 
 ## Empty templates
 
@@ -126,7 +160,7 @@ Every test falls into one of two categories, and the right template strategy fol
 
 ### Logic tests: empty template + `setBlock`
 
-A **logic test** verifies behaviour that does not depend on a specific world layout. The test builds exactly the state it needs via `setBlock`, runs the logic under test, and asserts the outcome. No template file exists on disk.
+A **logic test** verifies behavior that does not depend on a specific world layout. The test builds exactly the state it needs via `setBlock`, runs the logic under test, and asserts the outcome. No template file exists on disk.
 
 ```java
 @GameTest(timeoutTicks = 20)
@@ -153,7 +187,7 @@ Typical subjects:
 
 ### Structure tests: exported template
 
-A **structure test** validates behaviour that emerges from a pre-built world layout: formed multiblocks, multi-tile wiring, spatial relationships between hatches. The template is exported once with `/horizonqa export` and loaded at test time.
+A **structure test** validates behavior that emerges from a pre-built world layout: formed multiblocks, multi-tile wiring, spatial relationships between hatches. The template is exported once with `/horizonqa export` and loaded at test time.
 
 ```java
 @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
@@ -166,7 +200,8 @@ public static void testTitaniumSmelting(GameTestHelper helper) {
         .programmedCircuit(0);
     ebf.energyHatch(0).supply(TierEU.EV, 1, 900);
     ebf.runRecipe();
-    ebf.outputs().assertContains(Materials.NickelAluminide.getIngots(4));
+    ebf.outputs().assertContains(
+        ItemMatcher.of(Materials.NickelAluminide.getIngots(4)).count(4));
     helper.succeed();
 }
 ```
@@ -188,7 +223,6 @@ Typical subjects:
 | Testing API helpers, not world state         | `setBlock`            |
 | Multiblock or complex tile-entity wiring     | Exported template     |
 | Layout accuracy is *part of* the assertion   | Exported template     |
-| Test must survive cross-version block renames | `setBlock`            |
 | Rotation coverage is required                | Exported template     |
 
 When in doubt, ask: *"If the layout changed tomorrow, should this test break?"* If yes, the layout is load-bearing: export a template so the test guards it. If no, build the state inline so the test stays decoupled.
@@ -201,7 +235,7 @@ When in doubt, ask: *"If the layout changed tomorrow, should this test break?"* 
 | `horizonqaexamples:stone_platform`            | Small platform                     |
 | `horizonqaexamples:ebf`                       | Formed EBF with hatches            |
 | `horizonqaexamples:ebf_no_coils`              | Intentionally invalid EBF          |
-| `horizonqaexamples:distillation_tower_4`      | Multi-output bus routing           |
+| `horizonqaexamples:distillation_tower_4`      | Multi-output hatch routing         |
 | `horizonqaexamples:cleanroom`                 | Cleanroom efficiency over time     |
 
 Source: `examples/src/main/resources/assets/horizonqaexamples/horizonqastructures/`.

@@ -1,9 +1,6 @@
 ---
 title: Package layout
 description: Conventions for where tests and structure assets live in consumer mods, plus a map of framework internals.
-tags:
-  - reference
-  - layout
 ---
 
 # Package layout
@@ -49,15 +46,36 @@ Keep the holder `value` equal to your mod id unless you have a strong reason to 
 
 ## Framework internals (contributors)
 
-| Package      | Role                                                              |
-|--------------|-------------------------------------------------------------------|
-| `api`        | Public test author API (`GameTestHelper`, annotations, events)    |
-| `api.gt`     | GTNH helpers, warp, `Multiblock` façade                           |
-| `core`       | Runner, registry, grid, recorder                                  |
-| `structure`  | Template load / place / export                                    |
-| `command`    | `/horizonqa` command tree                                         |
-| `report`     | JUnit XML and console reporting                                   |
-| `visual`     | Client overlays and wand                                          |
-| `mixin`      | Server and world hooks                                            |
+| Package      | Role                                                               |
+|--------------|--------------------------------------------------------------------|
+| `api`        | Public test-author API, annotations, positions, and typed events   |
+| `api.gt`     | GregTech helpers, time-warp, typed hatches, buses, and `Multiblock` |
+| `asm`        | Forge loading plugin and annotation-discovery bootstrap            |
+| `command`    | `/horizonqa` command handling                                      |
+| `internal`   | Registry, selection, grid, test instances, sequences, and runners  |
+| `item`       | Horizon Wand state and interaction                                 |
+| `network`    | Client/server messages used by wand labels                         |
+| `report`     | Console, JUnit XML, status JSON, and atomic report writing          |
+| `structure`  | Template loading, placement, rotation, and export                   |
+| `visual`     | Client overlays, beacons, labels, and ghost-block differences      |
+| `world`      | Dedicated void world type and chunk provider                       |
+| `mixin`      | Server lifecycle, shutdown, networking, and world hooks            |
 
 See [Contributing](../contributing/index.md) for design constraints on changes to these packages.
+
+```mermaid
+flowchart TB
+  accTitle: Framework component map
+  accDescr: Bootstrap, author API, and fixture subsystems converge on runtime, observability, Minecraft, client overlays, and reports.
+  bootstrap["Bootstrap and lifecycle: asm, mixin, world"] --> runtime["Runtime core: internal, command"]
+  author["Author-facing API: api, api.gt"] --> runtime
+  fixtures["Fixture system: item, network, structure"] --> runtime
+  runtime --> observability["Observability: visual, report"]
+  runtime --> minecraft["Minecraft / Forge server"]
+  author --> gregtech["GregTech integration"]
+  fixtures --> minecraft
+  observability --> client["Development client overlays"]
+  observability --> ci["Console · JUnit XML · status JSON"]
+```
+
+This component view intentionally groups responsibilities instead of presenting a class-by-class UML diagram.

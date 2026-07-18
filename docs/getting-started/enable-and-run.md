@@ -1,114 +1,129 @@
 ---
-title: Enable & run
-description: Use Horizon-QA interactively by default or switch to headless CI mode.
-tags:
-  - getting-started
-  - commands
+title: Run tests
+description: Run Horizon-QA interactively for local development or as a reported batch in CI.
 ---
 
-# Enable & run
+# Run tests
 
-Horizon-QA starts in **interactive** mode by default. Adding the mod to a workspace enables `/horizonqa` commands, test discovery, and visual debugging without extra JVM flags.
+Horizon-QA starts in `interactive` mode when `horizonqa.mode` is not set. This is the normal choice while authoring tests.
 
-## Select a mode
+## Start a development server
 
-Set `horizonqa.mode` on the **server** JVM when you need a mode other than the default:
-
-```text
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=interactive"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=off"
-```
-
-`interactive` enables commands, overlays, and manual test runs. It is the default when `horizonqa.mode` is not set.
-
-`ci` enables the deterministic headless path:
-
-- The dedicated **GameTest** void world type is used by default.
-- ASM-based discovery runs across every `@GameTestHolder` class on the classpath.
-- Selected tests run automatically.
-- `TEST-horizonqa.xml` and `horizonqa-result.json` are written before the server exits.
-
-`off` loads the mod but disables commands, discovery, runner behavior, and test visuals.
-
-Modes are presets. You can override the main runtime choices without adding another mode:
-
-```text
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.world=normal -Dhorizonqa.stopServer=false"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.world=normal -Dhorizonqa.gridOrigin=0,128,0"
-```
-
-!!! tip "Pick the mode for the job"
-
-    Use the default `interactive` mode for local authoring, `ci` for automated server runs, and `ci` with `-Dhorizonqa.autoRun=false` when you want report files from a manually-started batch.
-
-## Run the examples
-
-From the repository root, with GTNH caches already configured:
+Run your mod's server task:
 
 ```bash
-./gradlew --info --stacktrace :examples:runServer
+./gradlew runServer
 ```
 
-`runServer` is provided by Retrofuturagradle. When you need to pass a JVM flag, forward it to the Minecraft server via `--mcJvmArgs`. Passing `-Dhorizonqa.mode=ci` directly to Gradle sets it on the Gradle daemon, where the runner never sees it.
-
-For a CI-style example run:
+For the repository examples:
 
 ```bash
-./gradlew --info --stacktrace :examples:runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew :examples:runServer
 ```
 
-In-game (operator permission level **2**):
-
-| Command                         | Purpose                                                                 |
-|---------------------------------|-------------------------------------------------------------------------|
-| `/horizonqa runall`             | Run every discovered test                                               |
-| `/horizonqa runall <namespace>` | Run tests whose id starts with `<namespace>:`                           |
-| `/horizonqa run <testId>`       | Run one test by id, e.g. `horizonqaexamples:BasicTests.simplePass`      |
-| `/horizonqa runfailed`          | Re-run only the tests that failed in the last batch                     |
-| `/qa`                           | Alias for `/horizonqa`                                                  |
-
-In `ci` mode with `-Dhorizonqa.autoRun=false`, `/horizonqa run`, `/horizonqa runall`, and `/horizonqa runfailed` write **`TEST-horizonqa.xml`** and **`horizonqa-result.json`** after the batch completes. The files are written in the working directory unless report paths are overridden. See [CI & JUnit reports](../guide/ci.md).
-
-## Horizon Wand
-
-A creative-tab item used to define export bounds and label important coordinates.
-
-1. ++left-button++ a block → position 1.
-2. ++right-button++ a block → position 2. Right-click also works at range via the targeted block, and sneaking selects the adjacent (air) block instead, which is useful for capturing clearance above a multiblock.
-3. Hold the wand and press ++l++ to label the targeted coordinate. Press ++l++ on an existing label to rename it or remove it. Sneak while pressing ++l++ to label the adjacent air coordinate.
-4. `/horizonqa labels list` checks the labels before export.
-5. `/horizonqa export <name>` → writes `horizonqastructures/<name>.json` and, when needed, `<name>.snbt` or `<name>.nbt` under the server directory.
-
-Move the exported files into `src/main/resources/assets/<modid>/horizonqastructures/` in your mod. Use `helper.pos("label_name")` in tests instead of repeating raw local coordinates. Full export details: [Structure templates](../guide/structures.md).
-
-To fix an existing fixture, target the placement coordinate and run `/horizonqa load <modid:path/to/template>`. Horizon-QA places the structure, restores labels onto the wand, and remembers the export path; after editing, `/horizonqa export` writes the updated files under the same server `horizonqastructures/` path.
-
-## Interactive debugging
-
-After `/horizonqa runall`, failed cells **stay placed** on the grid with their overlays. These commands are designed for the in-world triage loop:
-
-| Command                  | Purpose                                                                     |
-|--------------------------|-----------------------------------------------------------------------------|
-| `/horizonqa tp <testId>` | Teleport to the placed cell for a specific test id                          |
-| `/horizonqa pos`         | Print world + test-relative coordinates; suggest `helper.absolute(x, y, z)` |
-| `/horizonqa runthis`     | Re-run the test cell you are standing inside                                |
-| `/horizonqa runthat`     | Re-run the test cell you are looking at                                     |
-| `/horizonqa clearall`    | Remove placed test cells and overlays                                       |
-
-!!! tip "Iterate without restarting"
-
-    Edit a test, recompile (hotswap or `gradlew classes`), then `/horizonqa runthis` on the failed cell. You do not need to restart the server for most code changes.
-
-The full triage workflow (reading the event trace, failure signatures, in-game reproduction) is in [Debugging failed tests](../guide/debugging.md).
-
-## Disable event recording (optional)
-
-Event logging is on by default. Disable only for micro-benchmarking; you lose your main failure diagnostic.
+After joining with an operator account, run one test or a suite:
 
 ```text
--Dhorizonqa.events=off
+/horizonqa run mymod:SmokeTests.emptyCellPasses
+/horizonqa runall mymod
 ```
 
-See [Test event log](../reference/events.md).
+`/qa` is an alias for `/horizonqa`. Commands require permission level 2.
+
+## Inspect and rerun a failure
+
+Interactive runs keep failed cells available for inspection.
+
+| Command | Purpose |
+|---|---|
+| `/horizonqa tp <testId>` | Teleport to a placed test cell |
+| `/horizonqa runthis` | Rerun the cell you are standing inside |
+| `/horizonqa runthat` | Rerun the cell in your line of sight |
+| `/horizonqa runfailed` | Rerun the tests that are currently failed in the interactive session |
+| `/horizonqa pos` | Show world and test-local coordinates for the nearest cell |
+| `/horizonqa clearall` | Remove placed cells and overlays |
+
+A connected client can render status beacons, floating labels, highlight boxes, and block-difference markers. See [Debugging failed tests](../guide/debugging.md) for the full triage loop.
+
+Interactive commands launch selected tests directly. They do not apply `batch` ordering or call `@BeforeBatch` and `@AfterBatch`. Use a [manually reported batch](#start-reported-batches-manually) when you need to reproduce that lifecycle locally.
+
+## Run automatically in CI
+
+Set the mode on the **Minecraft server JVM**:
+
+```bash
+./gradlew runServer \
+  --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+```
+
+RetroFuturaGradle forwards `--mcJvmArgs` to Minecraft. Passing `-Dhorizonqa.mode=ci` directly to Gradle sets it on the Gradle daemon, where Horizon-QA cannot read it.
+
+The CI preset:
+
+- uses Horizon-QA's void world by default,
+- discovers and selects tests after server startup,
+- runs the selection automatically,
+- writes `TEST-horizonqa.xml` and `horizonqa-result.json`,
+- requests process exit with code `0`, `1`, or `2`.
+
+Use `horizonqa.tests` to select a namespace or exact test ID:
+
+```bash
+./gradlew runServer \
+  --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.tests=mymod -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+```
+
+See [CI and JUnit reports](../guide/ci.md) for selectors, report schemas, optional tests, exit codes, and a GitHub Actions example.
+
+## Start reported batches manually
+
+Use CI mode with automatic startup execution disabled when you want reports but need to choose the batch in-game:
+
+```bash
+./gradlew runServer \
+  --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+```
+
+Then run `/horizonqa run`, `/horizonqa runall`, or `/horizonqa runfailed`. These commands write reports when the batch completes. In this mode, `runfailed` uses failures remembered from the most recent reported batch.
+
+Interactive-only commands, including cell inspection and template editing, are unavailable in this configuration.
+
+## Mode summary
+
+| Mode | Default behavior |
+|---|---|
+| `interactive` | Commands and discovery enabled, no startup autorun, normal world policy |
+| `ci` | Startup autorun, void world policy, reports, and process exit |
+| `off` | Commands, discovery, runners, and test visuals inactive |
+
+```mermaid
+stateDiagram-v2
+    accTitle: Runtime mode outcomes
+    accDescr: Resolved mode and overrides select interactive, automatic CI, manual reported, or off paths and determine server shutdown.
+    Resolved --> Interactive: mode unset or interactive
+    Resolved --> AutomaticCI: mode ci, effective autoRun true
+    Resolved --> ManualReported: mode ci, effective autoRun false
+    Resolved --> Off: mode off
+    Interactive --> Cells: commands create inspectable cells
+    AutomaticCI --> Reports: automatic batch completes
+    ManualReported --> Reports: command-started batch completes
+    Reports --> Exit: stopServer true
+    Reports --> Available: stopServer false
+```
+
+Modes are presets. Override individual choices when needed:
+
+```text
+-Dhorizonqa.world=normal
+-Dhorizonqa.autoRun=false
+-Dhorizonqa.stopServer=false
+-Dhorizonqa.gridOrigin=0,128,0
+```
+
+The complete property table is in [JVM properties](../reference/jvm-flags.md).
+
+## Create or edit a structure
+
+Use the Horizon Wand and `/horizonqa export` when a test needs a reusable world fixture. `/horizonqa load` restores an existing template for editing. Both workflows are covered in [Structure templates](../guide/structures.md).
+
+Event recording is enabled by default. Keep it enabled unless you are measuring recorder overhead, because the trace is the primary CI diagnostic. See [Test event log](../reference/events.md).

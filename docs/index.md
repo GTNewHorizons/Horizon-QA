@@ -1,99 +1,120 @@
 ---
 title: Horizon-QA
 description: End-to-end GameTest framework for GT New Horizons on Minecraft 1.7.10.
-tags:
-  - overview
+hide:
+  - navigation
+  - toc
 ---
 
-# Horizon-QA
+<div class="horizon-home" markdown>
 
-<div class="horizon-hero" markdown>
+<div class="horizon-intro" markdown>
 
-**Horizon-QA** is an end-to-end testing framework for GTNH. It exposes a **GameTest**-style API on Minecraft **1.7.10**: real server, real blocks, real GregTech machines. Recipe and machine logic are never mocked.
+<div class="horizon-intro__copy" markdown>
 
-[:octicons-rocket-24: Get started](getting-started/index.md){ .md-button .md-button--primary }
-[:octicons-code-24: Javadoc API](https://GTNewHorizons.github.io/Horizon-QA/javadoc/index.html){ .md-button }
-[:octicons-mark-github-16: Repository](https://github.com/GTNewHorizons/Horizon-QA){ .md-button }
+<p class="horizon-eyebrow">Horizon-QA</p>
+
+# End-to-end testing for GT New Horizons
+
+Horizon-QA brings a GameTest-style API to Minecraft 1.7.10. It runs real multiblocks, recipes, logistics, and cross-mod interactions on a development server, with local diagnostics and CI reports built in.
+
+<div class="horizon-actions" markdown>
+
+[Write your first test](getting-started/index.md){ .md-button .md-button--primary }
+[Learn how it runs →](concepts/index.md){ .horizon-text-link }
 
 </div>
 
-!!! abstract "At a glance"
+<ul class="horizon-meta">
+  <li>Forge 1.7.10</li>
+  <li>Java 8 bytecode</li>
+  <li>Interactive and CI execution</li>
+</ul>
 
-    - Forge **1.7.10**, Java **8** bytecode, interactive by default with explicit `ci` and `off` modes.
-    - Tests are plain `@GameTest` static methods on `@GameTestHolder` classes, discovered by ASM at server start.
-    - Each test runs in an isolated cell on a deterministic grid; CI defaults to a dedicated void world, and failures stay placed for in-game triage.
-    - Output is a single `TEST-horizonqa.xml` suitable for any JUnit-aware CI.
+</div>
 
-## What it is for
+<div class="horizon-intro__example" markdown>
 
-Most GTNH regressions are not arithmetic bugs in a pure function. They are **machines forming when they should not**, **recipes running under broken maintenance**, **outputs routed to the wrong bus**, or **two mods quietly disagreeing about a tile entity**. Horizon-QA exercises those scenarios against the real server and reports them with enough context to act on the XML alone.
-
-## Quick example: negative test
-
-A common idiom is asserting every tick that something bad **does not** happen:
+<p class="horizon-example-label">Negative formation test</p>
 
 ```java
-@GameTest(template = "ebf_no_coils", timeoutTicks = 60) // (1)!
-public static void doesNotFormWithoutCoils(GameTestHelper helper) {
-    Multiblock ebf = helper.gtnh().multiblock(helper.pos("controller"));
-    helper.onEachTick(() -> // (2)!
-        helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
-    helper.succeedAtTimeout(); // (3)!
+@GameTest(
+    template = "ebf_no_coils",
+    timeoutTicks = 60
+)
+public static void rejectsMissingCoils(
+    GameTestHelper helper
+) {
+    helper.gtnh()
+        .multiblock(helper.pos("controller"))
+        .assertNeverForms(
+            "EBF formed without coils");
 }
 ```
 
-1.  `template` resolves to `<holder>:ebf_no_coils`, a structure deliberately missing its heating coils.
-2.  `onEachTick` re-runs the closure every test tick; a transient `true` fails immediately, on that tick.
-3.  `succeedAtTimeout` passes only if the full window elapses without any assertion firing.
-
-See [Negative assertions](guide/negative-tests.md) for the rest of the pattern.
-
-## Capabilities
-
-<div class="grid cards" markdown>
-
--   :material-test-tube:{ .lg .middle } **Functional E2E**
-
-    ---
-
-    Boots a real dedicated server and drives real tile entities. GT logic is never mocked.
-
--   :material-cube-outline:{ .lg .middle } **Structure templates**
-
-    ---
-
-    Export multiblocks in-game with the wand; load `namespace:path` JSON + NBT from your mod jar.
-
--   :material-lightning-bolt:{ .lg .middle } **GTNH helpers**
-
-    ---
-
-    EU supply, maintenance, time-warp, role-based hatch addressing, scoped synthetic recipes.
-
--   :material-timeline-text:{ .lg .middle } **Typed event log**
-
-    ---
-
-    Ordered, tick-stamped events in JUnit `<system-out>`. Diagnose CI failures without relaunching the game.
-
--   :material-eye:{ .lg .middle } **Visual debugging**
-
-    ---
-
-    Beacons, ghost-block diffs, overlay text, and wand-based selection in the dev client.
-
--   :material-pipe:{ .lg .middle } **CI-ready**
-
-    ---
-
-    Single `TEST-horizonqa.xml` with failures, warnings, and optional event traces per case.
+<p class="horizon-example-caption">
+The exported fixture is real, GregTech performs the structure check, and the invariant is observed for the complete test window.
+</p>
 
 </div>
 
-## Where to go next
+</div>
 
-[Getting started](getting-started/index.md) walks new authors from "I just cloned the mod" to "my first passing test." [Guides](guide/index.md) cover task-oriented topics: structures, sequences, the GTNH multiblock façade, CI wiring, and [failure triage](guide/debugging.md). [Reference](reference/index.md) collects the annotations, commands, JVM flags, and event catalog you will look up most often.
+## Choose a path
 
-!!! info "Legal note"
+<div class="grid horizon-tracks" markdown>
 
-    Horizon-QA is a **clean-room** implementation inspired by modern GameTest ergonomics, not a port of Mojang source. Do not submit decompiled modern Minecraft code in pull requests; see [Clean-room policy](contributing/legal.md).
+<div class="card horizon-track" markdown>
+
+:material-rocket-launch-outline:{ .lg .middle } **Use Horizon-QA**
+
+---
+
+Follow a short, linear path from dependency setup to one passing test:
+
+1. [Add Horizon-QA to your mod](getting-started/mod-setup.md)
+2. [Write your first test](getting-started/first-test.md)
+3. [Run it locally or in CI](getting-started/enable-and-run.md)
+
+[Open the getting-started path →](getting-started/index.md)
+
+</div>
+
+<div class="card horizon-track" markdown>
+
+:material-map-marker-path:{ .lg .middle } **Understand the framework**
+
+---
+
+Learn what runs on the server and where the testing boundaries are:
+
+- [Runtime lifecycle](concepts/runtime-lifecycle.md)
+- [Interactive and reported execution](concepts/execution-model.md)
+- [Fixtures, coordinates, and isolation](concepts/fixtures-and-isolation.md)
+
+[Explore the learning path →](concepts/index.md)
+
+</div>
+
+</div>
+
+## What it helps you validate
+
+<ul class="horizon-capabilities">
+  <li><span>Machine formation</span> Catch incomplete, invalid, or rotation-sensitive multiblocks.</li>
+  <li><span>Recipes and maintenance</span> Verify start conditions, processing, output, and maintenance gating.</li>
+  <li><span>Logistics and compatibility</span> Exercise item, fluid, tile-entity, and cross-mod contracts.</li>
+  <li><span>Transient behavior</span> Detect forbidden states that appear for only one server tick.</li>
+</ul>
+
+## Designed for useful failures
+
+Tests can keep failed cells available for inspection, point overlays at relevant blocks, and attach an ordered event trace to reported results. CI runs produce JUnit XML and status JSON with stable exit codes.
+
+Use the [guides](guide/index.md) when solving a testing task, or go directly to the [reference](reference/index.md) when you already know which API, command, or property you need.
+
+!!! info "Clean-room implementation"
+
+    Horizon-QA is an independent implementation inspired by modern GameTest ergonomics. It does not contain decompiled Mojang source. Framework contributors should read the [clean-room policy](contributing/legal.md).
+
+</div>

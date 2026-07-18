@@ -1,12 +1,9 @@
 ---
-title: Mod project setup
+title: Add Horizon-QA to your mod
 description: Wire Horizon-QA into a GTNH-style Gradle mod, lay out tests, and discover them at runtime.
-tags:
-  - getting-started
-  - gradle
 ---
 
-# Mod project setup
+# Add Horizon-QA to your mod
 
 ## Gradle dependency
 
@@ -15,23 +12,39 @@ Add Horizon-QA to your mod's `dependencies.gradle` (or equivalent). It belongs o
 ```groovy
 dependencies {
     devOnlyNonPublishable('com.github.GTNewHorizons:Horizon-QA:<version>:dev')
-    // runtimeOnlyNonPublishable(...) if tests execute in runServer for this mod
 }
 ```
 
-Pin the version to the same Horizon-QA build your pack or meta-repo uses. The `examples/` subproject in this repository shows a full GTNH dependency set (GT5-Unofficial, CoreMod, etc.) and is the canonical reference for the wiring.
+`devOnlyNonPublishable` is the GTNH convention for a dependency needed at both compile time and runtime without publishing it as a dependency of your release jar. Pin `<version>` to the Horizon-QA build used by your pack or meta-repository.
+
+The `examples/` subproject in this repository shows the full runtime dependency set used by the framework demonstrations.
+
+The dependency belongs on the same development and CI runtime as the tests, while the published gameplay jar remains independent:
+
+```mermaid
+flowchart LR
+    accTitle: Development and release dependency boundaries
+    accDescr: Gameplay code, tests, and Horizon-QA meet in development. Tests remain in a release jar when kept in src main unless excluded.
+    Mod["Gameplay mod"] --> Dev["Development and CI runtime"]
+    Tests["Test classes and structures"] --> Dev
+    HQA["Horizon-QA dev dependency"] --> Dev
+    Dev --> Server["Minecraft server"]
+    Mod --> Release["Published gameplay jar"]
+    Tests -. included unless separated or excluded .-> Release
+    HQA -. development dependency is not bundled .-> Release
+```
 
 ## Runtime mode
 
-Local server runs use interactive mode by default, so no JVM flag is required for `/horizonqa` commands, discovery, and visual debugging.
+Local server runs use interactive mode by default, so no JVM property is required for discovery or `/horizonqa` commands. A connected development client can also render test overlays.
 
 Automated server runs should use CI mode on the Minecraft server JVM:
 
 ```text
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
-`--mcJvmArgs` is provided by Retrofuturagradle. Passing `-Dhorizonqa.mode=ci` directly to Gradle, or wiring it as ordinary Gradle JVM arguments, sets it on the wrong JVM.
+`--mcJvmArgs` is provided by RetroFuturaGradle. Passing `-Dhorizonqa.mode=ci` directly to Gradle, or wiring it as ordinary Gradle JVM arguments, sets it on the wrong JVM.
 
 Use `-Dhorizonqa.mode=off` only when you want the mod on the classpath without commands, discovery, runner behavior, or test visuals. Batch execution, JUnit XML, and status JSON are server-side.
 
@@ -41,8 +54,8 @@ Recommended layout for a mod named `mymod`:
 
 ```text
 src/main/java/.../tests/
-  multiblock/<machine>/             ← single-mod multiblock tests
-  compatibility/<modA>_<modB>/      ← cross-mod scenarios
+  multiblock/<machine>/             # single-mod multiblock tests
+  compatibility/<mod_a>_<mod_b>/    # cross-mod scenarios
 src/main/resources/assets/mymod/horizonqastructures/
   ebf.json
   ebf.snbt   (optional; text structure data)
@@ -59,9 +72,11 @@ Discovery is ASM-based at server start:
 
 - Every class annotated `@GameTestHolder` is scanned.
 - Every **public static** method annotated `@GameTest` with signature `void name(GameTestHelper)` is registered.
-- Test id format: `<holder.value>:<SimpleClassName>.<methodName>`
+- Test ID format: `<holder.value>:<SimpleClassName>.<methodName>`
 
 There is no manual registration list and no service-file step.
+
+Invalid methods are excluded from the runnable set and logged with the validation reason. When an explicit CI selector targets an invalid or duplicate definition, the selection is reported as an infrastructure issue instead of silently matching nothing.
 
 ## Structure assets
 
@@ -89,4 +104,6 @@ Run `./gradlew :examples:runServer` to iterate against them.
 
 ## Publishing
 
-Horizon-QA is **not** bundled in release jars of gameplay mods; keep it on `devOnly` / CI classpaths. Shipping structure JSON in a release jar is unusual unless you deliberately publish test assets to players.
+Horizon-QA is **not** bundled in release jars of gameplay mods; keep it on development and CI classpaths.
+
+The simple `src/main` layout shown above also places test classes and structure assets in your mod jar unless the build excludes them. If you want a release artifact with no test code, use a dedicated non-published test mod or Gradle subproject whose development run loads both the gameplay mod and Horizon-QA. The repository's `examples/` project demonstrates that separation pattern.

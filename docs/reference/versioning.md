@@ -1,9 +1,6 @@
 ---
 title: Versioning
 description: Versioning scheme, @Stable and @Experimental guarantees, and deprecation policy.
-tags:
-  - reference
-  - stability
 ---
 
 # Versioning
@@ -14,9 +11,11 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/). Given a v
 - `MINOR` increments on backward-compatible new functionality.
 - `PATCH` increments on backward-compatible bug fixes.
 
+Published versions and release notes are listed on [GitHub Releases](https://github.com/GTNewHorizons/Horizon-QA/releases). Check the notes before changing a pinned 0.x dependency.
+
 ## The 0.x line
 
-The entire public API is [`@Experimental`](annotations.md#stable-experimental) in every 0.x release. That means a minor bump (e.g. 0.3 to 0.4) may include breaking changes to any type or method without a deprecation cycle.
+The entire public API is [`@Experimental`](annotations.md#stable-and-experimental) in every 0.x release. That means a minor bump (e.g. 0.3 to 0.4) may include breaking changes to any type or method without a deprecation cycle.
 
 !!! warning "Pin tightly in 0.x"
     Use an exact version or a strict range such as `[0.3.0,0.4.0)` in your `build.gradle`.

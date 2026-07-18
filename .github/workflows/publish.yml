@@ -1,5 +1,6 @@
 name: Publish Documentation
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
@@ -30,19 +31,19 @@ jobs:
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.x
+          python-version: '3.13'
           cache: 'pip'
 
       - name: Install MkDocs
         run: pip install -r requirements.txt
 
       - name: Build MkDocs (outputs to site/)
-        run: mkdocs build
+        run: mkdocs build --strict
 
       - name: Generate Javadocs (outputs to build/docs/javadoc)
         run: ./gradlew :javadoc
@@ -51,6 +52,7 @@ jobs:
         run: |
           mkdir -p site/javadoc
           cp -a build/docs/javadoc/. site/javadoc/
+          test -f site/javadoc/index.html
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5

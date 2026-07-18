@@ -1,8 +1,6 @@
 ---
 title: Your first test
 description: Write, run, and understand a minimal @GameTest method end-to-end.
-tags:
-  - getting-started
 ---
 
 # Your first test
@@ -12,6 +10,10 @@ A valid test is a **public static** method with exactly one parameter of type `G
 ## Minimal passing test
 
 ```java
+import com.gtnewhorizons.horizonqa.api.GameTestHelper;
+import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
+import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
+
 @GameTestHolder("mymod") // (1)!
 public class SmokeTests {
 
@@ -24,9 +26,25 @@ public class SmokeTests {
 
 1.  `value = "mymod"` becomes the namespace for test ids (`mymod:SmokeTests.emptyCellPasses`) and for unqualified `template` lookups.
 2.  Hard timeout. The runner fails the test if it has not finished by tick 20.
-3.  Marks the test passed immediately. Use this when every assertion is done in the first tick.
+3.  Marks the test passed immediately. Use this when every assertion finishes synchronously in the test body.
 
-Omitting `template` yields an empty void cell, useful for pure API smoke tests.
+Omitting `template` yields an empty test cell, useful for API smoke tests and small fixtures built with `setBlock`.
+
+## Run it
+
+Start the server in interactive mode, then run the generated test ID:
+
+```text
+/horizonqa run mymod:SmokeTests.emptyCellPasses
+```
+
+The server log should include:
+
+```text
+PASSED   mymod:SmokeTests.emptyCellPasses
+```
+
+If the test is not discovered, confirm that the holder is on the server runtime classpath and that the method signature is exactly `public static void name(GameTestHelper helper)`.
 
 ## Test with a structure
 
@@ -57,11 +75,11 @@ Pick exactly one. Mixing them is almost always a bug.
 | `helper.succeed()`                            | All assertions done in one tick                                   |
 | `helper.succeedWhen(() -> condition)`         | Pass on the first tick where `condition` is true                  |
 | `helper.succeedAtTimeout()`                   | **Negative tests**: pass only if nothing failed before timeout    |
-| `helper.startSequence()…thenSucceed()`        | Multi-step timed flows (see [Sequences & timing](../guide/sequences.md)) |
+| `helper.startSequence().thenSucceed()`        | Multi-step timed flows (see [Sequences and timing](../guide/sequences.md)) |
 
 !!! warning "One success path per test"
 
-    Do not call `succeed()` and `startSequence()` together unless you understand the sequence API. `startSequence()` may only be called **once** per test.
+    Use one sequence per test and make its completion behavior explicit. Calling `succeed()` immediately after creating a sequence ends the test before the scheduled steps can run.
 
 ## Assertions
 
@@ -74,12 +92,12 @@ Common helpers on `GameTestHelper`:
 :   Standard equality assertions with `expected` / `actual` formatting.
 
 `assertBlockPresent` / `assertBlockAbsent`
-:   Block-level assertions at an absolute position (use `helper.absolute(x, y, z)`).
+:   Block-level assertions at a **test-local** position. Pass raw local coordinates or a label from `helper.pos("name")`.
 
 `fail(String)`
 :   Immediate failure; throws `GameTestAssertException`.
 
-All failures include the test origin so the visual overlay can highlight the offending cell.
+Framework assertion helpers attach the test origin or a more specific block position so the visual overlay can highlight the relevant cell.
 
 ## GTNH entry point
 
@@ -89,6 +107,10 @@ Multiblock ebf = gtnh.multiblock(helper.pos("controller"));
 ```
 
 Use named labels from the exported template for load-bearing coordinates such as controllers and hatches. Fall back to **test-relative** positions via `TestPos.at(x, y, z)` only for throwaway coordinates created inside the test. Hardcoded world coordinates couple a test to a single placement and break the moment the grid layout shifts. See [GTNH multiblock API](../guide/gtnh-api.md).
+
+!!! warning "Keep coordinate spaces separate"
+
+    Most Horizon-QA helpers expect test-local positions and convert them to world coordinates internally. Use `helper.absolute(...)` only for direct world or mod APIs that explicitly require an absolute position.
 
 ## Next steps
 

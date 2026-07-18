@@ -1,9 +1,6 @@
 ---
 title: Negative assertions
 description: Assert that a bad state never occurs over a tick window, the framework's primary idiom.
-tags:
-  - guides
-  - negative
 ---
 
 # Negative assertions
@@ -24,9 +21,10 @@ For GT multiblock formation tests, `assertNeverForms(...)` forces a structure ch
 negative invariant, and succeeds at timeout. That forced first check matters when you mutate an exported valid template:
 the controller may otherwise still hold a stale `mMachine=true` value from placement.
 
-The equivalent generic pattern is:
+The equivalent explicit pattern must include the same initial structure check:
 
 ```java
+ebf.assertNotFormed("EBF formed without coils");
 helper.onEachTick(() -> helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
 helper.succeedAtTimeout();
 ```
@@ -34,7 +32,7 @@ helper.succeedAtTimeout();
 | Call                                              | Role                                                                  |
 |---------------------------------------------------|-----------------------------------------------------------------------|
 | `onEachTick(Runnable)`                            | Runs the callback every test tick until the test passes or fails      |
-| `assertFalse(ebf.isFormed(), …)`                  | Fails immediately on the tick where the machine forms                 |
+| `assertFalse(ebf.isFormed(), ...)`                | Fails immediately on the tick where the machine forms                 |
 | `succeedAtTimeout()`                              | Passes at the END of the final allowed tick if nothing failed         |
 
 The final allowed tick is still observed before `succeedAtTimeout()` passes.
@@ -46,7 +44,9 @@ A transient formation fails on **that tick**, not at the end of the window. The 
 Use `succeedWhen(() -> condition)` when you wait for a **positive** eventual state:
 
 ```java
-helper.succeedWhen(() -> helper.getBlockState(pos).getBlock() == Blocks.redstone_block);
+TestPos signal = helper.absolute("signal");
+helper.succeedWhen(() ->
+    helper.getWorld().getBlock(signal.x(), signal.y(), signal.z()) == Blocks.redstone_block);
 ```
 
 !!! warning "`succeedWhen` is not the right tool for invariants"
@@ -67,7 +67,7 @@ helper.succeedAtTimeout();
 
 ## Sequences vs. polling
 
-For staged scenarios such as "insert items, then assert no recipe for 40 ticks, then supply EU", prefer [Sequences & timing](sequences.md) over manual tick counters inside `onEachTick`. Sequences handle the scheduling; tick counters never quite do.
+For staged scenarios such as "insert items, then assert no recipe for 40 ticks, then supply EU", prefer [Sequences and timing](sequences.md) over manual tick counters inside `onEachTick`. Sequences make the ordering and timeout behavior explicit.
 
 ## Design alignment
 

@@ -1,49 +1,81 @@
 ---
 title: Getting started
-description: Add Horizon-QA to a GTNH-style Forge mod and run your first GameTest.
-tags:
-  - getting-started
+description: Add Horizon-QA to a GTNH-style Forge mod, write one test, and run it locally or in CI.
 ---
 
 # Getting started
 
-Horizon-QA ships as a Forge mod (`horizonqa`) that other mods depend on at **development and CI time**. Tests are plain Java classes discovered at runtime via `@GameTestHolder` / `@GameTest`; there is no separate registration step.
+This path takes a GTNH-style Forge mod from no test framework to one passing Horizon-QA test. Tests are plain Java methods discovered at server startup, so there is no registration file or separate test launcher to maintain.
 
-!!! abstract "What you will have at the end"
+## Before you begin
 
-    A `runServer` task that launches Minecraft with `--mcJvmArgs="-Dhorizonqa.mode=ci"`, runs the selected tests in your mod, and writes JUnit XML plus status JSON reports for CI.
+You need:
 
-## Prerequisites
+- A GTNH Gradle convention project whose `runClient` and `runServer` tasks already work.
+- Horizon-QA on the development and CI classpath.
+- Mod code that targets Java 8 bytecode. Your development toolchain may use the modern Java setup supported by the GTNH build conventions.
 
-- A **GTNH-style** Gradle mod project (uses the GTNH Gradle convention plugin).
-- **Java 8** bytecode for mod code. The docs site and CI tooling can use newer JDKs.
-- Familiarity with Forge 1.7.10 dev environments: `runClient` and `runServer` should already work for your mod.
+## The shortest path
 
-## Learning path
+<div class="grid cards horizon-flow" markdown>
 
-The three pages below are sequenced; skim them in order if you are new to the framework.
+-   :material-package-variant:{ .lg .middle } **Add the dependency**
 
-1. [Enable & run](enable-and-run.md): JVM flag, dedicated world, `/horizonqa` commands, examples mod.
-2. [Your first test](first-test.md): minimal `@GameTest`, assertions, success conditions.
-3. [Mod project setup](mod-setup.md): Gradle dependency, classpath assets, package layout.
+    ---
 
-## Examples mod
+    Put the Horizon-QA dev artifact on the compile and runtime classpath without publishing it with your mod.
 
-The repository includes `examples/`, a Gradle subproject that depends on Horizon-QA and GT5-Unofficial. Use it as a runnable reference:
+-   :material-test-tube:{ .lg .middle } **Write one test**
+
+    ---
+
+    Create a holder class, add a public static `@GameTest` method, and finish with one success path.
+
+-   :material-play-circle-outline:{ .lg .middle } **Run locally**
+
+    ---
+
+    Start the server in the default interactive mode and launch the test with `/horizonqa run`.
+
+-   :material-source-branch-check:{ .lg .middle } **Automate**
+
+    ---
+
+    Use CI mode to select tests, write JUnit XML and status JSON, and return a stable exit code.
+
+</div>
+
+1. [Add Horizon-QA to your mod](mod-setup.md)
+2. [Write your first test](first-test.md)
+3. [Run tests](enable-and-run.md)
+
+At the end, you will have a server-run test that can be launched interactively and through `-Dhorizonqa.mode=ci`.
+
+## Use the examples as a reference
+
+The repository includes an `examples/` Gradle subproject that runs against Horizon-QA and GT5-Unofficial:
 
 ```text
-examples/src/main/java/.../tests/                       # @GameTest classes
-examples/src/main/resources/assets/<namespace>/horizonqastructures/
+examples/src/main/java/.../tests/
+examples/src/main/resources/assets/horizonqaexamples/horizonqastructures/
 ```
 
-See [Examples mod](../contributing/examples-mod.md) for the Gradle wiring.
+Run it from the repository root:
 
-## Where to go next
+```bash
+./gradlew :examples:runServer
+```
 
-| Goal                                | Page                                                 |
-|-------------------------------------|------------------------------------------------------|
-| Export and reference structures     | [Structure templates](../guide/structures.md)        |
-| Smelt a recipe in an EBF            | [GTNH multiblock API](../guide/gtnh-api.md)          |
-| Wire CI                             | [CI & JUnit reports](../guide/ci.md)                 |
-| Work out why a test failed          | [Debugging failed tests](../guide/debugging.md)      |
-| Look up `@GameTest` attributes      | [Annotations](../reference/annotations.md)           |
+The examples are framework demonstrations, not a package layout to copy into a consumer mod. See [Examples mod](../contributing/examples-mod.md) for the class-by-class map.
+
+## Common next steps
+
+| Goal | Read |
+|---|---|
+| Understand discovery, batches, ticks, and reporting | [Learn Horizon-QA](../concepts/index.md) |
+| Export a multiblock fixture | [Structure templates](../guide/structures.md) |
+| Drive a GregTech controller | [GTNH multiblock API](../guide/gtnh-api.md) |
+| Assert that a bad state never occurs | [Negative assertions](../guide/negative-tests.md) |
+| Publish reports in automation | [CI and JUnit reports](../guide/ci.md) |
+| Fix missing commands, tests, templates, or reports | [Setup troubleshooting](../guide/troubleshooting.md) |
+| Diagnose a failure | [Debugging failed tests](../guide/debugging.md) |

@@ -1,17 +1,14 @@
 ---
-title: JVM & system properties
+title: JVM properties
 description: Horizon-QA server JVM properties for interactive authoring, CI execution, reports, selectors, and event recording.
-tags:
-  - reference
-  - jvm
 ---
 
-# JVM & system properties
+# JVM properties
 
-Horizon-QA reads Java system properties from the Minecraft **server** JVM. With Retrofuturagradle `runServer`, pass them through RFG's `--mcJvmArgs` option:
+Horizon-QA reads Java system properties from the Minecraft **server** JVM. With RetroFuturaGradle `runServer`, pass them through RFG's `--mcJvmArgs` option:
 
 ```text
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
 Passing `-Dhorizonqa.mode=ci` directly to Gradle sets the property on the Gradle daemon, where the server never sees it.
@@ -79,7 +76,7 @@ Useful combinations:
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.world=normal -Dhorizonqa.gridOrigin=0,128,0"
 
 # Manual reported batches with CI overrides
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
 ## `horizonqa.tests`
@@ -103,7 +100,7 @@ Rules:
 
 - unset or empty selects all valid tests,
 - `namespace` selects every valid test whose id starts with `namespace:`,
-- `namespace:Class.method` selects one exact test id,
+- `namespace:Class.method` selects one exact test ID,
 - tokens are trimmed around commas,
 - empty tokens such as `a,,b` are invalid,
 - `*` is not supported,
@@ -166,13 +163,15 @@ horizonqa-result.json
 | `horizonqa.reportDir`  | Directory containing `TEST-horizonqa.xml`                 |
 | `horizonqa.statusFile` | Exact status JSON output path                             |
 
-`horizonqa.reportFile` wins over `horizonqa.reportDir` for the JUnit XML path. When `horizonqa.reportDir` is set and `horizonqa.statusFile` is not set, status JSON defaults to `horizonqa-result.json` in that same directory. Relative paths resolve from the server process working directory.
+`horizonqa.reportFile` wins over `horizonqa.reportDir` for the JUnit XML path. When `horizonqa.reportDir` is set and `horizonqa.statusFile` is not set, status JSON defaults to `horizonqa-result.json` in that same directory.
+
+Relative paths resolve from the Minecraft server process working directory. In GTNH Gradle projects this is normally `run/server`, not the repository root. Prefer an absolute path for CI artifacts.
 
 Recommended CI and manual-report forms:
 
 ```text
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=build/horizonqa"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
 ## Status JSON

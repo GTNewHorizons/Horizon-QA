@@ -1,43 +1,490 @@
-/* Horizon-QA docs: neutral surfaces, readable buttons */
+/* Horizon-QA documentation theme */
 
-.md-typeset .grid.cards > ul > li {
+:root {
+  --md-text-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --md-code-font: "S-FMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  --horizon-surface: #ffffff;
+  --horizon-surface-subtle: #f6f8f9;
+  --horizon-border: #cfdadd;
+  --horizon-border-strong: #aebfc5;
+  --horizon-muted: #5d6b72;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 198;
+  --horizon-surface: #111a22;
+  --horizon-surface-subtle: #151f28;
+  --horizon-border: rgba(255, 255, 255, 0.14);
+  --horizon-border-strong: rgba(255, 255, 255, 0.24);
+  --horizon-muted: #9eabb3;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-feature-settings: "kern", "liga", "calt";
+}
+
+.md-grid {
+  max-width: 72rem;
+}
+
+/* Header and navigation */
+
+.md-header {
+  color: var(--md-primary-bg-color);
+  background: var(--md-primary-fg-color);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+.md-header__title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.md-header__button {
+  color: inherit;
+}
+
+.md-header .md-logo {
+  color: #ffffff;
+}
+
+.md-header .md-logo img {
+  width: auto;
+  height: 1.55rem;
+}
+
+.md-header .md-search__form {
+  color: var(--md-primary-bg-color);
+  background: rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 0.4rem;
 }
 
-.md-typeset h1 {
+.md-header .md-search__input {
+  color: var(--md-primary-bg-color);
+}
+
+.md-header .md-search__input::placeholder,
+.md-header .md-search__icon {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.md-tabs {
+  color: var(--md-primary-bg-color);
+  background: var(--md-primary-fg-color);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+.md-tabs__link {
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.md-tabs__link:is(:focus, :hover),
+.md-tabs__item--active > .md-tabs__link {
+  opacity: 1;
+}
+
+.md-main__inner {
+  margin-top: 1.1rem;
+}
+
+.md-nav {
+  font-size: 0.68rem;
+}
+
+.md-nav__title,
+.md-nav__item--section > .md-nav__link,
+.md-nav__link--active {
   font-weight: 600;
 }
 
-.md-typeset code {
-  font-size: 0.85em;
+.md-nav__link {
+  border-radius: 0.2rem;
 }
 
-/* Home hero: neutral panel so buttons keep Material contrast */
-.horizon-hero {
-  margin: 0 0 2rem;
-  padding: 1.5rem 1.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--md-default-fg-color--lightest);
-  background-color: var(--md-code-bg-color);
-}
-
-.horizon-hero p:last-child {
-  margin-bottom: 0;
-}
-
-.horizon-hero .md-button {
-  margin: 0.35rem 0.5rem 0 0;
-}
-
-/* Secondary: accent outline. Do not use --md-primary-fg-color (white when header primary is white). */
-.horizon-hero .md-button:not(.md-button--primary) {
+.md-nav__link:is(:focus, :hover),
+.md-nav__link--active {
   color: var(--md-accent-fg-color);
-  border-color: var(--md-accent-fg-color);
-  background-color: transparent;
 }
 
-.horizon-hero .md-button:not(.md-button--primary):hover {
-  color: var(--md-accent-bg-color);
-  border-color: var(--md-accent-fg-color);
-  background-color: var(--md-accent-fg-color);
+.md-sidebar--secondary .md-nav__title {
+  color: var(--horizon-muted);
+  font-weight: 600;
+}
+
+.md-path {
+  color: var(--horizon-muted);
+}
+
+/* Reading surface */
+
+.md-content__inner {
+  padding-bottom: 2.75rem;
+}
+
+.md-typeset {
+  font-size: 0.8rem;
+  line-height: 1.72;
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4 {
+  color: var(--md-default-fg-color);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.md-typeset h1 {
+  margin-bottom: 1rem;
+  font-size: clamp(1.75rem, 3.5vw, 2.1rem);
+  line-height: 1.18;
+}
+
+.md-typeset h2 {
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.25rem;
+}
+
+.md-typeset h3 {
+  margin-top: 1.8rem;
+  font-size: 1rem;
+}
+
+.md-typeset strong {
+  font-weight: 600;
+}
+
+.md-typeset p,
+.md-typeset li {
+  text-wrap: pretty;
+}
+
+.md-typeset code {
+  border-radius: 0.22rem;
+  font-size: 0.84em;
+}
+
+.md-typeset :not(pre) > code {
+  padding: 0.1em 0.3em;
+  border: 1px solid var(--horizon-border);
+}
+
+.md-typeset :where(.highlight) {
+  margin: 1em 0;
+}
+
+.md-typeset .highlight {
+  overflow: visible;
+  border: 1px solid var(--horizon-border);
+  border-radius: 0.45rem;
+  box-shadow: none;
+}
+
+.md-typeset .highlight > pre {
+  margin: 0;
+  border-radius: 0;
+}
+
+.md-typeset .highlight > pre > code {
+  border-radius: calc(0.45rem - 1px);
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+  overflow: hidden;
+  border-radius: 0.45rem;
+  box-shadow: none;
+}
+
+.md-typeset .admonition-title,
+.md-typeset summary {
+  font-weight: 600;
+}
+
+.md-typeset table:not([class]) {
+  overflow: hidden;
+  border: 1px solid var(--horizon-border);
+  border-radius: 0.4rem;
+  box-shadow: none;
+}
+
+.md-typeset table:not([class]) th {
+  background: var(--horizon-surface-subtle);
+  font-weight: 600;
+}
+
+.md-typeset table:not([class]) td,
+.md-typeset table:not([class]) th {
+  padding: 0.68em 0.9em;
+  border-color: var(--horizon-border);
+}
+
+.md-typeset .tabbed-set {
+  overflow: hidden;
+  border: 1px solid var(--horizon-border);
+  border-radius: 0.45rem;
+  box-shadow: none;
+}
+
+.md-typeset .tabbed-labels {
+  padding-inline: 0.45rem;
+  background: var(--horizon-surface-subtle);
+}
+
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid > .card {
+  border-radius: 0.4rem;
+}
+
+.md-typeset .md-button {
+  border-radius: 0.35rem;
+  font-weight: 600;
+}
+
+.md-typeset .md-button--primary {
+  color: var(--md-primary-bg-color) !important;
+  border-color: var(--md-primary-fg-color);
+  background: var(--md-primary-fg-color);
+  -webkit-text-fill-color: var(--md-primary-bg-color);
+}
+
+.md-typeset .md-button--primary:is(:focus, :hover) {
+  color: var(--md-primary-bg-color) !important;
+  border-color: var(--md-primary-fg-color--dark);
+  background: var(--md-primary-fg-color--dark);
+  -webkit-text-fill-color: var(--md-primary-bg-color);
+}
+
+.md-typeset .md-button:focus-visible,
+.md-typeset a:focus-visible {
+  outline: 0.14rem solid var(--md-accent-fg-color);
+  outline-offset: 0.14rem;
+}
+
+.md-footer-meta {
+  background: #10191d;
+}
+
+/* Homepage */
+
+.horizon-home {
+  max-width: 52rem;
+  margin-inline: auto;
+}
+
+.md-content__inner:has(> .horizon-home) > .md-content__button {
+  display: none;
+}
+
+.horizon-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(17rem, 0.95fr);
+  gap: clamp(1.5rem, 4vw, 2.5rem);
+  align-items: center;
+  padding: 1.5rem 0 2.4rem;
+  border-bottom: 2px solid var(--horizon-border-strong);
+}
+
+.horizon-eyebrow {
+  margin: 0 0 0.65rem;
+  color: var(--md-accent-fg-color);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.md-typeset .horizon-intro h1 {
+  max-width: 15ch;
+  margin: 0 0 1rem;
+  font-size: clamp(2.05rem, 5vw, 2.7rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.horizon-intro__copy > p:not(.horizon-eyebrow) {
+  max-width: 38rem;
+  color: var(--horizon-muted);
+  font-size: 0.9rem;
+}
+
+.horizon-actions {
+  margin: 1.35rem 0 1rem;
+}
+
+.horizon-actions p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: center;
+  margin: 0;
+}
+
+.md-typeset ul.horizon-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  color: var(--horizon-muted);
+  list-style: none;
+}
+
+.md-typeset ul.horizon-meta > li {
+  margin: 0;
+  font-size: 0.68rem;
+}
+
+.md-typeset ul.horizon-meta > li + li::before {
+  margin-right: 0.45rem;
+  color: var(--horizon-border-strong);
+  content: "·";
+}
+
+.horizon-intro__example {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--horizon-border);
+  border-radius: 0.5rem;
+  background: var(--horizon-surface-subtle);
+}
+
+.horizon-example-label {
+  margin: 0 0 0.65rem;
+  color: var(--horizon-muted);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.horizon-intro__example .highlight {
+  margin: 0;
+  border-color: var(--horizon-border);
+  background: var(--horizon-surface);
+}
+
+.horizon-example-caption {
+  margin: 0.75rem 0 0;
+  color: var(--horizon-muted);
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+.horizon-tracks {
+  margin-top: 1rem;
+}
+
+.horizon-track {
+  min-width: 0;
+}
+
+.horizon-track ol,
+.horizon-track ul {
+  margin-block: 0.8rem;
+}
+
+.md-typeset ul.horizon-capabilities {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.md-typeset ul.horizon-capabilities > li {
+  position: relative;
+  margin: 0;
+  padding: 0.65rem 0 0.65rem 1rem;
+  color: var(--horizon-muted);
+}
+
+.md-typeset ul.horizon-capabilities > li::before {
+  position: absolute;
+  top: 1.08rem;
+  left: 0;
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 50%;
+  background: var(--md-accent-fg-color);
+  content: "";
+}
+
+.horizon-capabilities span {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--md-default-fg-color);
+  font-weight: 600;
+}
+
+/* Process visual */
+
+.md-typeset .horizon-flow {
+  margin: 1.25rem 0 1.9rem;
+}
+
+/* Diagrams */
+
+.md-typeset .mermaid {
+  margin: 1.5rem 0 2rem;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.md-typeset .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+@media screen and (max-width: 59.9844em) {
+  .horizon-intro {
+    grid-template-columns: 1fr;
+  }
+
+  .horizon-intro__example {
+    max-width: 34rem;
+  }
+}
+
+@media screen and (max-width: 34.9844em) {
+  .md-typeset {
+    font-size: 0.8rem;
+  }
+
+  .horizon-intro {
+    gap: 1.4rem;
+    padding-top: 0.75rem;
+  }
+
+  .md-typeset .horizon-intro h1 {
+    font-size: 2rem;
+  }
+
+  .horizon-actions p {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .md-typeset ul.horizon-capabilities {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }

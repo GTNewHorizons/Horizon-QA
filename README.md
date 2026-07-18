@@ -2,7 +2,7 @@
 
 Horizon QA is an end-to-end testing framework for GTNH. It implements the modern Minecraft GameTest API on 1.7.10, providing a specialized environment to validate multiblocks, machine logic, and logistics.
 
-**📖 Documentation: <https://GTNewHorizons.github.io/Horizon-QA/>** with getting started, guides, the full command/property reference, and [Javadoc](https://GTNewHorizons.github.io/Horizon-QA/javadoc/index.html). This README is a summary; the website is the canonical documentation.
+**📖 Documentation: <https://www.gtnewhorizons.com/Horizon-QA/>** with getting started, guides, the full command/property reference, and [Javadoc](https://www.gtnewhorizons.com/Horizon-QA/javadoc/index.html). This README is a summary; the website is the canonical documentation.
 
 ## Quick Example: Testing Negative Cases
 
@@ -29,10 +29,10 @@ public static void doesNotFormWithoutCoils(GameTestHelper helper) {
 
 ## Usage
 
-1. Build your test structure in-game ([guide](https://GTNewHorizons.github.io/Horizon-QA/guide/structures/)).
+1. Build your test structure in-game ([guide](https://www.gtnewhorizons.com/Horizon-QA/guide/structures/)).
 2. Select the area with the **Horizon Wand**, press **L** to label important coordinates, and use `/qa export <name>` to create a template.
-3. Write a Java test class using `@GameTest` to define the logic and assertions ([first test](https://GTNewHorizons.github.io/Horizon-QA/getting-started/first-test/)).
-4. Run tests using the `/qa runall` command and view results in-game or in the build logs. For report files from a manually-started batch, pass `-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false`; for headless autoruns, pass `-Dhorizonqa.mode=ci` to the server JVM. Override specific behavior with flags such as `-Dhorizonqa.world=normal`, `-Dhorizonqa.stopServer=false`, or `-Dhorizonqa.gridOrigin=0,128,0` ([CI guide](https://GTNewHorizons.github.io/Horizon-QA/guide/ci/)).
+3. Write a Java test class using `@GameTest` to define the logic and assertions ([first test](https://www.gtnewhorizons.com/Horizon-QA/getting-started/first-test/)).
+4. Run tests using the `/qa runall` command and view results in-game or in the build logs. For report files from a manually-started batch, pass `-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false`; for headless autoruns, pass `-Dhorizonqa.mode=ci` to the server JVM. Override specific behavior with flags such as `-Dhorizonqa.world=normal`, `-Dhorizonqa.stopServer=false`, or `-Dhorizonqa.gridOrigin=0,128,0` ([CI guide](https://www.gtnewhorizons.com/Horizon-QA/guide/ci/)).
 
 ## Legal Disclaimer & Clean-Room Implementation
 
