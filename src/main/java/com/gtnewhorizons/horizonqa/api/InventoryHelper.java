@@ -63,6 +63,8 @@ public final class InventoryHelper {
                 int[] slots = sided.getAccessibleSlotsFromSide(side);
                 if (slots == null) continue;
                 for (int slot : slots) {
+                    ItemStack existing = inventory.getStackInSlot(slot);
+                    if (!stacksMatch(existing, template) || !sided.canExtractItem(slot, existing, side)) continue;
                     remaining -= extractFromSlot(inventory, slot, template, remaining);
                     if (remaining <= 0) break;
                 }
