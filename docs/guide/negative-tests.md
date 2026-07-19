@@ -31,7 +31,7 @@ helper.succeedAtTimeout();
 
 | Call                                              | Role                                                                  |
 |---------------------------------------------------|-----------------------------------------------------------------------|
-| `onEachTick(Runnable)`                            | Runs the callback every test tick until the test passes or fails      |
+| `onEachTick(Runnable)`                            | Registers an enabled callback and returns its `TickCallbackHandle`    |
 | `assertFalse(ebf.isFormed(), ...)`                | Fails immediately on the tick where the machine forms                 |
 | `succeedAtTimeout()`                              | Passes at the END of the final allowed tick if nothing failed         |
 
@@ -65,9 +65,42 @@ helper.onEachTick(() -> {
 helper.succeedAtTimeout();
 ```
 
+## Scoped sequence windows
+
+Keep the handle returned by `onEachTick` when an invariant applies to only part of a sequence. A handle
+starts enabled, so disable it before the first tick when the observation window begins later:
+
+```java
+TickCallbackHandle emptyNetworkKeepsCell = helper.onEachTick(() -> {
+    helper.assertNotNull(ioport.getStackInSlot(0), "Cell should stay in input");
+    helper.assertNull(ioport.getStackInSlot(6), "Cell should not move to output");
+});
+emptyNetworkKeepsCell.disable();
+
+helper.startSequence()
+    .thenWaitUntilAtEnd("IO port network activates", () -> assertActive(ioport))
+    .thenExecuteAtStart(() -> {
+        ioport.setInventorySlotContents(0, targetCell);
+        emptyNetworkKeepsCell.enable();
+    })
+    .thenIdle(5)
+    .thenExecute("finish empty-network observation window", emptyNetworkKeepsCell::remove)
+    .thenSucceed();
+```
+
+`disable()` pauses the callback and `enable()` resumes it. `remove()` is permanent; later enable or
+disable calls have no effect. All three operations are safe to call repeatedly or from a per-tick
+callback itself.
+
+Per-tick callbacks run at END before END-phase sequence actions. An enable or disable from a START
+action therefore affects the callback later in that same tick. An END action that disables or removes
+the handle runs after that tick's callback and affects subsequent ticks.
+
 ## Sequences vs. polling
 
-For staged scenarios such as "insert items, then assert no recipe for 40 ticks, then supply EU", prefer [Sequences and timing](sequences.md) over manual tick counters inside `onEachTick`. Sequences make the ordering and timeout behavior explicit.
+For staged scenarios such as "insert items, then assert no recipe for 40 ticks, then supply EU", combine
+a scoped tick callback with [Sequences and timing](sequences.md) instead of maintaining manual tick
+counters inside `onEachTick`. Sequences make the ordering and timeout behavior explicit.
 
 ## Design alignment
 
