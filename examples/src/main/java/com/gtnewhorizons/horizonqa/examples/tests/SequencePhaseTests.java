@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
+import com.gtnewhorizons.horizonqa.api.TickCallbackHandle;
 import com.gtnewhorizons.horizonqa.api.annotation.BeforeBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
@@ -81,5 +82,37 @@ public class SequencePhaseTests {
             .thenIdle(5)
             .thenExecute(() -> helper.assertEquals(5, observedTicks[0], "Expected final tick to be observed"));
         helper.succeedAtTimeout();
+    }
+
+    @GameTest(timeoutTicks = 10)
+    public static void scopedEachTickCallback(GameTestHelper helper) {
+        final int[] observedTicks = { 0 };
+        TickCallbackHandle callback = helper.onEachTick(() -> observedTicks[0]++);
+        callback.disable();
+
+        helper.startSequence()
+            .thenExecuteAtStart(callback::enable)
+            .thenExecute(() -> helper.assertEquals(1, observedTicks[0], "START enable should affect this tick"))
+            .thenIdle(1)
+            .thenExecute(() -> {
+                helper.assertEquals(2, observedTicks[0], "END disable should happen after this tick's callback");
+                callback.disable();
+            })
+            .thenIdle(1)
+            .thenExecute(() -> {
+                helper.assertEquals(2, observedTicks[0], "Disabled callback should not run");
+                callback.enable();
+            })
+            .thenIdle(1)
+            .thenExecute(() -> {
+                helper.assertEquals(3, observedTicks[0], "Re-enabled callback should resume");
+                callback.remove();
+            })
+            .thenIdle(1)
+            .thenExecute(() -> {
+                callback.enable();
+                helper.assertEquals(3, observedTicks[0], "Removed callback should stay removed");
+            })
+            .thenSucceed();
     }
 }

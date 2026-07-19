@@ -128,11 +128,19 @@ public class GameTestHelper {
     }
 
     /**
-     * Run {@code callback} once per test tick until the test ends (pass or fail). Useful for negative assertions that
-     * must hold continuously.
+     * Run {@code callback} once per test tick until the test ends (pass or fail). Useful for negative
+     * assertions that must hold continuously or during a specific sequence window.
+     *
+     * <p>
+     * The returned handle is initially enabled and can temporarily disable or permanently remove the
+     * callback. Per-tick callbacks run in registration order during the END phase, before
+     * {@code succeedWhen}, END-phase sequence actions, and timeout evaluation. A callback registered
+     * while per-tick callbacks are running begins on the next tick.
+     *
+     * @return a handle that controls this callback registration
      */
-    public void onEachTick(Runnable callback) {
-        instance.addEachTickCallback(callback);
+    public TickCallbackHandle onEachTick(Runnable callback) {
+        return instance.addEachTickCallback(callback);
     }
 
     /** Register {@code callback} to run once when this test ends, regardless of outcome. */

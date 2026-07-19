@@ -61,7 +61,7 @@ sequenceDiagram
         Start->>Start: Advance clock, delayed actions, START steps
         Start->>World: Continue the server tick
         World->>End: Blocks and machines expose updated state
-        End->>End: onEachTick, succeedWhen, END steps
+        End->>End: enabled onEachTick callbacks, succeedWhen, END steps
         End->>End: Check timeout last
     end
 ```
@@ -155,6 +155,6 @@ also available through `getSteps()` and `getActiveStep()` for investigation tool
 
 |                    | Use when                                                   |
 |--------------------|------------------------------------------------------------|
-| `onEachTick`       | Something must hold true on every tick until the test ends |
+| `onEachTick`       | Something must hold true on every tick or during a scoped window |
 | `GameTestSequence` | Steps need to happen in order with delays between them     |
 | `succeedWhen`      | Waiting for a single condition to become true              |

@@ -28,11 +28,16 @@ Use `pos("label")` when a position must be stored or passed to another API. Use 
 | `succeed()` | Pass immediately after synchronous assertions |
 | `succeedWhen(BooleanSupplier)` | Poll a positive condition once per test tick |
 | `succeedAtTimeout()` | Pass only after the full timeout window, usually for negative invariants |
-| `onEachTick(Runnable)` | Run an invariant or observer on every test tick |
+| `TickCallbackHandle onEachTick(Runnable)` | Run an invariant or observer on every test tick, with a controllable registration |
 | `startSequence()` | Build one ordered sequence of START/END actions and waits |
 | `afterTest(Runnable)` | Register cleanup that runs on pass, failure, timeout, or error |
 
 See [Sequences and timing](../guide/sequences.md) for phase ordering and bounded waits.
+
+`onEachTick` returns an initially enabled `TickCallbackHandle`. Call `disable()` to pause the callback,
+`enable()` to resume it, or `remove()` to unregister it permanently. These operations are idempotent;
+enabling or disabling a removed handle has no effect. This supports negative assertions that apply only
+to one window of a longer sequence. See [Scoped sequence windows](../guide/negative-tests.md#scoped-sequence-windows).
 
 ## General assertions
 

@@ -18,6 +18,7 @@ import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 import com.gtnewhorizons.horizonqa.api.LabelResolutionException;
 import com.gtnewhorizons.horizonqa.api.TestIsolationViolation;
 import com.gtnewhorizons.horizonqa.api.TestPos;
+import com.gtnewhorizons.horizonqa.api.TickCallbackHandle;
 import com.gtnewhorizons.horizonqa.api.event.AssertionFailed;
 import com.gtnewhorizons.horizonqa.api.event.IsolationViolation;
 import com.gtnewhorizons.horizonqa.api.event.TestFinished;
@@ -46,7 +47,7 @@ public class GameTestInstance {
     private GameTestSequence sequence;
     private BooleanSupplier succeedWhen;
     private boolean succeedAtTimeout;
-    private final List<Runnable> eachTickCallbacks = new ArrayList<>();
+    private final List<EachTickCallback> eachTickCallbacks = new ArrayList<>();
     private final List<DelayedAction> delayedActions = new ArrayList<>();
     private final List<Runnable> cleanupCallbacks = new ArrayList<>();
     private final List<String> warnings = new ArrayList<>();
@@ -123,12 +124,17 @@ public class GameTestInstance {
     public void tickEnd() {
         if (status != GameTestStatus.RUNNING) return;
 
-        for (Runnable callback : eachTickCallbacks) {
-            try {
-                callback.run();
-            } catch (Throwable t) {
-                fail(t);
-                return;
+        if (!eachTickCallbacks.isEmpty()) {
+            EachTickCallback[] callbacks = eachTickCallbacks.toArray(new EachTickCallback[0]);
+            for (EachTickCallback callback : callbacks) {
+                if (!callback.isEnabled()) continue;
+                try {
+                    callback.runCallback();
+                    if (status != GameTestStatus.RUNNING) return;
+                } catch (Throwable t) {
+                    fail(t);
+                    return;
+                }
             }
         }
 
@@ -328,11 +334,56 @@ public class GameTestInstance {
         succeedAtTimeout = true;
     }
 
-    public void addEachTickCallback(Runnable callback) {
+    public TickCallbackHandle addEachTickCallback(Runnable callback) {
         if (callback == null) {
             throw new IllegalArgumentException("onEachTick callback must not be null");
         }
-        eachTickCallbacks.add(callback);
+        EachTickCallback registration = new EachTickCallback(callback);
+        eachTickCallbacks.add(registration);
+        return registration;
+    }
+
+    private final class EachTickCallback implements TickCallbackHandle {
+
+        private final Runnable callback;
+        private boolean enabled = true;
+        private boolean removed;
+
+        private EachTickCallback(Runnable callback) {
+            this.callback = callback;
+        }
+
+        private void runCallback() {
+            callback.run();
+        }
+
+        @Override
+        public void enable() {
+            if (!removed) enabled = true;
+        }
+
+        @Override
+        public void disable() {
+            if (!removed) enabled = false;
+        }
+
+        @Override
+        public void remove() {
+            if (removed) return;
+            removed = true;
+            enabled = false;
+            eachTickCallbacks.remove(this);
+        }
+
+        @Override
+        public boolean isEnabled() {
+            return enabled && !removed;
+        }
+
+        @Override
+        public boolean isRemoved() {
+            return removed;
+        }
     }
 
     public boolean isDone() {
