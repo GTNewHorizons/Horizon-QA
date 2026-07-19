@@ -13,10 +13,13 @@ description: Task-oriented map of GameTestHelper coordinates, completion, assert
 |---|---|
 | `pos(String label)` | Rotation-aware, test-local position from the structure template |
 | `absolute(int x, int y, int z)` | World position for a raw test-local coordinate |
+| `absolute(TestPos pos)` | World position for a test-local `TestPos` |
 | `absolute(String label)` | World position for a rotation-aware template label |
 | `getOriginX/Y/Z()` | Absolute origin of the current test cell |
 
-Most helper methods take test-local coordinates. Use `pos("label")` with them. Use `absolute(...)` only when calling a Minecraft or mod API that explicitly expects world coordinates.
+Coordinate-based helper methods consistently accept raw test-local coordinates, a test-local `TestPos`, or a structure label. Range-based entity helpers accept either two `TestPos` values or two labels. Label overloads resolve rotation before delegating, so assertion failures retain the same world position as their raw-coordinate counterparts.
+
+Use `pos("label")` when a position must be stored or passed to another API. Use `absolute(...)` only when calling a Minecraft or mod API that explicitly expects world coordinates.
 
 ## Completion and scheduling
 

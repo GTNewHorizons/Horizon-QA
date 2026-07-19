@@ -48,12 +48,12 @@ Example: `mymod:AssemblerTests.processesOneRecipe`. Use this id with `/horizonqa
 Exported templates can carry named coordinate labels under `annotations.labels`. Prefer labels for every meaningful coordinate in a structure-backed test:
 
 ```java
-TestPos controller = helper.pos("controller");
-TestPos outputBus = helper.pos("output_bus");
-Multiblock ebf = helper.gtnh().multiblock(controller);
+helper.assertTileEntityPresent("controller");
+helper.assertInventoryContains("output_bus", expectedOutput);
+Multiblock ebf = helper.gtnh().multiblock(helper.pos("controller"));
 ```
 
-`helper.pos("name")` returns test-relative coordinates with structure rotation applied. `helper.absolute("name")` returns the rotated world coordinate. If the label is missing, the test is reported as an infrastructure error with type `LABEL_ERROR`, because the fixture and Java code disagree.
+Coordinate-based `GameTestHelper` methods accept a label directly. Use `helper.pos("name")` when another API expects a `TestPos`; it returns test-relative coordinates with structure rotation applied. `helper.absolute("name")` returns the rotated world coordinate. If the label is missing, the test is reported as an infrastructure error with type `LABEL_ERROR`, because the fixture and Java code disagree.
 
 ## Batches
 

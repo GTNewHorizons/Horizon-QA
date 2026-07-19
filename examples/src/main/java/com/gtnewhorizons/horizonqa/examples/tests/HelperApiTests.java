@@ -11,6 +11,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.FakePlayer;
 
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
+import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.Weather;
 import com.gtnewhorizons.horizonqa.api.annotation.BeforeBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
@@ -115,10 +116,11 @@ public class HelperApiTests {
 
     @GameTest(timeoutTicks = 20)
     public static void tileEntityPresent(GameTestHelper helper) {
-        helper.setBlock(0, 0, 0, Blocks.chest);
+        TestPos chest = TestPos.at(0, 0, 0);
+        helper.setBlock(chest, Blocks.chest);
         helper.startSequence()
             .thenIdle(1)
-            .thenExecute(() -> helper.assertTileEntityPresent(0, 0, 0))
+            .thenExecute(() -> helper.assertTileEntityPresent(chest))
             .thenSucceed();
     }
 
@@ -248,8 +250,8 @@ public class HelperApiTests {
 
     @GameTest(template = "chicken")
     public static void testChicken(GameTestHelper helper) {
-        helper.assertEntityCount(EntityChicken.class, 1, 1, 1, 1);
-        helper.assertEntityPresent(EntityItem.class, 1, 1, 3);
+        helper.assertEntityCount(EntityChicken.class, 1, "chicken");
+        helper.assertEntityPresent(EntityItem.class, "dropped_item");
         helper.succeed();
     }
 }

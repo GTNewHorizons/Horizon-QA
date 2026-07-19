@@ -12,7 +12,7 @@ public class StructureTests {
 
     @GameTest(template = "single_stone", timeoutTicks = 20)
     public static void singleStonePresent(GameTestHelper helper) {
-        helper.assertBlockPresent(Blocks.stone, helper.pos("stone"));
+        helper.assertBlockPresent(Blocks.stone, "stone");
         helper.succeed();
     }
 

@@ -10,6 +10,7 @@ import net.minecraft.nbt.NBTTagCompound;
 
 import org.junit.Test;
 
+import com.gtnewhorizons.horizonqa.api.GameTestAssertException;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.LabelResolutionException;
 import com.gtnewhorizons.horizonqa.api.TestPos;
@@ -47,6 +48,38 @@ public class GameTestLabelTest {
                 .contains("available: corner, origin"));
     }
 
+    @Test
+    public void coordinateOverloadsPreserveAbsoluteFailurePosition() throws Exception {
+        FailurePositionHelper helper = new FailurePositionHelper(instance("mod:Labels.noop", "noop", 1));
+
+        assertFailurePosition(helper, new TestPos(4, 5, 6), new TestPos(14, 69, 36));
+        assertFailurePosition(helper, "corner", new TestPos(10, 64, 31));
+    }
+
+    private static void assertFailurePosition(FailurePositionHelper helper, TestPos pos, TestPos expected) {
+        try {
+            helper.assertTileEntityPresent(pos);
+        } catch (GameTestAssertException e) {
+            assertEquals(expected.x(), e.getX());
+            assertEquals(expected.y(), e.getY());
+            assertEquals(expected.z(), e.getZ());
+            return;
+        }
+        throw new AssertionError("Expected coordinate overload to propagate a positioned failure");
+    }
+
+    private static void assertFailurePosition(FailurePositionHelper helper, String label, TestPos expected) {
+        try {
+            helper.assertTileEntityPresent(label);
+        } catch (GameTestAssertException e) {
+            assertEquals(expected.x(), e.getX());
+            assertEquals(expected.y(), e.getY());
+            assertEquals(expected.z(), e.getZ());
+            return;
+        }
+        throw new AssertionError("Expected label overload to propagate a positioned failure");
+    }
+
     private static GameTestInstance instance(String id, String methodName, int rotation) throws Exception {
         Method method = TestDefinitions.class.getMethod(methodName, GameTestHelper.class);
         GameTestDefinition definition = new GameTestDefinition(
@@ -76,6 +109,18 @@ public class GameTestLabelTest {
             new NBTTagCompound(),
             new NBTTagCompound(),
             new StructureAnnotations(labels));
+    }
+
+    private static final class FailurePositionHelper extends GameTestHelper {
+
+        private FailurePositionHelper(GameTestInstance instance) {
+            super(instance, null, 10, 64, 30);
+        }
+
+        @Override
+        public net.minecraft.tileentity.TileEntity assertTileEntityPresent(int x, int y, int z) {
+            throw new GameTestAssertException("positioned failure", absolute(x, y, z));
+        }
     }
 
     public static final class TestDefinitions {
