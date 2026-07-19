@@ -130,6 +130,7 @@ public class GameTestInstance {
                 if (!callback.isEnabled()) continue;
                 try {
                     callback.runCallback();
+                    if (status != GameTestStatus.RUNNING) return;
                 } catch (Throwable t) {
                     fail(t);
                     return;

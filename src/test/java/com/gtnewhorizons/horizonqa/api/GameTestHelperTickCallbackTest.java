@@ -85,6 +85,17 @@ public class GameTestHelperTickCallbackTest {
         assertEquals(Arrays.asList("first", "self", "first", "added"), EVENTS);
     }
 
+    @Test
+    public void callbackDispatchStopsWhenTestCompletes() throws Exception {
+        GameTestInstance instance = instance("succeedDuringDispatch");
+        instance.start(null);
+
+        tick(instance);
+
+        assertEquals(Arrays.asList("succeed"), EVENTS);
+        assertEquals(GameTestStatus.PASSED, instance.getStatus());
+    }
+
     private static GameTestInstance instance(String methodName) throws Exception {
         Method method = TestDefinitions.class.getMethod(methodName, GameTestHelper.class);
         GameTestDefinition definition = new GameTestDefinition(
@@ -136,6 +147,17 @@ public class GameTestHelperTickCallbackTest {
             self[0] = helper.onEachTick(() -> {
                 EVENTS.add("self");
                 self[0].remove();
+            });
+        }
+
+        public static void succeedDuringDispatch(GameTestHelper helper) {
+            helper.onEachTick(() -> {
+                EVENTS.add("succeed");
+                helper.succeed();
+            });
+            helper.onEachTick(() -> {
+                EVENTS.add("after completion");
+                throw new AssertionError("Callback ran after the test completed");
             });
         }
     }
