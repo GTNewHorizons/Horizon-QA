@@ -38,6 +38,12 @@ import cpw.mods.fml.common.Loader;
 /**
  * Passed to every {@code @GameTest} method. Provides world interaction, assertions, and the fluent
  * sequence API.
+ *
+ * <p>
+ * Coordinate-based methods use test-local positions and provide parallel overloads for raw
+ * coordinates, {@link TestPos}, and structure-label strings. Label overloads resolve through
+ * {@link #pos(String)}, including structure rotation, and throw {@link LabelResolutionException} when
+ * the fixture has no matching label.
  */
 @Experimental
 @SuppressWarnings("unused")
@@ -65,6 +71,11 @@ public class GameTestHelper {
         return new TestPos(originX + x, originY + y, originZ + z);
     }
 
+    /** Convert a test-local block position to an absolute {@link TestPos} in world space. */
+    public TestPos absolute(TestPos pos) {
+        return absolute(pos.x(), pos.y(), pos.z());
+    }
+
     /**
      * Resolve a named coordinate label from this test's structure template. Returned coordinates are
      * test-local and include the test's {@code @GameTest(rotation = ...)} transform.
@@ -82,8 +93,7 @@ public class GameTestHelper {
      * @throws LabelResolutionException if this test has no such label
      */
     public TestPos absolute(String label) {
-        TestPos pos = pos(label);
-        return absolute(pos.x(), pos.y(), pos.z());
+        return absolute(pos(label));
     }
 
     /**
@@ -579,6 +589,11 @@ public class GameTestHelper {
         assertBlockPresent(expected, pos.x(), pos.y(), pos.z());
     }
 
+    /** Assert that the block at the named structure position is {@code expected}. */
+    public void assertBlockPresent(Block expected, String label) {
+        assertBlockPresent(expected, pos(label));
+    }
+
     /**
      * Assert that the block at test-local position is {@code expected} with the given metadata.
      * Pass {@code meta < 0} to skip the meta check.
@@ -609,6 +624,16 @@ public class GameTestHelper {
         }
     }
 
+    /** Assert that the block at {@code pos} is {@code expected} with the given metadata. */
+    public void assertBlockPresent(Block expected, int meta, TestPos pos) {
+        assertBlockPresent(expected, meta, pos.x(), pos.y(), pos.z());
+    }
+
+    /** Assert that the block at the named structure position is {@code expected} with the given metadata. */
+    public void assertBlockPresent(Block expected, int meta, String label) {
+        assertBlockPresent(expected, meta, pos(label));
+    }
+
     /**
      * Assert that the block at test-local position {@code (x, y, z)} is NOT {@code unexpected}.
      */
@@ -630,6 +655,11 @@ public class GameTestHelper {
         assertBlockAbsent(unexpected, pos.x(), pos.y(), pos.z());
     }
 
+    /** Assert that the block at the named structure position is NOT {@code unexpected}. */
+    public void assertBlockAbsent(Block unexpected, String label) {
+        assertBlockAbsent(unexpected, pos(label));
+    }
+
     /**
      * Assert that a TileEntity exists at test-local position {@code (x, y, z)}.
      * Returns the TileEntity for further inspection.
@@ -643,6 +673,16 @@ public class GameTestHelper {
                 pos);
         }
         return te;
+    }
+
+    /** Assert that a TileEntity exists at the test-local position and return it. */
+    public TileEntity assertTileEntityPresent(TestPos pos) {
+        return assertTileEntityPresent(pos.x(), pos.y(), pos.z());
+    }
+
+    /** Assert that a TileEntity exists at the named structure position and return it. */
+    public TileEntity assertTileEntityPresent(String label) {
+        return assertTileEntityPresent(pos(label));
     }
 
     /**
@@ -668,6 +708,16 @@ public class GameTestHelper {
                 pos);
         }
         return (T) te;
+    }
+
+    /** Assert that a TileEntity of {@code type} exists at the test-local position and return it. */
+    public <T extends TileEntity> T assertTileEntityPresent(Class<T> type, TestPos pos) {
+        return assertTileEntityPresent(type, pos.x(), pos.y(), pos.z());
+    }
+
+    /** Assert that a TileEntity of {@code type} exists at the named structure position and return it. */
+    public <T extends TileEntity> T assertTileEntityPresent(Class<T> type, String label) {
+        return assertTileEntityPresent(type, pos(label));
     }
 
     /**
@@ -705,6 +755,16 @@ public class GameTestHelper {
         }
     }
 
+    /** Assert that the TileEntity NBT at the test-local position contains {@code expectedSubset}. */
+    public void assertTileNBT(TestPos pos, NBTTagCompound expectedSubset) {
+        assertTileNBT(pos.x(), pos.y(), pos.z(), expectedSubset);
+    }
+
+    /** Assert that the TileEntity NBT at the named structure position contains {@code expectedSubset}. */
+    public void assertTileNBT(String label, NBTTagCompound expectedSubset) {
+        assertTileNBT(pos(label), expectedSubset);
+    }
+
     /**
      * Assert a specific value at a dotted NBT path (e.g. {@code "mInventory.0.id"}).
      * Comparison is done via the tag's string representation.
@@ -734,6 +794,16 @@ public class GameTestHelper {
         }
     }
 
+    /** Assert a value at a dotted NBT path on the TileEntity at the test-local position. */
+    public void assertTileNBTPath(TestPos pos, String path, String expectedValue) {
+        assertTileNBTPath(pos.x(), pos.y(), pos.z(), path, expectedValue);
+    }
+
+    /** Assert a value at a dotted NBT path on the TileEntity at the named structure position. */
+    public void assertTileNBTPath(String label, String path, String expectedValue) {
+        assertTileNBTPath(pos(label), path, expectedValue);
+    }
+
     /**
      * Return a deep copy of the TileEntity's serialized NBT at test-local position.
      */
@@ -744,12 +814,32 @@ public class GameTestHelper {
         return (NBTTagCompound) nbt.copy();
     }
 
+    /** Return a deep copy of the TileEntity's serialized NBT at the test-local position. */
+    public NBTTagCompound getTileNBT(TestPos pos) {
+        return getTileNBT(pos.x(), pos.y(), pos.z());
+    }
+
+    /** Return a deep copy of the TileEntity's serialized NBT at the named structure position. */
+    public NBTTagCompound getTileNBT(String label) {
+        return getTileNBT(pos(label));
+    }
+
     /**
      * Return live entities of {@code type} whose bounding boxes intersect the single test-local
      * block at {@code (x, y, z)}.
      */
     public <T extends Entity> List<T> getEntities(Class<T> type, int x, int y, int z) {
         return getEntities(type, x, y, z, x, y, z);
+    }
+
+    /** Return live entities of {@code type} intersecting the single test-local block at {@code pos}. */
+    public <T extends Entity> List<T> getEntities(Class<T> type, TestPos pos) {
+        return getEntities(type, pos.x(), pos.y(), pos.z());
+    }
+
+    /** Return live entities of {@code type} intersecting the single block at the named structure position. */
+    public <T extends Entity> List<T> getEntities(Class<T> type, String label) {
+        return getEntities(type, pos(label));
     }
 
     /**
@@ -772,12 +862,32 @@ public class GameTestHelper {
         return result;
     }
 
+    /** Return live entities of {@code type} intersecting the inclusive test-local block range. */
+    public <T extends Entity> List<T> getEntities(Class<T> type, TestPos min, TestPos max) {
+        return getEntities(type, min.x(), min.y(), min.z(), max.x(), max.y(), max.z());
+    }
+
+    /** Return live entities of {@code type} intersecting the inclusive range between two structure labels. */
+    public <T extends Entity> List<T> getEntities(Class<T> type, String minLabel, String maxLabel) {
+        return getEntities(type, pos(minLabel), pos(maxLabel));
+    }
+
     /**
      * Assert that at least one live entity exists in the single test-local block at {@code (x, y, z)}.
      * Returns the first matching entity for further inspection.
      */
     public Entity assertEntityPresent(int x, int y, int z) {
         return assertEntityPresent(Entity.class, x, y, z);
+    }
+
+    /** Assert that at least one live entity exists in the single test-local block at {@code pos}. */
+    public Entity assertEntityPresent(TestPos pos) {
+        return assertEntityPresent(pos.x(), pos.y(), pos.z());
+    }
+
+    /** Assert that at least one live entity exists at the named structure position. */
+    public Entity assertEntityPresent(String label) {
+        return assertEntityPresent(pos(label));
     }
 
     /**
@@ -794,11 +904,31 @@ public class GameTestHelper {
         return entities.get(0);
     }
 
+    /** Assert that at least one live entity of {@code type} exists in the block at {@code pos}. */
+    public <T extends Entity> T assertEntityPresent(Class<T> type, TestPos pos) {
+        return assertEntityPresent(type, pos.x(), pos.y(), pos.z());
+    }
+
+    /** Assert that at least one live entity of {@code type} exists at the named structure position. */
+    public <T extends Entity> T assertEntityPresent(Class<T> type, String label) {
+        return assertEntityPresent(type, pos(label));
+    }
+
     /**
      * Assert that no live entity exists in the single test-local block at {@code (x, y, z)}.
      */
     public void assertEntityAbsent(int x, int y, int z) {
         assertEntityAbsent(Entity.class, x, y, z);
+    }
+
+    /** Assert that no live entity exists in the single test-local block at {@code pos}. */
+    public void assertEntityAbsent(TestPos pos) {
+        assertEntityAbsent(pos.x(), pos.y(), pos.z());
+    }
+
+    /** Assert that no live entity exists at the named structure position. */
+    public void assertEntityAbsent(String label) {
+        assertEntityAbsent(pos(label));
     }
 
     /**
@@ -815,12 +945,32 @@ public class GameTestHelper {
         }
     }
 
+    /** Assert that no live entity of {@code type} exists in the single test-local block at {@code pos}. */
+    public void assertEntityAbsent(Class<? extends Entity> type, TestPos pos) {
+        assertEntityAbsent(type, pos.x(), pos.y(), pos.z());
+    }
+
+    /** Assert that no live entity of {@code type} exists at the named structure position. */
+    public void assertEntityAbsent(Class<? extends Entity> type, String label) {
+        assertEntityAbsent(type, pos(label));
+    }
+
     /**
      * Assert that exactly {@code expectedCount} live entities exist in the single test-local block at
      * {@code (x, y, z)}.
      */
     public void assertEntityCount(int expectedCount, int x, int y, int z) {
         assertEntityCount(Entity.class, expectedCount, x, y, z);
+    }
+
+    /** Assert the live entity count in the single test-local block at {@code pos}. */
+    public void assertEntityCount(int expectedCount, TestPos pos) {
+        assertEntityCount(expectedCount, pos.x(), pos.y(), pos.z());
+    }
+
+    /** Assert the live entity count at the named structure position. */
+    public void assertEntityCount(int expectedCount, String label) {
+        assertEntityCount(expectedCount, pos(label));
     }
 
     /**
@@ -831,12 +981,32 @@ public class GameTestHelper {
         assertEntityCount(type, expectedCount, x, y, z, x, y, z);
     }
 
+    /** Assert the live entity count of {@code type} in the single test-local block at {@code pos}. */
+    public void assertEntityCount(Class<? extends Entity> type, int expectedCount, TestPos pos) {
+        assertEntityCount(type, expectedCount, pos.x(), pos.y(), pos.z());
+    }
+
+    /** Assert the live entity count of {@code type} at the named structure position. */
+    public void assertEntityCount(Class<? extends Entity> type, int expectedCount, String label) {
+        assertEntityCount(type, expectedCount, pos(label));
+    }
+
     /**
      * Assert that exactly {@code expectedCount} live entities exist in the inclusive test-local block
      * range.
      */
     public void assertEntityCount(int expectedCount, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
         assertEntityCount(Entity.class, expectedCount, minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    /** Assert the live entity count in the inclusive test-local block range. */
+    public void assertEntityCount(int expectedCount, TestPos min, TestPos max) {
+        assertEntityCount(expectedCount, min.x(), min.y(), min.z(), max.x(), max.y(), max.z());
+    }
+
+    /** Assert the live entity count in the inclusive range between two structure labels. */
+    public void assertEntityCount(int expectedCount, String minLabel, String maxLabel) {
+        assertEntityCount(expectedCount, pos(minLabel), pos(maxLabel));
     }
 
     /**
@@ -870,6 +1040,16 @@ public class GameTestHelper {
         }
     }
 
+    /** Assert the live entity count of {@code type} in the inclusive test-local block range. */
+    public void assertEntityCount(Class<? extends Entity> type, int expectedCount, TestPos min, TestPos max) {
+        assertEntityCount(type, expectedCount, min.x(), min.y(), min.z(), max.x(), max.y(), max.z());
+    }
+
+    /** Assert the live entity count of {@code type} in the inclusive range between two structure labels. */
+    public void assertEntityCount(Class<? extends Entity> type, int expectedCount, String minLabel, String maxLabel) {
+        assertEntityCount(type, expectedCount, pos(minLabel), pos(maxLabel));
+    }
+
     /**
      * Spawn {@code entity} at the test-local position and return it.
      *
@@ -887,6 +1067,16 @@ public class GameTestHelper {
         return entity;
     }
 
+    /** Spawn {@code entity} at the test-local block position and return it. */
+    public <T extends Entity> T spawnEntity(T entity, TestPos pos) {
+        return spawnEntity(entity, pos.x(), pos.y(), pos.z());
+    }
+
+    /** Spawn {@code entity} at the named structure position and return it. */
+    public <T extends Entity> T spawnEntity(T entity, String label) {
+        return spawnEntity(entity, pos(label));
+    }
+
     /**
      * Create an entity by NBT entity id, spawn it at the test-local position, and return it.
      */
@@ -896,6 +1086,16 @@ public class GameTestHelper {
             throw new GameTestAssertException("Unknown entity '" + entityId + "'", localDoublePos(x, y, z));
         }
         return spawnEntity(entity, x, y, z);
+    }
+
+    /** Create an entity by NBT entity id and spawn it at the test-local block position. */
+    public Entity spawnEntity(String entityId, TestPos pos) {
+        return spawnEntity(entityId, pos.x(), pos.y(), pos.z());
+    }
+
+    /** Create an entity by NBT entity id and spawn it at the named structure position. */
+    public Entity spawnEntity(String entityId, String label) {
+        return spawnEntity(entityId, pos(label));
     }
 
     /**
@@ -980,6 +1180,11 @@ public class GameTestHelper {
         insertItem(pos.x(), pos.y(), pos.z(), stack);
     }
 
+    /** Insert an ItemStack into the inventory at the named structure position. */
+    public void insertItem(String label, ItemStack stack) {
+        insertItem(pos(label), stack);
+    }
+
     /**
      * Assert that the inventory at test-local position contains at least the given stack
      * (item, damage, NBT match; stack size is minimum).
@@ -1008,6 +1213,11 @@ public class GameTestHelper {
         assertInventoryContains(pos.x(), pos.y(), pos.z(), expected);
     }
 
+    /** Assert that the inventory at the named structure position contains at least {@code expected}. */
+    public void assertInventoryContains(String label, ItemStack expected) {
+        assertInventoryContains(pos(label), expected);
+    }
+
     /**
      * Count all items matching {@code template} (item, damage, and NBT) in the inventory at test-local position.
      * The template's stack size is ignored.
@@ -1021,6 +1231,11 @@ public class GameTestHelper {
      */
     public long countItems(TestPos pos, ItemStack template) {
         return countItems(pos.x(), pos.y(), pos.z(), template);
+    }
+
+    /** Count all matching items in the inventory at the named structure position. */
+    public long countItems(String label, ItemStack template) {
+        return countItems(pos(label), template);
     }
 
     /**
@@ -1056,6 +1271,11 @@ public class GameTestHelper {
         assertInventoryCount(pos.x(), pos.y(), pos.z(), template, expectedCount);
     }
 
+    /** Assert an exact matching item count in the inventory at the named structure position. */
+    public void assertInventoryCount(String label, ItemStack template, long expectedCount) {
+        assertInventoryCount(pos(label), template, expectedCount);
+    }
+
     /**
      * Assert that every slot of the inventory at test-local position is empty.
      */
@@ -1066,6 +1286,16 @@ public class GameTestHelper {
                 "Inventory at (" + x + "," + y + "," + z + ") is not empty",
                 absolute(x, y, z));
         }
+    }
+
+    /** Assert that every slot of the inventory at the test-local position is empty. */
+    public void assertInventoryEmpty(TestPos pos) {
+        assertInventoryEmpty(pos.x(), pos.y(), pos.z());
+    }
+
+    /** Assert that every slot of the inventory at the named structure position is empty. */
+    public void assertInventoryEmpty(String label) {
+        assertInventoryEmpty(pos(label));
     }
 
     /**
@@ -1110,6 +1340,16 @@ public class GameTestHelper {
         }
     }
 
+    /** Assert the contents of a specific inventory slot at the test-local position. */
+    public void assertSlot(TestPos pos, int slot, ItemStack expected) {
+        assertSlot(pos.x(), pos.y(), pos.z(), slot, expected);
+    }
+
+    /** Assert the contents of a specific inventory slot at the named structure position. */
+    public void assertSlot(String label, int slot, ItemStack expected) {
+        assertSlot(pos(label), slot, expected);
+    }
+
     /**
      * Directly set an inventory slot at test-local position to a copy of {@code stack}, bypassing normal insertion
      * rules, then mark the inventory dirty.
@@ -1121,6 +1361,11 @@ public class GameTestHelper {
     /** Directly set an inventory slot at a test-local (relative) TestPos. */
     public void setSlot(TestPos pos, int slot, ItemStack stack) {
         setSlot(pos.x(), pos.y(), pos.z(), slot, stack);
+    }
+
+    /** Directly set an inventory slot at the named structure position. */
+    public void setSlot(String label, int slot, ItemStack stack) {
+        setSlot(pos(label), slot, stack);
     }
 
     /**
@@ -1136,6 +1381,11 @@ public class GameTestHelper {
         clearSlot(pos.x(), pos.y(), pos.z(), slot);
     }
 
+    /** Directly clear an inventory slot at the named structure position. */
+    public void clearSlot(String label, int slot) {
+        clearSlot(pos(label), slot);
+    }
+
     /**
      * Extract up to {@code maxAmount} items matching {@code template} from the inventory.
      * Returns the actual amount extracted.
@@ -1143,6 +1393,16 @@ public class GameTestHelper {
     public int extractItem(int x, int y, int z, ItemStack template, int maxAmount) {
         IInventory inv = getInventoryAt(x, y, z);
         return InventoryHelper.extract(inv, template, maxAmount);
+    }
+
+    /** Extract matching items from the inventory at the test-local position. */
+    public int extractItem(TestPos pos, ItemStack template, int maxAmount) {
+        return extractItem(pos.x(), pos.y(), pos.z(), template, maxAmount);
+    }
+
+    /** Extract matching items from the inventory at the named structure position. */
+    public int extractItem(String label, ItemStack template, int maxAmount) {
+        return extractItem(pos(label), template, maxAmount);
     }
 
     private IInventory getInventoryAt(int x, int y, int z) {
@@ -1189,6 +1449,16 @@ public class GameTestHelper {
         }
     }
 
+    /** Insert a FluidStack into the fluid handler at the test-local position. */
+    public void insertFluid(TestPos pos, FluidStack fluid) {
+        insertFluid(pos.x(), pos.y(), pos.z(), fluid);
+    }
+
+    /** Insert a FluidStack into the fluid handler at the named structure position. */
+    public void insertFluid(String label, FluidStack fluid) {
+        insertFluid(pos(label), fluid);
+    }
+
     /**
      * Assert that the fluid handler at test-local position contains at least {@code expected.amount}
      * mB of the expected fluid.
@@ -1214,6 +1484,16 @@ public class GameTestHelper {
         }
     }
 
+    /** Assert that the fluid handler at the test-local position contains at least {@code expected}. */
+    public void assertFluidTank(TestPos pos, FluidStack expected) {
+        assertFluidTank(pos.x(), pos.y(), pos.z(), expected);
+    }
+
+    /** Assert that the fluid handler at the named structure position contains at least {@code expected}. */
+    public void assertFluidTank(String label, FluidStack expected) {
+        assertFluidTank(pos(label), expected);
+    }
+
     /**
      * Assert that the fluid handler at test-local position has no fluid.
      */
@@ -1233,6 +1513,16 @@ public class GameTestHelper {
                     + drained.getLocalizedName(),
                 absolute(x, y, z));
         }
+    }
+
+    /** Assert that the fluid handler at the test-local position has no fluid. */
+    public void assertFluidTankEmpty(TestPos pos) {
+        assertFluidTankEmpty(pos.x(), pos.y(), pos.z());
+    }
+
+    /** Assert that the fluid handler at the named structure position has no fluid. */
+    public void assertFluidTankEmpty(String label) {
+        assertFluidTankEmpty(pos(label));
     }
 
     private IFluidHandler getFluidHandlerAt(int x, int y, int z) {
@@ -1261,8 +1551,28 @@ public class GameTestHelper {
         world.setBlock(pos.x(), pos.y(), pos.z(), block, meta, 3);
     }
 
+    /** Place a block with metadata at the test-local position. */
+    public void setBlock(TestPos pos, Block block, int meta) {
+        setBlock(pos.x(), pos.y(), pos.z(), block, meta);
+    }
+
+    /** Place a block with metadata at the named structure position. */
+    public void setBlock(String label, Block block, int meta) {
+        setBlock(pos(label), block, meta);
+    }
+
     public void setBlock(int x, int y, int z, Block block) {
         setBlock(x, y, z, block, 0);
+    }
+
+    /** Place a block at the test-local position. */
+    public void setBlock(TestPos pos, Block block) {
+        setBlock(pos, block, 0);
+    }
+
+    /** Place a block at the named structure position. */
+    public void setBlock(String label, Block block) {
+        setBlock(pos(label), block);
     }
 
     /**
@@ -1271,6 +1581,16 @@ public class GameTestHelper {
     public void destroyBlock(int x, int y, int z) {
         TestPos pos = absolute(x, y, z);
         world.setBlock(pos.x(), pos.y(), pos.z(), Blocks.air, 0, 3);
+    }
+
+    /** Destroy the block at the test-local position. */
+    public void destroyBlock(TestPos pos) {
+        destroyBlock(pos.x(), pos.y(), pos.z());
+    }
+
+    /** Destroy the block at the named structure position. */
+    public void destroyBlock(String label) {
+        destroyBlock(pos(label));
     }
 
     /**
@@ -1291,6 +1611,16 @@ public class GameTestHelper {
         copy.setInteger("z", pos.z());
         te.readFromNBT(copy);
         world.markBlockForUpdate(pos.x(), pos.y(), pos.z());
+    }
+
+    /** Apply an NBT compound to the TileEntity at the test-local position. */
+    public void setTile(TestPos pos, NBTTagCompound nbt) {
+        setTile(pos.x(), pos.y(), pos.z(), nbt);
+    }
+
+    /** Apply an NBT compound to the TileEntity at the named structure position. */
+    public void setTile(String label, NBTTagCompound nbt) {
+        setTile(pos(label), nbt);
     }
 
     private AxisAlignedBB localEntityBox(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
@@ -1338,6 +1668,16 @@ public class GameTestHelper {
         instance.scheduleDelayed(durationTicks, () -> destroyBlock(x, y, z));
     }
 
+    /** Pulse a redstone block at the test-local position. */
+    public void pulseRedstone(TestPos pos, int durationTicks) {
+        pulseRedstone(pos.x(), pos.y(), pos.z(), durationTicks);
+    }
+
+    /** Pulse a redstone block at the named structure position. */
+    public void pulseRedstone(String label, int durationTicks) {
+        pulseRedstone(pos(label), durationTicks);
+    }
+
     /**
      * Set a redstone signal source (repeater-like) at test-local position by placing a redstone block
      * (strength = 15) or air (strength = 0).
@@ -1352,6 +1692,16 @@ public class GameTestHelper {
         }
     }
 
+    /** Set a redstone signal source at the test-local position. */
+    public void setRedstoneInput(TestPos pos, int strength) {
+        setRedstoneInput(pos.x(), pos.y(), pos.z(), strength);
+    }
+
+    /** Set a redstone signal source at the named structure position. */
+    public void setRedstoneInput(String label, int strength) {
+        setRedstoneInput(pos(label), strength);
+    }
+
     /**
      * Assert that the block at test-local position is receiving at least {@code minPower} redstone power.
      */
@@ -1363,6 +1713,16 @@ public class GameTestHelper {
                 "Expected redstone power >= " + minPower + " at (" + x + "," + y + "," + z + ") but found " + power,
                 pos);
         }
+    }
+
+    /** Assert the minimum redstone power at the test-local position. */
+    public void assertRedstonePower(TestPos pos, int minPower) {
+        assertRedstonePower(pos.x(), pos.y(), pos.z(), minPower);
+    }
+
+    /** Assert the minimum redstone power at the named structure position. */
+    public void assertRedstonePower(String label, int minPower) {
+        assertRedstonePower(pos(label), minPower);
     }
 
     /**
@@ -1438,6 +1798,16 @@ public class GameTestHelper {
         return block.onBlockActivated(world, pos.x(), pos.y(), pos.z(), player, 0, 0.5f, 0.5f, 0.5f);
     }
 
+    /** Simulate a right-click on the block at the test-local position. */
+    public boolean simulateRightClick(TestPos pos, FakePlayer player, ItemStack heldItem) {
+        return simulateRightClick(pos.x(), pos.y(), pos.z(), player, heldItem);
+    }
+
+    /** Simulate a right-click on the block at the named structure position. */
+    public boolean simulateRightClick(String label, FakePlayer player, ItemStack heldItem) {
+        return simulateRightClick(pos(label), player, heldItem);
+    }
+
     /**
      * Simulate a left-click (block punch) at test-local position.
      */
@@ -1445,6 +1815,16 @@ public class GameTestHelper {
         TestPos pos = absolute(x, y, z);
         Block block = world.getBlock(pos.x(), pos.y(), pos.z());
         block.onBlockClicked(world, pos.x(), pos.y(), pos.z(), player);
+    }
+
+    /** Simulate a left-click on the block at the test-local position. */
+    public void simulateLeftClick(TestPos pos, FakePlayer player) {
+        simulateLeftClick(pos.x(), pos.y(), pos.z(), player);
+    }
+
+    /** Simulate a left-click on the block at the named structure position. */
+    public void simulateLeftClick(String label, FakePlayer player) {
+        simulateLeftClick(pos(label), player);
     }
 
     /**

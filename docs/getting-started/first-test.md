@@ -51,7 +51,7 @@ If the test is not discovered, confirm that the holder is on the server runtime 
 ```java
 @GameTest(template = "single_stone", timeoutTicks = 40)
 public static void blockStillThere(GameTestHelper helper) {
-    helper.assertBlockPresent(Blocks.stone, helper.pos("stone"));
+    helper.assertBlockPresent(Blocks.stone, "stone");
     helper.succeed();
 }
 ```
@@ -95,7 +95,7 @@ Common helpers on `GameTestHelper`:
 :   Exact item stack comparison by item ID, damage, stack size, and NBT, with all fields printed on mismatch.
 
 `assertBlockPresent` / `assertBlockAbsent`
-:   Block-level assertions at a **test-local** position. Pass raw local coordinates or a label from `helper.pos("name")`.
+:   Block-level assertions at a **test-local** position. Pass raw local coordinates, a `TestPos`, or a structure label.
 
 `fail(String)`
 :   Immediate failure; throws `GameTestAssertException`.

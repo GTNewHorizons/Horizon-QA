@@ -21,5 +21,11 @@
       "B.B",
       "BBB"
     ]
-  ]
+  ],
+  "annotations": {
+    "labels": {
+      "chicken": [1, 1, 1],
+      "dropped_item": [1, 1, 3]
+    }
+  }
 }

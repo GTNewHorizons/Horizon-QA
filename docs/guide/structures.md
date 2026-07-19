@@ -121,12 +121,12 @@ Labels are optional for loading and running tests, but any labels present in a t
 Use labels from Java:
 
 ```java
-helper.assertBlockPresent(Blocks.stone, helper.pos("stone"));
+helper.assertBlockPresent(Blocks.stone, "stone");
 TestPos controller = helper.pos("controller");
 TestPos controllerWorld = helper.absolute("controller");
 ```
 
-`helper.pos("name")` returns test-relative coordinates with `@GameTest(rotation = ...)` applied. `helper.absolute("name")` returns world coordinates after the same rotation. Asking for an undefined label fails the test as an infrastructure error with type `LABEL_ERROR`.
+Coordinate-based helpers accept raw test-local coordinates, a test-local `TestPos`, or a structure label directly. `helper.pos("name")` remains useful when a position must be stored or passed to another API. It returns test-relative coordinates with `@GameTest(rotation = ...)` applied; `helper.absolute("name")` returns world coordinates after the same rotation. Asking for an undefined label fails the test as an infrastructure error with type `LABEL_ERROR`.
 
 ## Placement in the grid
 
