@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
@@ -42,6 +43,13 @@ public class StructureTests {
 
     @GameTest(timeoutTicks = 20)
     public static void exportedItemStacksUsePortableIdentity(GameTestHelper helper) {
+        NBTTagCompound normalSerialization = new NBTTagCompound();
+        new ItemStack(Items.spawn_egg, 1, 93).writeToNBT(normalSerialization);
+        if (normalSerialization.hasKey("HorizonQAItemId") || !normalSerialization.hasKey("id", 99)) {
+            helper.fail("Normal ItemStack serialization was changed outside structure export");
+            return;
+        }
+
         final File outputDirectory;
         try {
             outputDirectory = Files.createTempDirectory("horizonqa-export-")
@@ -67,6 +75,12 @@ public class StructureTests {
                         helper.getOriginZ(),
                         outputDirectory,
                         "portable_item");
+                    NBTTagCompound serializationAfterExport = new NBTTagCompound();
+                    new ItemStack(Items.spawn_egg, 1, 93).writeToNBT(serializationAfterExport);
+                    if (serializationAfterExport.hasKey("HorizonQAItemId")) {
+                        helper.fail("ItemStack export scope leaked after structure capture");
+                        return;
+                    }
                     if (!".snbt".equals(result.structureDataExtension())) {
                         helper.fail("Expected an SNBT export, got " + result.structureDataExtension());
                         return;
