@@ -11,12 +11,14 @@ import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
+import com.gtnewhorizons.horizonqa.internal.ItemStackExportCapture;
+
 import cpw.mods.fml.common.registry.GameData;
 
-/** Converts ItemStack identity fields between runtime-native IDs and portable registry names. */
+/** Converts scoped export markers and portable identities; numeric shape detection is legacy-only. */
 final class PortableItemStackNbt {
 
-    static final String PORTABLE_ID_KEY = "HorizonQAItemId";
+    static final String PORTABLE_ID_KEY = ItemStackExportCapture.PORTABLE_ID_KEY;
 
     private static final int TAG_STRING = 8;
     private static final int TAG_ANY_NUMERIC = 99;
@@ -24,8 +26,6 @@ final class PortableItemStackNbt {
     private static final ItemIdentityCodec RUNTIME_CODEC = new RuntimeItemIdentityCodec();
 
     interface ItemIdentityCodec {
-
-        String registryNameFor(NBTTagCompound nativeStack);
 
         NBTTagCompound nativeIdentityFor(String registryName);
     }
@@ -38,10 +38,6 @@ final class PortableItemStackNbt {
     private PortableItemStackNbt() {}
 
     static NBTTagCompound encodeForTemplate(NBTTagCompound root) throws IOException {
-        return encodeForTemplate(root, RUNTIME_CODEC);
-    }
-
-    static NBTTagCompound encodeForTemplate(NBTTagCompound root, ItemIdentityCodec codec) throws IOException {
         try {
             return transform(
                 root,
@@ -50,7 +46,7 @@ final class PortableItemStackNbt {
                 HybridStructureTemplate.CURRENT_FORMAT_VERSION,
                 false,
                 null,
-                codec);
+                null);
         } catch (TemplateException e) {
             throw new IOException(e.getMessage(), e);
         }
@@ -77,7 +73,7 @@ final class PortableItemStackNbt {
         if (root == null) {
             return new NBTTagCompound();
         }
-        if (codec == null) {
+        if (operation == Operation.DECODE && codec == null) {
             throw new IllegalArgumentException("codec must not be null");
         }
         return (NBTTagCompound) transformTag(
@@ -135,7 +131,6 @@ final class PortableItemStackNbt {
     private static void transformItemIdentity(NBTTagCompound compound, String path, Operation operation,
         int formatVersion, boolean trustLegacyNumericIds, String templateName, ItemIdentityCodec codec)
         throws TemplateException {
-        boolean nativeStack = isNativeItemStack(compound);
         boolean portableStack = isPortableItemStack(compound);
         if (compound.hasKey(PORTABLE_ID_KEY) && !portableStack) {
             throw new TemplateException(
@@ -153,52 +148,34 @@ final class PortableItemStackNbt {
                     + path
                     + "; Count and Damage must be numeric");
         }
-        if (nativeStack && portableStack) {
+        if (operation == Operation.ENCODE) {
+            if (!portableStack) {
+                return;
+            }
+            String registryName = compound.getString(PORTABLE_ID_KEY);
+            if (registryName.isEmpty()) {
+                throw new TemplateException(
+                    "Cannot export ItemStack at " + path + ": its item is not registered in the active environment");
+            }
+            compound.removeTag("id");
+            compound.removeTag("idExt");
+            return;
+        }
+
+        if (portableStack && hasNativeIdentity(compound)) {
             throw new TemplateException(
                 "Template '" + templateName + "' has both native and portable ItemStack identities at " + path);
         }
-        if (!nativeStack && !portableStack) {
-            return;
-        }
-
-        if (operation == Operation.ENCODE) {
-            if (nativeStack) {
-                encodeNativeIdentity(compound, path, codec);
-            }
-            return;
-        }
-
-        if (nativeStack) {
-            if (formatVersion == HybridStructureTemplate.LEGACY_FORMAT_VERSION && trustLegacyNumericIds) {
-                return;
-            }
-            throw unsafeNumericIdentity(templateName, formatVersion, path);
-        }
-
-        if (operation == Operation.DECODE) {
+        if (portableStack) {
             hydratePortableIdentity(compound, path, templateName, codec);
+            return;
         }
-    }
-
-    private static void encodeNativeIdentity(NBTTagCompound compound, String path, ItemIdentityCodec codec)
-        throws TemplateException {
-        final String registryName;
-        try {
-            registryName = codec.registryNameFor(compound);
-        } catch (RuntimeException e) {
-            throw new TemplateException(
-                "Cannot export ItemStack at " + path + ": failed to resolve its numeric item ID",
-                e);
+        if (formatVersion != HybridStructureTemplate.LEGACY_FORMAT_VERSION || !isLegacyNumericItemStack(compound)) {
+            return;
         }
-        if (registryName == null || registryName.isEmpty()) {
-            throw new TemplateException(
-                "Cannot export ItemStack at " + path
-                    + ": its numeric item ID is not registered in the active environment");
+        if (!trustLegacyNumericIds) {
+            throw unsafeLegacyNumericIdentity(templateName, path);
         }
-
-        compound.removeTag("id");
-        compound.removeTag("idExt");
-        compound.setString(PORTABLE_ID_KEY, registryName);
     }
 
     private static void hydratePortableIdentity(NBTTagCompound compound, String path, String templateName,
@@ -238,27 +215,16 @@ final class PortableItemStackNbt {
         }
     }
 
-    private static TemplateException unsafeNumericIdentity(String templateName, int formatVersion, String path) {
-        if (formatVersion == HybridStructureTemplate.LEGACY_FORMAT_VERSION) {
-            return new TemplateException(
-                "Template '" + templateName
-                    + "' uses format_version 1 and contains an unsafe numeric ItemStack ID at "
-                    + path
-                    + ". Re-export it as format_version 2 in the original environment. For one-time interactive "
-                    + "migration, enable -Dhorizonqa.allowLegacyNumericItemIds=true and use /horizonqa load.");
-        }
+    private static TemplateException unsafeLegacyNumericIdentity(String templateName, String path) {
         return new TemplateException(
             "Template '" + templateName
-                + "' declares format_version "
-                + formatVersion
-                + " but contains a numeric ItemStack ID at "
+                + "' uses format_version 1 and contains an unsafe numeric ItemStack ID at "
                 + path
-                + "; format_version 2 requires '"
-                + PORTABLE_ID_KEY
-                + "' registry-name identities");
+                + ". Re-export it as format_version 2 in the original environment. For one-time interactive "
+                + "migration, enable -Dhorizonqa.allowLegacyNumericItemIds=true and use /horizonqa load.");
     }
 
-    private static boolean isNativeItemStack(NBTTagCompound compound) {
+    private static boolean isLegacyNumericItemStack(NBTTagCompound compound) {
         return hasStackPayload(compound) && hasNativeIdentity(compound);
     }
 
@@ -294,17 +260,6 @@ final class PortableItemStackNbt {
     }
 
     private static final class RuntimeItemIdentityCodec implements ItemIdentityCodec {
-
-        @Override
-        public String registryNameFor(NBTTagCompound nativeStack) {
-            ItemStack stack = ItemStack.loadItemStackFromNBT(nativeStack);
-            if (stack == null || stack.getItem() == null) {
-                return null;
-            }
-            Object name = GameData.getItemRegistry()
-                .getNameForObject(stack.getItem());
-            return name != null ? name.toString() : null;
-        }
 
         @Override
         public NBTTagCompound nativeIdentityFor(String registryName) {

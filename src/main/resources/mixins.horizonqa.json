@@ -4,7 +4,7 @@
   "package": "com.gtnewhorizons.horizonqa.mixin",
   "refmap": "mixins.horizonqa.refmap.json",
   "compatibilityLevel": "JAVA_8",
-  "mixins": ["MixinFMLCommonHandler"],
+  "mixins": ["MixinFMLCommonHandler", "MixinItemStack"],
   "server": ["MixinDedicatedServer", "MixinMinecraftServer", "MixinNetHandlerPlayServer"],
   "client": []
 }

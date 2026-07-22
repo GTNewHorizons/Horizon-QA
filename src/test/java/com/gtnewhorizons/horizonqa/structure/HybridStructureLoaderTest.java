@@ -112,20 +112,15 @@ public class HybridStructureLoaderTest {
     }
 
     @Test
-    public void currentFormatRejectsNumericItemStackEvenWhenLegacyTrustIsEnabled() {
-        TemplateException error = assertThrows(
-            TemplateException.class,
-            () -> HybridStructureLoader.load("horizonqatest:current_numeric_stack", true));
+    public void currentFormatPreservesUnmarkedNumericItemLikeData() throws Exception {
+        HybridStructureTemplate template = HybridStructureLoader.load("horizonqatest:current_numeric_stack");
 
-        assertTrue(
-            error.getMessage()
-                .contains("format_version 2"));
-        assertTrue(
-            error.getMessage()
-                .contains(PortableItemStackNbt.PORTABLE_ID_KEY));
-        assertTrue(
-            error.getMessage()
-                .contains("$.entities[0].Item"));
+        NBTTagCompound modData = template.getEntities()
+            .getCompoundTagAt(0)
+            .getCompoundTag("ModData");
+        assertEquals(383, modData.getShort("id"));
+        assertEquals(1, modData.getByte("Count"));
+        assertEquals(93, modData.getShort("Damage"));
     }
 
     @Test
