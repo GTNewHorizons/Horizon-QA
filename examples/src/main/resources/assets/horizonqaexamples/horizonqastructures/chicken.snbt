@@ -77,7 +77,7 @@
       Item: {
         Count: 1b,
         Damage: 93s,
-        id: "minecraft:spawn_egg"
+        HorizonQAItemId: "minecraft:spawn_egg"
       },
       Lifespan: 6000,
       Motion: [0.0d, -0.0d, 0.0d],

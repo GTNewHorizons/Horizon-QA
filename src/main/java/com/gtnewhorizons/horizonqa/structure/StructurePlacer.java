@@ -113,10 +113,6 @@ public final class StructurePlacer {
 
         HybridStructureTemplate.PaletteEntry[] palette = template.getPalette();
         Block[] resolvedPalette = resolvePalette(templateName, palette, strict);
-        NBTTagCompound preparedTileData = PortableItemStackNbt
-            .prepareForPlacement(template.copyTileData(), template.nbtFormatVersion(), templateName, "$.tiles");
-        NBTTagCompound preparedEntityData = PortableItemStackNbt
-            .prepareForPlacement(template.copyEntityData(), template.nbtFormatVersion(), templateName, "$");
         int sizeX = template.getSizeX();
         int sizeY = template.getSizeY();
         int sizeZ = template.getSizeZ();
@@ -157,7 +153,7 @@ public final class StructurePlacer {
                             e);
                     }
 
-                    NBTTagCompound teNbt = getTileEntity(preparedTileData, x, y, z);
+                    NBTTagCompound teNbt = template.getTileEntity(x, y, z);
                     if (teNbt != null || block.hasTileEntity(entry.meta)) {
                         TileEntity te = ensureTileEntity(world, wx, wy, wz, block, entry, strict);
                         if (te == null) {
@@ -207,16 +203,7 @@ public final class StructurePlacer {
             }
         }
 
-        spawnEntities(
-            templateName,
-            template,
-            StructureNbt.entityList(preparedEntityData),
-            world,
-            originX,
-            originY,
-            originZ,
-            rotationSteps,
-            strict);
+        spawnEntities(templateName, template, world, originX, originY, originZ, rotationSteps, strict);
     }
 
     public static int rotatedLocalX(int x, int z, int sizeX, int sizeZ, int rotation) {
@@ -277,9 +264,9 @@ public final class StructurePlacer {
         return entityNbt;
     }
 
-    private static void spawnEntities(String templateName, HybridStructureTemplate template, NBTTagList entities,
-        WorldServer world, int originX, int originY, int originZ, int rotation, boolean strict)
-        throws TemplateException {
+    private static void spawnEntities(String templateName, HybridStructureTemplate template, WorldServer world,
+        int originX, int originY, int originZ, int rotation, boolean strict) throws TemplateException {
+        NBTTagList entities = template.getEntities();
         for (int i = 0; i < entities.tagCount(); i++) {
             NBTTagCompound entityNbt = entityNbtForPlacement(
                 entities.getCompoundTagAt(i),
@@ -337,11 +324,6 @@ public final class StructurePlacer {
                     e);
             }
         }
-    }
-
-    private static NBTTagCompound getTileEntity(NBTTagCompound tileData, int x, int y, int z) {
-        String key = x + "," + y + "," + z;
-        return tileData.hasKey(key, StructureNbt.TAG_COMPOUND) ? tileData.getCompoundTag(key) : null;
     }
 
     private static void patchPosition(NBTTagCompound entityNbt, int sizeX, int sizeZ, int originX, int originY,

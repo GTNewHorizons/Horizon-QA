@@ -98,13 +98,13 @@ Format version 2 stores the identity of each standard ItemStack compound as its 
 
 ```snbt
 {
-  id: "minecraft:spawn_egg",
+  HorizonQAItemId: "minecraft:spawn_egg",
   Count: 1b,
   Damage: 93s
 }
 ```
 
-Export applies this conversion recursively through tile entity and entity NBT, including inventories, dropped items, equipment, and ItemStacks nested inside other ItemStack data. Placement resolves each name against the active item registry and recreates the native runtime representation before the tile entity or entity reads it. A missing registry name fails the template with an error that includes the name and its NBT path; the structure is not partially placed.
+`HorizonQAItemId` is an explicit portable identity field, so unrelated mod compounds that happen to contain fields named `id`, `Count`, and `Damage` are not mistaken for ItemStacks while loading. Export applies this conversion recursively through tile entity and entity NBT, including inventories, dropped items, equipment, and ItemStacks nested inside other ItemStack data. Loading resolves each name against the active item registry once and stores the runtime representation before placement. A missing registry name fails the template with an error that includes the name and its NBT path; the structure is not partially placed.
 
 Only recognized ItemStack compounds are converted. Arbitrary numeric fields such as enchantment IDs, potion IDs, and mod-private values are preserved. Registry names also cannot compensate for an item that was removed or renamed, or for a mod that changed the meaning of an item's metadata or private NBT.
 

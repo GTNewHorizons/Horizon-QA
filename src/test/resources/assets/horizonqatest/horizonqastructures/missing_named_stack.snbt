@@ -5,7 +5,7 @@
       Item: {
         Count: 1b,
         Damage: 0s,
-        id: "missingmod:missing_item"
+        HorizonQAItemId: "missingmod:missing_item"
       }
     }
   ],

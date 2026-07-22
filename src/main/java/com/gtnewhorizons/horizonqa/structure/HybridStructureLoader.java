@@ -226,15 +226,10 @@ public final class HybridStructureLoader {
             combinedNbtResource,
             tileNbtResource,
             entityNbtResource);
-        PortableItemStackNbt.validateForLoading(
-            StructureNbt.combine(structureData.tileData(), structureData.entityData()),
-            formatVersion,
-            trustLegacyNumericIds,
-            templateName);
-
-        int nbtFormatVersion = trustLegacyNumericIds && formatVersion == HybridStructureTemplate.LEGACY_FORMAT_VERSION
-            ? HybridStructureTemplate.RUNTIME_NATIVE_NBT
-            : formatVersion;
+        NBTTagCompound tileData = PortableItemStackNbt
+            .decodeForRuntime(structureData.tileData(), formatVersion, trustLegacyNumericIds, templateName, "$.tiles");
+        NBTTagCompound entityData = PortableItemStackNbt
+            .decodeForRuntime(structureData.entityData(), formatVersion, trustLegacyNumericIds, templateName, "$");
 
         LOG.debug(
             "Loaded template '{}' (format {}, {}x{}x{}, {} palette entries, {} entities)",
@@ -244,7 +239,7 @@ public final class HybridStructureLoader {
             sizeY,
             sizeZ,
             palette.length - 1,
-            StructureNbt.entityCount(structureData.entityData()));
+            StructureNbt.entityCount(entityData));
         return new HybridStructureTemplate(
             sizeX,
             sizeY,
@@ -252,10 +247,9 @@ public final class HybridStructureLoader {
             palette,
             paletteKeys,
             blockData,
-            structureData.tileData(),
-            structureData.entityData(),
-            annotations,
-            nbtFormatVersion);
+            tileData,
+            entityData,
+            annotations);
     }
 
     private static StructureNbt.StructureData readStructureData(String templateName, String snbtResource,

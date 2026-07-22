@@ -56,8 +56,8 @@ public class PortableItemStackNbtTest {
 
         NBTTagCompound encoded = PortableItemStackNbt.encodeForTemplate(source, CODEC);
 
-        assertTrue(encoded.hasKey("id", 8));
-        assertEquals(SPAWN_EGG, encoded.getString("id"));
+        assertFalse(encoded.hasKey("id"));
+        assertEquals(SPAWN_EGG, encoded.getString(PortableItemStackNbt.PORTABLE_ID_KEY));
         assertEquals(1, encoded.getByte("Count"));
         assertEquals(93, encoded.getShort("Damage"));
         assertEquals(4, encoded.getByte("Slot"));
@@ -68,7 +68,7 @@ public class PortableItemStackNbtTest {
         assertTrue(source.hasKey("id", 99));
         assertFalse(source.hasKey("id", 8));
 
-        NBTTagCompound hydrated = PortableItemStackNbt.prepareForPlacement(
+        NBTTagCompound hydrated = PortableItemStackNbt.decodeForRuntime(
             encoded,
             HybridStructureTemplate.CURRENT_FORMAT_VERSION,
             "horizonqatest:portable",
@@ -88,7 +88,7 @@ public class PortableItemStackNbtTest {
             "preserved",
             hydrated.getCompoundTag("tag")
                 .getString("marker"));
-        assertEquals(SPAWN_EGG, encoded.getString("id"));
+        assertEquals(SPAWN_EGG, encoded.getString(PortableItemStackNbt.PORTABLE_ID_KEY));
     }
 
     @Test
@@ -116,11 +116,11 @@ public class PortableItemStackNbtTest {
         NBTTagCompound encodedNestedStack = encodedInventoryStack.getCompoundTag("tag")
             .getCompoundTag("Contained");
 
-        assertEquals(SPAWN_EGG, encodedInventoryStack.getString("id"));
-        assertEquals(EXTENDED_ITEM, encodedNestedStack.getString("id"));
+        assertEquals(SPAWN_EGG, encodedInventoryStack.getString(PortableItemStackNbt.PORTABLE_ID_KEY));
+        assertEquals(EXTENDED_ITEM, encodedNestedStack.getString(PortableItemStackNbt.PORTABLE_ID_KEY));
         assertFalse(encodedNestedStack.hasKey("idExt"));
 
-        NBTTagCompound hydrated = PortableItemStackNbt.prepareForPlacement(
+        NBTTagCompound hydrated = PortableItemStackNbt.decodeForRuntime(
             encoded,
             HybridStructureTemplate.CURRENT_FORMAT_VERSION,
             "horizonqatest:nested",
@@ -161,11 +161,29 @@ public class PortableItemStackNbtTest {
         assertEquals(root, PortableItemStackNbt.encodeForTemplate(root, CODEC));
         assertEquals(
             root,
-            PortableItemStackNbt.prepareForPlacement(
+            PortableItemStackNbt.decodeForRuntime(
                 root,
                 HybridStructureTemplate.CURRENT_FORMAT_VERSION,
                 "horizonqatest:false_positive",
                 "$",
+                CODEC));
+    }
+
+    @Test
+    public void arbitraryCompoundWithItemLikeFieldNamesRemainsUntouched() throws Exception {
+        NBTTagCompound tile = new NBTTagCompound();
+        tile.setString("id", "ExampleTile");
+        tile.setInteger("Count", 4);
+        tile.setInteger("Damage", 2);
+
+        assertEquals(tile, PortableItemStackNbt.encodeForTemplate(tile, CODEC));
+        assertEquals(
+            tile,
+            PortableItemStackNbt.decodeForRuntime(
+                tile,
+                HybridStructureTemplate.CURRENT_FORMAT_VERSION,
+                "horizonqatest:item_like_tile",
+                "$.tiles[0]",
                 CODEC));
     }
 
@@ -183,7 +201,7 @@ public class PortableItemStackNbtTest {
         assertEquals(1_024, encoded.getInteger("Count"));
         assertEquals(8_192, encoded.getInteger("mID"));
 
-        NBTTagCompound hydrated = PortableItemStackNbt.prepareForPlacement(
+        NBTTagCompound hydrated = PortableItemStackNbt.decodeForRuntime(
             encoded,
             HybridStructureTemplate.CURRENT_FORMAT_VERSION,
             "horizonqatest:integer_count",
@@ -209,7 +227,7 @@ public class PortableItemStackNbtTest {
 
         TemplateException error = assertThrows(
             TemplateException.class,
-            () -> PortableItemStackNbt.prepareForPlacement(
+            () -> PortableItemStackNbt.decodeForRuntime(
                 root,
                 HybridStructureTemplate.CURRENT_FORMAT_VERSION,
                 "horizonqatest:missing_item",
@@ -225,7 +243,7 @@ public class PortableItemStackNbtTest {
         assertTrue(
             error.getMessage()
                 .contains("$.entities[0].Item"));
-        assertEquals("missingmod:missing_item", item.getString("id"));
+        assertEquals("missingmod:missing_item", item.getString(PortableItemStackNbt.PORTABLE_ID_KEY));
     }
 
     @Test
@@ -234,7 +252,7 @@ public class PortableItemStackNbtTest {
 
         TemplateException error = assertThrows(
             TemplateException.class,
-            () -> PortableItemStackNbt.prepareForPlacement(
+            () -> PortableItemStackNbt.decodeForRuntime(
                 source,
                 HybridStructureTemplate.LEGACY_FORMAT_VERSION,
                 "horizonqatest:legacy",
@@ -264,7 +282,7 @@ public class PortableItemStackNbtTest {
 
         TemplateException error = assertThrows(
             TemplateException.class,
-            () -> PortableItemStackNbt.prepareForPlacement(
+            () -> PortableItemStackNbt.decodeForRuntime(
                 source,
                 HybridStructureTemplate.LEGACY_FORMAT_VERSION,
                 "horizonqatest:legacy_ae2_cable_bus",
@@ -285,7 +303,7 @@ public class PortableItemStackNbtTest {
 
         TemplateException error = assertThrows(
             TemplateException.class,
-            () -> PortableItemStackNbt.prepareForPlacement(
+            () -> PortableItemStackNbt.decodeForRuntime(
                 source,
                 HybridStructureTemplate.CURRENT_FORMAT_VERSION,
                 "horizonqatest:numeric_v2",
@@ -297,16 +315,17 @@ public class PortableItemStackNbtTest {
                 .contains("format_version 2"));
         assertTrue(
             error.getMessage()
-                .contains("requires registry-name IDs"));
+                .contains(PortableItemStackNbt.PORTABLE_ID_KEY));
     }
 
     @Test
-    public void runtimeNativeFormatCopiesNumericItemStacksWithoutResolvingThem() throws Exception {
+    public void trustedLegacyFormatCopiesNumericItemStacksWithoutResolvingThem() throws Exception {
         NBTTagCompound source = nativeStack(SPAWN_EGG_ID, 1, 93);
 
-        NBTTagCompound prepared = PortableItemStackNbt.prepareForPlacement(
+        NBTTagCompound prepared = PortableItemStackNbt.decodeForRuntime(
             source,
-            HybridStructureTemplate.RUNTIME_NATIVE_NBT,
+            HybridStructureTemplate.LEGACY_FORMAT_VERSION,
+            true,
             "horizonqatest:runtime",
             "$",
             new PortableItemStackNbt.ItemIdentityCodec() {
@@ -333,7 +352,7 @@ public class PortableItemStackNbtTest {
         source.setInteger("Count", 512);
 
         NBTTagCompound encoded = PortableItemStackNbt.encodeForTemplate(source, CODEC);
-        assertEquals(EXTENDED_ITEM, encoded.getString("id"));
+        assertEquals(EXTENDED_ITEM, encoded.getString(PortableItemStackNbt.PORTABLE_ID_KEY));
         assertFalse(encoded.hasKey("idExt"));
         assertEquals(
             3,
@@ -341,7 +360,7 @@ public class PortableItemStackNbtTest {
                 .getId());
         assertEquals(512, encoded.getInteger("Count"));
 
-        NBTTagCompound hydrated = PortableItemStackNbt.prepareForPlacement(
+        NBTTagCompound hydrated = PortableItemStackNbt.decodeForRuntime(
             encoded,
             HybridStructureTemplate.CURRENT_FORMAT_VERSION,
             "horizonqatest:extended",
@@ -376,8 +395,8 @@ public class PortableItemStackNbtTest {
                 }
             });
 
-        assertEquals(registryName, encoded.getString("id"));
-        NBTTagCompound hydrated = PortableItemStackNbt.prepareForPlacement(
+        assertEquals(registryName, encoded.getString(PortableItemStackNbt.PORTABLE_ID_KEY));
+        NBTTagCompound hydrated = PortableItemStackNbt.decodeForRuntime(
             encoded,
             HybridStructureTemplate.CURRENT_FORMAT_VERSION,
             "horizonqatest:cross_environment",
@@ -424,7 +443,7 @@ public class PortableItemStackNbtTest {
 
     private static NBTTagCompound portableStack(String registryName, int count, int damage) {
         NBTTagCompound stack = new NBTTagCompound();
-        stack.setString("id", registryName);
+        stack.setString(PortableItemStackNbt.PORTABLE_ID_KEY, registryName);
         stack.setByte("Count", (byte) count);
         stack.setShort("Damage", (short) damage);
         return stack;

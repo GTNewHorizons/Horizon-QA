@@ -16,6 +16,8 @@ import cpw.mods.fml.common.registry.GameData;
 /** Converts ItemStack identity fields between runtime-native IDs and portable registry names. */
 final class PortableItemStackNbt {
 
+    static final String PORTABLE_ID_KEY = "HorizonQAItemId";
+
     private static final int TAG_STRING = 8;
     private static final int TAG_ANY_NUMERIC = 99;
 
@@ -30,8 +32,7 @@ final class PortableItemStackNbt {
 
     private enum Operation {
         ENCODE,
-        VALIDATE,
-        HYDRATE
+        DECODE
     }
 
     private PortableItemStackNbt() {}
@@ -55,19 +56,19 @@ final class PortableItemStackNbt {
         }
     }
 
-    static void validateForLoading(NBTTagCompound root, int formatVersion, boolean trustLegacyNumericIds,
-        String templateName) throws TemplateException {
-        transform(root, "$", Operation.VALIDATE, formatVersion, trustLegacyNumericIds, templateName, RUNTIME_CODEC);
+    static NBTTagCompound decodeForRuntime(NBTTagCompound root, int formatVersion, boolean trustLegacyNumericIds,
+        String templateName, String rootPath) throws TemplateException {
+        return decodeForRuntime(root, formatVersion, trustLegacyNumericIds, templateName, rootPath, RUNTIME_CODEC);
     }
 
-    static NBTTagCompound prepareForPlacement(NBTTagCompound root, int formatVersion, String templateName,
-        String rootPath) throws TemplateException {
-        return prepareForPlacement(root, formatVersion, templateName, rootPath, RUNTIME_CODEC);
+    static NBTTagCompound decodeForRuntime(NBTTagCompound root, int formatVersion, String templateName, String rootPath,
+        ItemIdentityCodec codec) throws TemplateException {
+        return decodeForRuntime(root, formatVersion, false, templateName, rootPath, codec);
     }
 
-    static NBTTagCompound prepareForPlacement(NBTTagCompound root, int formatVersion, String templateName,
-        String rootPath, ItemIdentityCodec codec) throws TemplateException {
-        return transform(root, rootPath, Operation.HYDRATE, formatVersion, false, templateName, codec);
+    static NBTTagCompound decodeForRuntime(NBTTagCompound root, int formatVersion, boolean trustLegacyNumericIds,
+        String templateName, String rootPath, ItemIdentityCodec codec) throws TemplateException {
+        return transform(root, rootPath, Operation.DECODE, formatVersion, trustLegacyNumericIds, templateName, codec);
     }
 
     private static NBTTagCompound transform(NBTTagCompound root, String rootPath, Operation operation,
@@ -136,6 +137,26 @@ final class PortableItemStackNbt {
         throws TemplateException {
         boolean nativeStack = isNativeItemStack(compound);
         boolean portableStack = isPortableItemStack(compound);
+        if (compound.hasKey(PORTABLE_ID_KEY) && !portableStack) {
+            throw new TemplateException(
+                "Template '" + templateName
+                    + "' has invalid portable ItemStack identity at "
+                    + path
+                    + "; '"
+                    + PORTABLE_ID_KEY
+                    + "' must be a string");
+        }
+        if (portableStack && !hasStackPayload(compound)) {
+            throw new TemplateException(
+                "Template '" + templateName
+                    + "' has invalid portable ItemStack at "
+                    + path
+                    + "; Count and Damage must be numeric");
+        }
+        if (nativeStack && portableStack) {
+            throw new TemplateException(
+                "Template '" + templateName + "' has both native and portable ItemStack identities at " + path);
+        }
         if (!nativeStack && !portableStack) {
             return;
         }
@@ -148,16 +169,13 @@ final class PortableItemStackNbt {
         }
 
         if (nativeStack) {
-            if (formatVersion == HybridStructureTemplate.RUNTIME_NATIVE_NBT) {
-                return;
-            }
             if (formatVersion == HybridStructureTemplate.LEGACY_FORMAT_VERSION && trustLegacyNumericIds) {
                 return;
             }
             throw unsafeNumericIdentity(templateName, formatVersion, path);
         }
 
-        if (operation == Operation.VALIDATE || operation == Operation.HYDRATE) {
+        if (operation == Operation.DECODE) {
             hydratePortableIdentity(compound, path, templateName, codec);
         }
     }
@@ -178,13 +196,14 @@ final class PortableItemStackNbt {
                     + ": its numeric item ID is not registered in the active environment");
         }
 
+        compound.removeTag("id");
         compound.removeTag("idExt");
-        compound.setString("id", registryName);
+        compound.setString(PORTABLE_ID_KEY, registryName);
     }
 
     private static void hydratePortableIdentity(NBTTagCompound compound, String path, String templateName,
         ItemIdentityCodec codec) throws TemplateException {
-        String registryName = compound.getString("id");
+        String registryName = compound.getString(PORTABLE_ID_KEY);
         final NBTTagCompound nativeIdentity;
         try {
             nativeIdentity = codec.nativeIdentityFor(registryName);
@@ -202,6 +221,7 @@ final class PortableItemStackNbt {
                     + path);
         }
 
+        compound.removeTag(PORTABLE_ID_KEY);
         compound.removeTag("id");
         compound.removeTag("idExt");
         if (nativeIdentity.hasKey("id")) {
@@ -233,7 +253,9 @@ final class PortableItemStackNbt {
                 + formatVersion
                 + " but contains a numeric ItemStack ID at "
                 + path
-                + "; format_version 2 requires registry-name IDs");
+                + "; format_version 2 requires '"
+                + PORTABLE_ID_KEY
+                + "' registry-name identities");
     }
 
     private static boolean isNativeItemStack(NBTTagCompound compound) {
@@ -241,7 +263,7 @@ final class PortableItemStackNbt {
     }
 
     private static boolean isPortableItemStack(NBTTagCompound compound) {
-        return hasStackPayload(compound) && compound.hasKey("id", TAG_STRING);
+        return compound.hasKey(PORTABLE_ID_KEY, TAG_STRING);
     }
 
     private static boolean hasStackPayload(NBTTagCompound compound) {

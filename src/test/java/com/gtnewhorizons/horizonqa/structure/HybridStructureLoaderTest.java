@@ -56,7 +56,6 @@ public class HybridStructureLoaderTest {
     public void snbtDataLoadsTilesAndEntities() throws Exception {
         HybridStructureTemplate template = HybridStructureLoader.load("horizonqatest:snbt");
 
-        assertEquals(HybridStructureTemplate.LEGACY_FORMAT_VERSION, template.nbtFormatVersion());
         NBTTagCompound tile = template.getTileEntity(0, 0, 0);
         assertEquals("TestTile", tile.getString("id"));
 
@@ -72,7 +71,6 @@ public class HybridStructureLoaderTest {
     public void missingFormatVersionDefaultsToItemFreeLegacyFormat() throws Exception {
         HybridStructureTemplate template = HybridStructureLoader.load("horizonqatest:missing_version");
 
-        assertEquals(HybridStructureTemplate.LEGACY_FORMAT_VERSION, template.nbtFormatVersion());
         assertEquals(
             0,
             template.getEntities()
@@ -103,7 +101,6 @@ public class HybridStructureLoaderTest {
     public void trustedLegacyNumericItemStackStaysRuntimeNativeForMigration() throws Exception {
         HybridStructureTemplate template = HybridStructureLoader.load("horizonqatest:legacy_numeric_stack", true);
 
-        assertEquals(HybridStructureTemplate.RUNTIME_NATIVE_NBT, template.nbtFormatVersion());
         NBTTagCompound item = template.getEntities()
             .getCompoundTagAt(0)
             .getCompoundTag("Item");
@@ -125,7 +122,7 @@ public class HybridStructureLoaderTest {
                 .contains("format_version 2"));
         assertTrue(
             error.getMessage()
-                .contains("requires registry-name IDs"));
+                .contains(PortableItemStackNbt.PORTABLE_ID_KEY));
         assertTrue(
             error.getMessage()
                 .contains("$.entities[0].Item"));

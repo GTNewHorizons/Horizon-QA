@@ -94,7 +94,7 @@ Use [Structure templates](structures.md) for the export and packaging layout.
 
 ## A template reports a numeric or missing ItemStack ID
 
-Version 2 structure data stores ItemStack registry names recursively. If a named item is not registered in the current environment, template placement fails with the missing name and its NBT path. Install the owning mod or re-export after intentionally replacing the item; changing numeric registry assignments will not fix a missing name.
+Version 2 structure data stores ItemStack registry names recursively in the explicit `HorizonQAItemId` field. If a named item is not registered in the current environment, template loading fails with the missing name and its NBT path. Install the owning mod or re-export after intentionally replacing the item; changing numeric registry assignments will not fix a missing name.
 
 A version 1 template with numeric ItemStack IDs is unsafe outside the environment that exported it and is rejected during test execution. To migrate it, start that original environment with the temporary opt-in, use interactive `/horizonqa load`, and export it again:
 

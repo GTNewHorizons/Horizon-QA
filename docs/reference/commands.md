@@ -57,7 +57,7 @@ Exported files:
 - `<name>.snbt` for tile entity and non-player entity data, when the selection has any and the generated text round-trips losslessly.
 - `<name>.nbt` instead of `.snbt` when the structure data cannot be represented safely in Minecraft 1.7.10 SNBT.
 
-ItemStacks anywhere in the exported tile entity or entity data use registry-name `id` values rather than environment-specific numeric IDs. Loading resolves those names against the active item registry; a missing item fails the template with its registry name and NBT path.
+ItemStacks anywhere in the exported tile entity or entity data use an explicit registry-name `HorizonQAItemId` field rather than an environment-specific numeric `id`. Loading resolves those names against the active item registry; a missing item fails the template with its registry name and NBT path.
 
 Coordinate labels are written into the JSON as optional `annotations.labels` entries. Tests can read them with `helper.pos("name")` for test-local coordinates or `helper.absolute("name")` for world coordinates. Missing labels are reported as infrastructure errors with type `LABEL_ERROR`.
 
