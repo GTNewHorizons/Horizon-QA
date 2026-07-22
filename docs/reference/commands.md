@@ -53,9 +53,11 @@ Output directory: `<serverDir>/horizonqastructures/`.
 
 Exported files:
 
-- `<name>.json` for the block layout.
+- `<name>.json` for the version 2 block layout.
 - `<name>.snbt` for tile entity and non-player entity data, when the selection has any and the generated text round-trips losslessly.
 - `<name>.nbt` instead of `.snbt` when the structure data cannot be represented safely in Minecraft 1.7.10 SNBT.
+
+ItemStacks anywhere in the exported tile entity or entity data use registry-name `id` values rather than environment-specific numeric IDs. Loading resolves those names against the active item registry; a missing item fails the template with its registry name and NBT path.
 
 Coordinate labels are written into the JSON as optional `annotations.labels` entries. Tests can read them with `helper.pos("name")` for test-local coordinates or `helper.absolute("name")` for world coordinates. Missing labels are reported as infrastructure errors with type `LABEL_ERROR`.
 
@@ -76,6 +78,23 @@ After placement, Horizon-QA sets the wand selection to the placed bounds, restor
 ```
 
 The export writes `horizonqastructures/machines/ebf.json` plus any `.snbt` or `.nbt` structure data under the server directory. Move the updated files back into `assets/mymod/horizonqastructures/`.
+
+### Migrating a version 1 template
+
+Version 1 structure data may contain numeric ItemStack IDs from the modpack that exported it. Horizon-QA rejects those stacks during test execution. Perform a one-time migration in that original environment:
+
+1. Start the interactive server with `-Dhorizonqa.allowLegacyNumericItemIds=true`.
+2. Run `/horizonqa load <namespace:path>`.
+3. Run `/horizonqa export` and replace the packaged template files with the version 2 export.
+
+For a Gradle server run, pass the property to Minecraft rather than the Gradle daemon:
+
+```bash
+./gradlew runServer \
+  --mcJvmArgs="-Dhorizonqa.allowLegacyNumericItemIds=true"
+```
+
+The property trusts the current numeric item registry only for interactive `/horizonqa load`. It has no effect on CI, reported batches, or interactive test runs. Use it only in the original ID environment for migration, and remove it afterward.
 
 ## Label commands
 

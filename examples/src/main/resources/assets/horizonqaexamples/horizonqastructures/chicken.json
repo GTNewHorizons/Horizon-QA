@@ -1,5 +1,5 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "size": [3, 2, 5],
   "palette": {
     "A": {"name": "Railcraft:residual.heat", "meta": 0, "label": "Residual Heat"},

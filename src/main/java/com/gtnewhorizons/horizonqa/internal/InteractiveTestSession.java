@@ -16,8 +16,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
+import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
+import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureLoader;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
 import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
@@ -38,6 +40,7 @@ public class InteractiveTestSession {
     private final Map<String, CellRecord> knownCells = new ConcurrentHashMap<>();
     private final Map<String, GameTestInstance> lastInstances = new ConcurrentHashMap<>();
     private final Set<String> failedIds = ConcurrentHashMap.newKeySet();
+    private final Set<String> worldOwnedCellIds = ConcurrentHashMap.newKeySet();
 
     private InteractiveTestSession() {
         runner = new GameTestRunner();
@@ -82,9 +85,14 @@ public class InteractiveTestSession {
         }
 
         ensureRunnerRegistered();
+        int launched = 0;
         for (PlannedTest plannedTest : planned) {
             GameTestInstance inst = spawnPlannedTest(plannedTest, world);
+            if (inst == null) {
+                continue;
+            }
             runner.addInstance(inst);
+            launched++;
             LOG.info(
                 "[GameTest] Launched '{}' at ({}, {}, {}).",
                 plannedTest.def.getTestId(),
@@ -92,8 +100,8 @@ public class InteractiveTestSession {
                 plannedTest.originY,
                 plannedTest.originZ);
         }
-        LOG.info("[GameTest] Launched {} test(s) total.", planned.size());
-        return planned.size();
+        LOG.info("[GameTest] Launched {} test(s) total.", launched);
+        return launched;
     }
 
     public boolean relaunchAtCell(GameTestDefinition def) {
@@ -115,6 +123,9 @@ public class InteractiveTestSession {
         }
         ensureRunnerRegistered();
         GameTestInstance inst = spawnPlannedTest(plannedTest, world);
+        if (inst == null) {
+            return false;
+        }
         runner.addInstance(inst);
         LOG.info(
             "[GameTest] Re-launched '{}' in-place at ({}, {}, {}).",
@@ -131,13 +142,16 @@ public class InteractiveTestSession {
         int cleared = 0;
         if (world != null) {
             for (CellRecord cell : knownCells.values()) {
-                clearCell(world, cell);
-                cleared++;
+                if (worldOwnedCellIds.contains(cell.testId)) {
+                    clearCell(world, cell);
+                    cleared++;
+                }
             }
         }
         knownCells.clear();
         lastInstances.clear();
         failedIds.clear();
+        worldOwnedCellIds.clear();
         HorizonQAMod.CHUNK_LOADER.releaseAll();
         grid.reset();
         if (onClearAllCallback != null) onClearAllCallback.run();
@@ -180,7 +194,13 @@ public class InteractiveTestSession {
     private List<PlannedTest> planTests(List<GameTestDefinition> defs) {
         List<PlannedTest> planned = new ArrayList<>(defs.size());
         for (GameTestDefinition def : defs) {
-            HybridStructureTemplate template = loadTemplate(def);
+            HybridStructureTemplate template;
+            try {
+                template = loadTemplate(def);
+            } catch (IOException e) {
+                recordTemplateLoadFailure(def, e);
+                continue;
+            }
             int sizeX = template != null ? StructurePlacer.placedSizeX(template, def.getRotation()) : 0;
             int sizeZ = template != null ? StructurePlacer.placedSizeZ(template, def.getRotation()) : 0;
             int[] origin = grid.allocateOrigin(sizeX, sizeZ);
@@ -193,7 +213,12 @@ public class InteractiveTestSession {
     }
 
     private PlannedTest planTestAt(GameTestDefinition def, int originX, int originY, int originZ) {
-        return planTestAt(def, originX, originY, originZ, loadTemplate(def));
+        try {
+            return planTestAt(def, originX, originY, originZ, loadTemplate(def));
+        } catch (IOException e) {
+            recordTemplateLoadFailure(def, e);
+            return null;
+        }
     }
 
     private PlannedTest planTestAt(GameTestDefinition def, int originX, int originY, int originZ,
@@ -224,6 +249,21 @@ public class InteractiveTestSession {
                     originY,
                     originZ,
                     e.getMessage());
+                CellRecord cell = knownCells.get(def.getTestId());
+                if (cell == null) {
+                    cell = cellRecord(
+                        def,
+                        originX,
+                        originY,
+                        originZ,
+                        cellMinX,
+                        cellMinY,
+                        cellMinZ,
+                        cellMaxX,
+                        cellMaxY,
+                        cellMaxZ);
+                }
+                recordTemplateSetupFailure(def, e, cell);
                 return null;
             }
         }
@@ -289,7 +329,8 @@ public class InteractiveTestSession {
         int originZ = plannedTest.originZ;
 
         CellRecord previous = knownCells.remove(def.getTestId());
-        if (previous != null) {
+        boolean previousOwnedWorldCell = worldOwnedCellIds.remove(def.getTestId());
+        if (previous != null && previousOwnedWorldCell) {
             clearCell(world, previous);
         }
         failedIds.remove(def.getTestId());
@@ -302,29 +343,39 @@ public class InteractiveTestSession {
             plannedTest.cellMaxX,
             plannedTest.cellMaxY,
             plannedTest.cellMaxZ);
+        worldOwnedCellIds.add(def.getTestId());
 
         if (template != null) {
-            StructurePlacer.place(
-                template,
-                world,
-                originX,
-                originY,
-                originZ,
-                def.getRotation(),
-                GTNHGameTestHelper::rotateStructureTileNbt);
+            try {
+                StructurePlacer.placeStrict(
+                    def.getTemplateName(),
+                    template,
+                    world,
+                    originX,
+                    originY,
+                    originZ,
+                    def.getRotation(),
+                    GTNHGameTestHelper::rotateStructureTileNbt);
+            } catch (TemplateException e) {
+                LOG.error(
+                    "[GameTest] Failed to place template '{}' for interactive test '{}': {}",
+                    def.getTemplateName(),
+                    def.getTestId(),
+                    e.getMessage());
+                TestCellScanner.preClearWithMargin(
+                    world,
+                    plannedTest.cellMinX,
+                    plannedTest.cellMinY,
+                    plannedTest.cellMinZ,
+                    plannedTest.cellMaxX,
+                    plannedTest.cellMaxY,
+                    plannedTest.cellMaxZ);
+                recordTemplateSetupFailure(def, e, cellRecord(plannedTest));
+                return null;
+            }
         }
 
-        CellRecord cell = new CellRecord(
-            def.getTestId(),
-            originX,
-            originY,
-            originZ,
-            plannedTest.cellMinX,
-            plannedTest.cellMinY,
-            plannedTest.cellMinZ,
-            plannedTest.cellMaxX,
-            plannedTest.cellMaxY,
-            plannedTest.cellMaxZ);
+        CellRecord cell = cellRecord(plannedTest);
         knownCells.put(def.getTestId(), cell);
 
         GameTestInstance inst = new GameTestInstance(def, originX, originY, originZ, template);
@@ -395,19 +446,82 @@ public class InteractiveTestSession {
         GridSweeper.clearAndNotify(world, cell.minX, cell.minY, cell.minZ, cell.maxX, cell.maxY, cell.maxZ);
     }
 
-    private static HybridStructureTemplate loadTemplate(GameTestDefinition def) {
+    static HybridStructureTemplate loadTemplate(GameTestDefinition def) throws IOException {
         if (def.getTemplateName()
             .isEmpty()) return null;
-        try {
-            return HybridStructureLoader.load(def.getTemplateName());
-        } catch (IOException e) {
-            LOG.error(
-                "[GameTest] Failed to load template '{}' for test '{}': {}",
-                def.getTemplateName(),
-                def.getTestId(),
-                e.getMessage());
-            return null;
+        return HybridStructureLoader.load(def.getTemplateName());
+    }
+
+    void recordTemplateLoadFailure(GameTestDefinition def, IOException error) {
+        LOG.error(
+            "[GameTest] Failed to load template '{}' for test '{}': {}",
+            def.getTemplateName(),
+            def.getTestId(),
+            error.getMessage());
+        CellRecord cell = knownCells.get(def.getTestId());
+        if (cell == null) {
+            int[] origin = grid.allocateOrigin(0, 0);
+            cell = cellRecord(
+                def,
+                origin[0],
+                origin[1],
+                origin[2],
+                origin[0],
+                origin[1],
+                origin[2],
+                origin[0] + GameTestGridLayout.DEFAULT_CELL_SIZE - 1,
+                origin[1] + GameTestGridLayout.DEFAULT_CELL_SIZE - 1,
+                origin[2] + GameTestGridLayout.DEFAULT_CELL_SIZE - 1);
         }
+        recordTemplateSetupFailure(def, error, cell);
+    }
+
+    private void recordTemplateSetupFailure(GameTestDefinition def, Throwable error, CellRecord cell) {
+        String message = error != null ? error.getMessage() : null;
+        if (message == null || message.isEmpty()) {
+            message = "Template setup failed";
+        }
+        GameTestInfrastructureException failure = new GameTestInfrastructureException(
+            CaseResult.TEMPLATE_ERROR,
+            message);
+        if (error != null) {
+            failure.initCause(error);
+        }
+
+        GameTestInstance instance = new GameTestInstance(def, cell.originX, cell.originY, cell.originZ);
+        instance.failSetup(failure);
+        knownCells.put(def.getTestId(), cell);
+        lastInstances.put(def.getTestId(), instance);
+        failedIds.add(def.getTestId());
+    }
+
+    private static CellRecord cellRecord(PlannedTest plannedTest) {
+        return cellRecord(
+            plannedTest.def,
+            plannedTest.originX,
+            plannedTest.originY,
+            plannedTest.originZ,
+            plannedTest.cellMinX,
+            plannedTest.cellMinY,
+            plannedTest.cellMinZ,
+            plannedTest.cellMaxX,
+            plannedTest.cellMaxY,
+            plannedTest.cellMaxZ);
+    }
+
+    private static CellRecord cellRecord(GameTestDefinition def, int originX, int originY, int originZ, int cellMinX,
+        int cellMinY, int cellMinZ, int cellMaxX, int cellMaxY, int cellMaxZ) {
+        return new CellRecord(
+            def.getTestId(),
+            originX,
+            originY,
+            originZ,
+            cellMinX,
+            cellMinY,
+            cellMinZ,
+            cellMaxX,
+            cellMaxY,
+            cellMaxZ);
     }
 
     private void ensureRunnerRegistered() {

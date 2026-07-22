@@ -29,7 +29,7 @@ import org.apache.logging.log4j.Logger;
 
 public final class StructureExporter {
 
-    private static final int VERSION_NUMBER = 1;
+    private static final int VERSION_NUMBER = HybridStructureTemplate.CURRENT_FORMAT_VERSION;
 
     private static final Logger LOG = LogManager.getLogger("GameTest");
 
@@ -137,6 +137,8 @@ public final class StructureExporter {
         if (entityCount > 0) {
             entityData.setTag(ENTITIES_KEY, entities);
         }
+        NBTTagCompound structureData = PortableItemStackNbt
+            .encodeForTemplate(StructureNbt.combine(tileData, entityData));
 
         if (sortedUniqueBlocks.size() > KEY_SEQUENCE.length()) {
             throw new IOException(
@@ -259,7 +261,6 @@ public final class StructureExporter {
         }
         LOG.info("StructureExporter: wrote layout -> {}", jsonFile.getAbsolutePath());
 
-        NBTTagCompound structureData = StructureNbt.combine(tileData, entityData);
         File snbtFile = new File(outputDir, name + ".snbt");
         File nbtFile = new File(outputDir, name + ".nbt");
         ensureParentDirectory(snbtFile);

@@ -1,0 +1,13 @@
+{
+  entities: [
+    {
+      id: "Item",
+      Item: {
+        Count: 1b,
+        Damage: 0s,
+        id: "missingmod:missing_item"
+      }
+    }
+  ],
+  tiles: []
+}

@@ -128,6 +128,22 @@ Allows an automatic CI run with no selected valid tests to pass. This has no eff
 -Dhorizonqa.allowNoTests=true
 ```
 
+## `horizonqa.allowLegacyNumericItemIds`
+
+| Property                               | Values           | Default |
+|----------------------------------------|------------------|---------|
+| `horizonqa.allowLegacyNumericItemIds` | `true` / `false` | `false` |
+
+Temporarily allows interactive `/horizonqa load` to interpret numeric ItemStack IDs in a version 1 template using the current item registry. Parsing is strict: only lowercase `true` and `false` are accepted.
+
+This property is a migration tool, not a compatibility mode. It affects only interactive `/horizonqa load`; automatic CI, reported batches, and interactive test execution continue to reject legacy numeric ItemStack IDs even when it is `true`.
+
+Run it only in the original environment whose numeric registry produced the template, then use `/horizonqa export` to create a portable version 2 template and remove the property:
+
+```text
+./gradlew runServer --mcJvmArgs="-Dhorizonqa.allowLegacyNumericItemIds=true"
+```
+
 ## `horizonqa.events`
 
 | Property           | Values       | Default |

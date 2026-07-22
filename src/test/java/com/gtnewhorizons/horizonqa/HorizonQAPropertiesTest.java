@@ -43,6 +43,8 @@ public class HorizonQAPropertiesTest {
             parsed.testSelectors()
                 .isEmpty());
         assertFalse(parsed.allowNoTests());
+        assertNull(parsed.rawAllowLegacyNumericItemIds());
+        assertFalse(parsed.allowLegacyNumericItemIds());
         assertTrue(parsed.eventsEnabled());
         assertNull(parsed.reportFile());
         assertNull(parsed.reportDir());
@@ -133,6 +135,23 @@ public class HorizonQAPropertiesTest {
     }
 
     @Test
+    public void manualReportedInfrastructureKeepsInvalidLegacyNumericItemIdOptIn() {
+        Properties properties = new Properties();
+        properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "ci");
+        properties.setProperty(HorizonQAProperties.AUTO_RUN_PROPERTY, "false");
+        properties.setProperty(HorizonQAProperties.ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY, "yes");
+        HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(properties);
+
+        List<PropertyIssue> issues = HorizonQAProperties.reportInfrastructureIssues(parsed);
+
+        assertEquals(1, issues.size());
+        assertEquals(
+            HorizonQAProperties.ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY,
+            issues.get(0)
+                .property());
+    }
+
+    @Test
     public void propertyParsingTrimsPathsAndKeepsRawConfigurationValues() {
         Properties properties = new Properties();
         properties.setProperty(HorizonQAProperties.MODE_PROPERTY, "ci");
@@ -142,6 +161,7 @@ public class HorizonQAPropertiesTest {
         properties.setProperty(HorizonQAProperties.GRID_ORIGIN_PROPERTY, " 16,128,-32 ");
         properties.setProperty(HorizonQAProperties.TESTS_PROPERTY, " moda , modb:Suite.test ");
         properties.setProperty(HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY, "true");
+        properties.setProperty(HorizonQAProperties.ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY, "true");
         properties.setProperty(HorizonQAProperties.REPORT_FILE_PROPERTY, " reports/TEST-custom.xml ");
         properties.setProperty(HorizonQAProperties.REPORT_DIR_PROPERTY, " reports ");
         properties.setProperty(HorizonQAProperties.STATUS_FILE_PROPERTY, " status/result.json ");
@@ -175,6 +195,8 @@ public class HorizonQAPropertiesTest {
                 .get(1));
         assertEquals("true", parsed.rawAllowNoTests());
         assertTrue(parsed.allowNoTests());
+        assertEquals("true", parsed.rawAllowLegacyNumericItemIds());
+        assertTrue(parsed.allowLegacyNumericItemIds());
         assertEquals("off", parsed.rawEvents());
         assertFalse(parsed.eventsEnabled());
         assertEquals("reports/TEST-custom.xml", parsed.reportFile());
@@ -194,6 +216,7 @@ public class HorizonQAPropertiesTest {
         properties.setProperty(HorizonQAProperties.STOP_SERVER_PROPERTY, "no");
         properties.setProperty(HorizonQAProperties.GRID_ORIGIN_PROPERTY, "0,256,0");
         properties.setProperty(HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY, "yes");
+        properties.setProperty(HorizonQAProperties.ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY, "yes");
         properties.setProperty(HorizonQAProperties.REPORT_FILE_PROPERTY, "   ");
         properties.setProperty(HorizonQAProperties.EVENTS_PROPERTY, "false");
 
@@ -205,6 +228,8 @@ public class HorizonQAPropertiesTest {
         assertFalse(parsed.stopServerAfterRun());
         assertEquals(new HorizonQAProperties.GridOrigin(0, 64, 0), parsed.gridOrigin());
         assertFalse(parsed.allowNoTests());
+        assertEquals("yes", parsed.rawAllowLegacyNumericItemIds());
+        assertFalse(parsed.allowLegacyNumericItemIds());
         assertNull(parsed.reportFile());
         assertTrue(parsed.eventsEnabled());
         assertConfigIssue(parsed, HorizonQAProperties.MODE_PROPERTY);
@@ -213,10 +238,11 @@ public class HorizonQAPropertiesTest {
         assertConfigIssue(parsed, HorizonQAProperties.STOP_SERVER_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.GRID_ORIGIN_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY);
+        assertConfigIssue(parsed, HorizonQAProperties.ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.REPORT_FILE_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.EVENTS_PROPERTY);
         assertEquals(
-            8,
+            9,
             parsed.issues()
                 .size());
     }

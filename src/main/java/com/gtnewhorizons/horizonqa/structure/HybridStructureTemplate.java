@@ -5,6 +5,10 @@ import net.minecraft.nbt.NBTTagList;
 
 public final class HybridStructureTemplate {
 
+    static final int RUNTIME_NATIVE_NBT = 0;
+    static final int LEGACY_FORMAT_VERSION = 1;
+    static final int CURRENT_FORMAT_VERSION = 2;
+
     public static final class PaletteEntry {
 
         public final String name;
@@ -33,6 +37,7 @@ public final class HybridStructureTemplate {
     private final NBTTagCompound tileData;
     private final NBTTagCompound entityData;
     private final StructureAnnotations annotations;
+    private final int nbtFormatVersion;
 
     public HybridStructureTemplate(int sizeX, int sizeY, int sizeZ, PaletteEntry[] palette, char[] paletteKeys,
         int[][][] blockData, NBTTagCompound tileData) {
@@ -46,6 +51,22 @@ public final class HybridStructureTemplate {
 
     public HybridStructureTemplate(int sizeX, int sizeY, int sizeZ, PaletteEntry[] palette, char[] paletteKeys,
         int[][][] blockData, NBTTagCompound tileData, NBTTagCompound entityData, StructureAnnotations annotations) {
+        this(
+            sizeX,
+            sizeY,
+            sizeZ,
+            palette,
+            paletteKeys,
+            blockData,
+            tileData,
+            entityData,
+            annotations,
+            RUNTIME_NATIVE_NBT);
+    }
+
+    HybridStructureTemplate(int sizeX, int sizeY, int sizeZ, PaletteEntry[] palette, char[] paletteKeys,
+        int[][][] blockData, NBTTagCompound tileData, NBTTagCompound entityData, StructureAnnotations annotations,
+        int nbtFormatVersion) {
         this.sizeX = sizeX;
         this.sizeY = sizeY;
         this.sizeZ = sizeZ;
@@ -55,6 +76,7 @@ public final class HybridStructureTemplate {
         this.tileData = tileData != null ? tileData : new NBTTagCompound();
         this.entityData = entityData != null ? entityData : new NBTTagCompound();
         this.annotations = annotations != null ? annotations : StructureAnnotations.EMPTY;
+        this.nbtFormatVersion = nbtFormatVersion;
     }
 
     public int getSizeX() {
@@ -94,5 +116,17 @@ public final class HybridStructureTemplate {
 
     public StructureAnnotations getAnnotations() {
         return annotations;
+    }
+
+    int nbtFormatVersion() {
+        return nbtFormatVersion;
+    }
+
+    NBTTagCompound copyTileData() {
+        return (NBTTagCompound) tileData.copy();
+    }
+
+    NBTTagCompound copyEntityData() {
+        return (NBTTagCompound) entityData.copy();
     }
 }

@@ -85,12 +85,25 @@ Also check:
 
 - the JSON path and letter case,
 - `format_version`, `size`, palette symbols, and layer dimensions,
-- the optional `.snbt` or `.nbt` file beside the JSON,
+- the optional `.snbt` or `.nbt` file beside the JSON; lookup order is `.snbt`, combined `.nbt`, then legacy `_tiles.nbt` and `_entities.nbt` sidecars,
 - whether a fully qualified reference uses `othermod:path` correctly.
 
-Reported execution does not start a test whose template cannot be loaded; it records a `TEMPLATE_ERROR`. The current interactive runner logs the load failure and continues with an empty cell. If an interactive fixture appears absent, read the server log before debugging the test body.
+A template load failure prevents the affected test from starting. Reported execution records a `TEMPLATE_ERROR`; an interactive run shows the same kind and message on its pink error marker. Inspect the server log for the complete error before debugging the test body.
 
 Use [Structure templates](structures.md) for the export and packaging layout.
+
+## A template reports a numeric or missing ItemStack ID
+
+Version 2 structure data stores ItemStack registry names recursively. If a named item is not registered in the current environment, template placement fails with the missing name and its NBT path. Install the owning mod or re-export after intentionally replacing the item; changing numeric registry assignments will not fix a missing name.
+
+A version 1 template with numeric ItemStack IDs is unsafe outside the environment that exported it and is rejected during test execution. To migrate it, start that original environment with the temporary opt-in, use interactive `/horizonqa load`, and export it again:
+
+```bash
+./gradlew runServer \
+  --mcJvmArgs="-Dhorizonqa.allowLegacyNumericItemIds=true"
+```
+
+The property trusts the current numeric mapping only for interactive `/horizonqa load`; it never relaxes CI, reported-batch, or interactive-test loading. Remove it after producing the version 2 template. Numeric fields that are not ItemStack identities, such as enchantment IDs or mod-private values, are deliberately left unchanged.
 
 ## A label is missing
 

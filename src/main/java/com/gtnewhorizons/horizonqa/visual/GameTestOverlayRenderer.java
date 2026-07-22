@@ -8,10 +8,12 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 
 import org.lwjgl.opengl.GL11;
 
+import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
 import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
 import com.gtnewhorizons.horizonqa.internal.GameTestStatus;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
+import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.visual.drawables.DebugBeacon;
 import com.gtnewhorizons.horizonqa.visual.drawables.FloatingText;
 import com.gtnewhorizons.horizonqa.visual.drawables.GhostBlockDiff;
@@ -133,7 +135,7 @@ public final class GameTestOverlayRenderer {
         };
     }
 
-    private static String[] buildLines(String testId, GameTestStatus status, GameTestInstance inst) {
+    static String[] buildLines(String testId, GameTestStatus status, GameTestInstance inst) {
         String name = testId.contains(":") ? testId.substring(testId.indexOf(':') + 1) : testId;
         String statusLine = statusLabel(status, inst);
 
@@ -142,7 +144,8 @@ public final class GameTestOverlayRenderer {
         }
 
         if ((status == GameTestStatus.FAILED || status == GameTestStatus.ERROR) && inst != null) {
-            Throwable cause = status == GameTestStatus.ERROR ? inst.getCleanupFailureCause() : inst.getFailureCause();
+            boolean cleanupError = status == GameTestStatus.ERROR && inst.getCleanupFailureCause() != null;
+            Throwable cause = cleanupError ? inst.getCleanupFailureCause() : inst.getFailureCause();
             String msg = cause != null ? cause.getMessage() : null;
             if (msg != null) msg = msg.trim();
             boolean hasPos = inst.hasFailPosition();
@@ -157,8 +160,13 @@ public final class GameTestOverlayRenderer {
                 return new String[] { name, statusLine, detail };
             }
 
-            String fallback = status == GameTestStatus.ERROR ? "\u00a7dCleanup error - see log\u00a7r"
-                : "\u00a7cNon-assertion error - see log\u00a7r";
+            String fallback;
+            if (status == GameTestStatus.ERROR) {
+                fallback = cleanupError ? "\u00a7dCleanup error - see log\u00a7r"
+                    : "\u00a7dInfrastructure error - see log\u00a7r";
+            } else {
+                fallback = "\u00a7cNon-assertion error - see log\u00a7r";
+            }
             if (hasPos) {
                 return new String[] { name, statusLine, fallback,
                     String.format("\u00a78%d %d %d\u00a7r", inst.getFailX(), inst.getFailY(), inst.getFailZ()) };
@@ -196,6 +204,23 @@ public final class GameTestOverlayRenderer {
                 .getTimeoutTicks();
             return base + String.format(" \u00a78(after %d t)\u00a7r", lim);
         }
+        if (s == GameTestStatus.ERROR) {
+            String kind = errorKind(inst);
+            if (!kind.isEmpty()) {
+                return base + " \u00a78(" + kind + ")\u00a7r";
+            }
+        }
         return base;
+    }
+
+    private static String errorKind(GameTestInstance inst) {
+        if (inst.getCleanupFailureCause() != null) {
+            return CaseResult.CLEANUP_ERROR;
+        }
+        if (inst.getFailureCause() instanceof GameTestInfrastructureException infrastructure) {
+            String kind = infrastructure.kind();
+            return kind != null ? kind : "";
+        }
+        return "";
     }
 }

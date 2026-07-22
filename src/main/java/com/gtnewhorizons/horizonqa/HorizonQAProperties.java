@@ -17,6 +17,7 @@ public final class HorizonQAProperties {
     public static final String GRID_ORIGIN_PROPERTY = "horizonqa.gridOrigin";
     public static final String TESTS_PROPERTY = "horizonqa.tests";
     public static final String ALLOW_NO_TESTS_PROPERTY = "horizonqa.allowNoTests";
+    public static final String ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY = "horizonqa.allowLegacyNumericItemIds";
     public static final String REPORT_FILE_PROPERTY = "horizonqa.reportFile";
     public static final String REPORT_DIR_PROPERTY = "horizonqa.reportDir";
     public static final String STATUS_FILE_PROPERTY = "horizonqa.statusFile";
@@ -161,6 +162,14 @@ public final class HorizonQAProperties {
 
     public static String rawAllowNoTests() {
         return PARSED.rawAllowNoTests();
+    }
+
+    public static boolean allowLegacyNumericItemIds() {
+        return PARSED.allowLegacyNumericItemIds();
+    }
+
+    public static String rawAllowLegacyNumericItemIds() {
+        return PARSED.rawAllowLegacyNumericItemIds();
     }
 
     public static String reportFile() {
@@ -318,6 +327,15 @@ public final class HorizonQAProperties {
             issues.add(allowNoTests.issue());
         }
 
+        String rawAllowLegacyNumericItemIds = properties.getProperty(ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY);
+        BooleanParseResult allowLegacyNumericItemIds = parseStrictBoolean(
+            ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY,
+            rawAllowLegacyNumericItemIds,
+            false);
+        if (allowLegacyNumericItemIds.issue() != null) {
+            issues.add(allowLegacyNumericItemIds.issue());
+        }
+
         String reportFile = parsePathProperty(
             REPORT_FILE_PROPERTY,
             properties.getProperty(REPORT_FILE_PROPERTY),
@@ -351,6 +369,8 @@ public final class HorizonQAProperties {
             selectors.selectors(),
             rawAllowNoTests,
             allowNoTests.value(),
+            rawAllowLegacyNumericItemIds,
+            allowLegacyNumericItemIds.value(),
             reportFile,
             reportDir,
             statusFile,
@@ -650,8 +670,8 @@ public final class HorizonQAProperties {
         WorldPolicy worldPolicy, String rawAutoRun, boolean autoRunTests, String rawStopServer,
         boolean stopServerAfterRun, String rawGridOrigin, GridOrigin gridOrigin, String rawTests,
         boolean selectsAllTests, List<TestSelector> testSelectors, String rawAllowNoTests, boolean allowNoTests,
-        String reportFile, String reportDir, String statusFile, String rawEvents, boolean eventsEnabled,
-        List<PropertyIssue> issues) {
+        String rawAllowLegacyNumericItemIds, boolean allowLegacyNumericItemIds, String reportFile, String reportDir,
+        String statusFile, String rawEvents, boolean eventsEnabled, List<PropertyIssue> issues) {
 
     }
 

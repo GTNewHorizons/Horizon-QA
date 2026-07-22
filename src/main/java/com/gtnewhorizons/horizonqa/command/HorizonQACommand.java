@@ -715,7 +715,7 @@ public class HorizonQACommand extends CommandBase {
 
         int[] origin = ItemHorizonWand.getTargetedPosition(player);
         try {
-            HybridStructureTemplate template = HybridStructureLoader.load(templateName);
+            HybridStructureTemplate template = HybridStructureLoader.loadForEditing(templateName);
             StructurePlacer.placeStrict(
                 templateName,
                 template,

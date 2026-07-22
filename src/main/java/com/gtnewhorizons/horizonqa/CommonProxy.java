@@ -53,6 +53,18 @@ public class CommonProxy {
         } else if (!HorizonQAProperties.autoRunTests()) {
             logNonFatalPropertyIssues();
         }
+        if (HorizonQAProperties.allowLegacyNumericItemIds()) {
+            if (HorizonQAProperties.isInteractive()) {
+                HorizonQAMod.LOG.warn(
+                    "-D{}=true trusts this environment's numeric item registry only for interactive /horizonqa load "
+                        + "migration. Test execution remains strict; remove the flag after re-exporting as format 2.",
+                    HorizonQAProperties.ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY);
+            } else {
+                HorizonQAMod.LOG.warn(
+                    "-D{}=true is ignored outside interactive mode; legacy numeric ItemStack IDs remain rejected.",
+                    HorizonQAProperties.ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY);
+            }
+        }
         if (HorizonQAProperties.usesVoidWorld()) {
             HorizonQAMod.LOG.info(
                 "Void world policy registered as '{}' (Forge id {}).",

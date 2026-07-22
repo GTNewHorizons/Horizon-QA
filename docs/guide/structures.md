@@ -88,9 +88,27 @@ To revise an existing template, target the coordinate where the template should 
 
 ## Format
 
-Templates use `format_version: 1`, a palette keyed by single-character symbols, and a `layers` array in Y-major order. The loader throws `IOException` with explicit messages for missing layers and unknown palette keys; on a load failure the server log identifies the file and the offending key.
+New exports use `format_version: 2`, a palette keyed by single-character symbols, and a `layers` array in Y-major order. Versions other than 1 and 2 are rejected; a missing version is treated as version 1 for backward compatibility. The loader throws `IOException` with explicit messages for missing layers and unknown palette keys; on a load failure the server log identifies the file and the offending key.
 
-The optional structure data file uses `tiles` as a list of tile entity compounds and `entities` as a list of non-player entity compounds; both are merged at placement time. New exports prefer text `<path>.snbt`, but only write it after parsing the generated text back and confirming the NBT tree is unchanged. If that round-trip is not lossless, the exporter writes combined binary `<path>.nbt`. For compatibility, the loader also accepts older `<path>_tiles.nbt` and `<path>_entities.nbt` files.
+The optional structure data file uses `tiles` as a list of tile entity compounds and `entities` as a list of non-player entity compounds; both are merged at placement time. New exports prefer text `<path>.snbt`, but only write it after parsing the generated text back and confirming the NBT tree is unchanged. If that round-trip is not lossless, the exporter writes combined binary `<path>.nbt`. The loader order remains `<path>.snbt`, then combined `<path>.nbt`, then the legacy `<path>_tiles.nbt` and `<path>_entities.nbt` sidecars.
+
+### Portable ItemStack data
+
+Format version 2 stores the identity of each standard ItemStack compound as its registry name instead of the numeric item ID assigned by the exporting modpack. For example:
+
+```snbt
+{
+  id: "minecraft:spawn_egg",
+  Count: 1b,
+  Damage: 93s
+}
+```
+
+Export applies this conversion recursively through tile entity and entity NBT, including inventories, dropped items, equipment, and ItemStacks nested inside other ItemStack data. Placement resolves each name against the active item registry and recreates the native runtime representation before the tile entity or entity reads it. A missing registry name fails the template with an error that includes the name and its NBT path; the structure is not partially placed.
+
+Only recognized ItemStack compounds are converted. Arbitrary numeric fields such as enchantment IDs, potion IDs, and mod-private values are preserved. Registry names also cannot compensate for an item that was removed or renamed, or for a mod that changed the meaning of an item's metadata or private NBT.
+
+Format version 1 templates that contain numeric ItemStack IDs are rejected because those IDs may identify different items in another modpack. To migrate one, launch the original environment with `-Dhorizonqa.allowLegacyNumericItemIds=true`, load the template with interactive `/horizonqa load`, and export it again. The opt-in trusts the current numeric registry only for that command and has no effect on CI or any test execution path. With Gradle server runs, pass it through `--mcJvmArgs`.
 
 ## Coordinate labels
 
@@ -98,7 +116,7 @@ Templates may include optional coordinate labels:
 
 ```json
 {
-  "format_version": 1,
+  "format_version": 2,
   "size": [1, 1, 1],
   "palette": {
     "A": {"name": "minecraft:stone", "meta": 0, "label": "Stone"}
@@ -132,7 +150,7 @@ Coordinate-based helpers accept raw test-local coordinates, a test-local `TestPo
 
 The reported batch runner places each test's template into a dedicated grid cell with margin for clearance. CI defaults to Horizon-QA's void world, but `-Dhorizonqa.world=normal` leaves the server's configured or existing world type in place, and `-Dhorizonqa.gridOrigin=x,y,z` moves the grid start. Successful reported placement emits `StructurePlaced` in the [event log](../reference/events.md). A missing or invalid template becomes a reported infrastructure error.
 
-The normal interactive runner also allocates a dedicated cell, but a template load failure is currently logged and the test continues with an empty fixture. If a structure-backed interactive test looks unexpectedly empty, inspect the server log.
+The normal interactive runner also allocates a dedicated cell. A template load failure prevents the affected test from starting and leaves a pink `TEMPLATE_ERROR` marker with the specific failure message; the server log contains the complete error.
 
 ## Rotation
 

@@ -92,6 +92,12 @@ public class GameTestInstance {
         }
     }
 
+    void failSetup(GameTestInfrastructureException cause) {
+        if (status != GameTestStatus.NOT_STARTED) return;
+        status = GameTestStatus.RUNNING;
+        fail(cause);
+    }
+
     public void tickStart() {
         if (status != GameTestStatus.RUNNING) return;
         tickCount++;

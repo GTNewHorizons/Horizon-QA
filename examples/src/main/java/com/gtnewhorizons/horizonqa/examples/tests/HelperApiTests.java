@@ -251,7 +251,8 @@ public class HelperApiTests {
     @GameTest(template = "chicken")
     public static void testChicken(GameTestHelper helper) {
         helper.assertEntityCount(EntityChicken.class, 1, "chicken");
-        helper.assertEntityPresent(EntityItem.class, "dropped_item");
+        EntityItem droppedItem = helper.assertEntityPresent(EntityItem.class, "dropped_item");
+        helper.assertItemEqual(new ItemStack(Items.spawn_egg, 1, 93), droppedItem.getEntityItem());
         helper.succeed();
     }
 }

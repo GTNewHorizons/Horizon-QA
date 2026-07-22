@@ -20,6 +20,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 
 public final class HybridStructureLoader {
 
@@ -28,7 +30,36 @@ public final class HybridStructureLoader {
 
     private HybridStructureLoader() {}
 
+    /**
+     * Loads a packaged structure template using the strict test-execution policy.
+     *
+     * <p>
+     * Numeric ItemStack identities in legacy structure data are rejected because their meaning
+     * depends on the active registry assignment.
+     *
+     * @param templateName namespaced template name, such as {@code examplemod:machines/ebf}
+     * @return the parsed template
+     * @throws IOException if the template is missing, malformed, unsupported, or unsafe to load
+     */
     public static HybridStructureTemplate load(String templateName) throws IOException {
+        return load(templateName, false);
+    }
+
+    /**
+     * Loads a template for interactive editing, honoring the one-time legacy-ID migration opt-in.
+     * Test runners must use {@link #load(String)} so test execution always remains strict.
+     *
+     * @param templateName namespaced template name, such as {@code examplemod:machines/ebf}
+     * @return the parsed template
+     * @throws IOException if the template is missing, malformed, unsupported, or unsafe to load
+     */
+    public static HybridStructureTemplate loadForEditing(String templateName) throws IOException {
+        boolean trustLegacyNumericIds = HorizonQAProperties.isInteractive()
+            && HorizonQAProperties.allowLegacyNumericItemIds();
+        return load(templateName, trustLegacyNumericIds);
+    }
+
+    static HybridStructureTemplate load(String templateName, boolean trustLegacyNumericIds) throws IOException {
         String[] parts = templateName.split(":", 2);
         if (parts.length != 2) {
             throw new TemplateException("Invalid template name (expected 'namespace:path'): " + templateName);
@@ -52,12 +83,14 @@ public final class HybridStructureLoader {
         char[] paletteKeys;
         int[][][] blockData;
         StructureAnnotations annotations;
+        int formatVersion;
 
         try (InputStreamReader reader = new InputStreamReader(jsonStream, StandardCharsets.UTF_8)) {
             JsonObject root = GSON.fromJson(reader, JsonObject.class);
             if (root == null) {
                 throw malformed(templateName, "root JSON object is empty");
             }
+            formatVersion = readFormatVersion(root, templateName);
 
             JsonArray sizeArr = requiredArray(root, "size", templateName);
             if (sizeArr.size() != 3) {
@@ -193,10 +226,20 @@ public final class HybridStructureLoader {
             combinedNbtResource,
             tileNbtResource,
             entityNbtResource);
+        PortableItemStackNbt.validateForLoading(
+            StructureNbt.combine(structureData.tileData(), structureData.entityData()),
+            formatVersion,
+            trustLegacyNumericIds,
+            templateName);
+
+        int nbtFormatVersion = trustLegacyNumericIds && formatVersion == HybridStructureTemplate.LEGACY_FORMAT_VERSION
+            ? HybridStructureTemplate.RUNTIME_NATIVE_NBT
+            : formatVersion;
 
         LOG.debug(
-            "Loaded template '{}' ({}x{}x{}, {} palette entries, {} entities)",
+            "Loaded template '{}' (format {}, {}x{}x{}, {} palette entries, {} entities)",
             templateName,
+            formatVersion,
             sizeX,
             sizeY,
             sizeZ,
@@ -211,7 +254,8 @@ public final class HybridStructureLoader {
             blockData,
             structureData.tileData(),
             structureData.entityData(),
-            annotations);
+            annotations,
+            nbtFormatVersion);
     }
 
     private static StructureNbt.StructureData readStructureData(String templateName, String snbtResource,
@@ -301,6 +345,37 @@ public final class HybridStructureLoader {
             throw new TemplateException("Template '" + templateName + "' has duplicate palette key '" + key + "'");
         }
         return key;
+    }
+
+    private static int readFormatVersion(JsonObject root, String templateName) throws TemplateException {
+        JsonElement element = root.get("format_version");
+        if (element == null) {
+            return HybridStructureTemplate.LEGACY_FORMAT_VERSION;
+        }
+        if (!element.isJsonPrimitive()) {
+            throw malformed(templateName, "'format_version' must be an integer");
+        }
+        JsonPrimitive primitive = element.getAsJsonPrimitive();
+        if (!primitive.isNumber()) {
+            throw malformed(templateName, "'format_version' must be an integer");
+        }
+
+        final int formatVersion;
+        try {
+            formatVersion = primitive.getAsBigDecimal()
+                .intValueExact();
+        } catch (ArithmeticException | NumberFormatException e) {
+            throw malformed(templateName, "'format_version' must be an integer");
+        }
+        if (formatVersion != HybridStructureTemplate.LEGACY_FORMAT_VERSION
+            && formatVersion != HybridStructureTemplate.CURRENT_FORMAT_VERSION) {
+            throw new TemplateException(
+                "Template '" + templateName
+                    + "' uses unsupported format_version "
+                    + formatVersion
+                    + " (supported versions: 1 and 2)");
+        }
+        return formatVersion;
     }
 
     private static JsonArray requiredArray(JsonObject root, String name, String templateName) throws TemplateException {
