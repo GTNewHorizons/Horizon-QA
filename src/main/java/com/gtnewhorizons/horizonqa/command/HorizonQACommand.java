@@ -273,10 +273,18 @@ public class HorizonQACommand extends CommandBase {
                         + launched
                         + EnumChatFormatting.GREEN
                         + " test(s)."));
+            if (launched < tests.size()) {
+                sender.addChatMessage(
+                    new ChatComponentText(
+                        EnumChatFormatting.YELLOW + "Could not launch "
+                            + (tests.size() - launched)
+                            + " test(s). Check TEMPLATE_ERROR markers and the server log."));
+            }
         } else {
             sender.addChatMessage(
                 new ChatComponentText(
-                    EnumChatFormatting.RED + "Could not launch tests. The full test area could not be loaded."));
+                    EnumChatFormatting.RED
+                        + "No tests launched. Check TEMPLATE_ERROR markers and the server log for details."));
         }
     }
 
@@ -325,10 +333,18 @@ public class HorizonQACommand extends CommandBase {
                         + launched
                         + EnumChatFormatting.GREEN
                         + " failed test(s)."));
+            if (launched < defs.size()) {
+                sender.addChatMessage(
+                    new ChatComponentText(
+                        EnumChatFormatting.YELLOW + "Could not re-run "
+                            + (defs.size() - launched)
+                            + " test(s). Check TEMPLATE_ERROR markers and the server log."));
+            }
         } else {
             sender.addChatMessage(
                 new ChatComponentText(
-                    EnumChatFormatting.RED + "Could not re-run failed tests. The full test area could not be loaded."));
+                    EnumChatFormatting.RED
+                        + "No failed tests were re-run. Check TEMPLATE_ERROR markers and the server log for details."));
         }
     }
 
