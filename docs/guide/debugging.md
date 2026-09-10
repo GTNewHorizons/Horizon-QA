@@ -11,6 +11,8 @@ Triage order matters: the report first, the game second. [Design principle 8](..
 
 Start with `TEST-horizonqa.xml`, or with the reported-batch console tail. Automatic and manually reported batches print each `[FAIL]` or `[ERROR]` line plus the last 20 event-log lines of the failing test.
 
+Each `[FAIL]`, `[TIME]`, or `[ERROR]` also prints a copyable server-JVM argument such as `--mcJvmArgs='-Dhorizonqa.tests=mymod:Suite.case'`. It uses the existing test-ID-prefix selector matching, so an ID that prefixes another ID can select both. Add the argument to the server task your consumer uses; Horizon-QA does not prescribe a Gradle task path.
+
 For each failed `<testcase>`:
 
 1. **The `<failure>` message** should say what was expected and what was observed. If it does not, improve the test output; see [step 4](#4-make-the-next-failure-cheaper).
