@@ -393,6 +393,13 @@ public class ReporterOutputTest {
     }
 
     @Test
+    public void consoleSelectorArgumentQuotesParameterizedTestIds() {
+        assertEquals(
+            "--mcJvmArgs='-Dhorizonqa.tests=mod:Suite.case[it'\"'\"'s]'",
+            ConsoleReporter.selectorArgument("mod:Suite.case[it's]"));
+    }
+
+    @Test
     public void atomicReportWriterFallsBackOnlyWhenAtomicMoveIsUnsupported() throws Exception {
         Path target = new File(temporaryFolder.getRoot(), "TEST-horizonqa.xml").toPath();
         AtomicInteger moveCount = new AtomicInteger();

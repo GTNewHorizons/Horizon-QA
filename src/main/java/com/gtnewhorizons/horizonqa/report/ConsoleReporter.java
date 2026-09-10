@@ -109,6 +109,7 @@ public final class ConsoleReporter {
     }
 
     private static void dumpOutputTail(CaseResult resultCase) {
+        LOG.error("         Re-run: {}", selectorArgument(resultCase.id()));
         List<String> lines = resultCase.outputLines();
         if (lines.isEmpty()) return;
 
@@ -124,6 +125,10 @@ public final class ConsoleReporter {
     private static String detail(CaseResult resultCase) {
         String message = resultCase.failureMessage();
         return message == null || message.isEmpty() ? "unknown failure" : message;
+    }
+
+    static String selectorArgument(String testId) {
+        return "--mcJvmArgs='-Dhorizonqa.tests=" + testId.replace("'", "'\"'\"'") + "'";
     }
 
     private static boolean hasText(String value) {
