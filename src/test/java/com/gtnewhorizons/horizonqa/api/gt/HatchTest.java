@@ -17,7 +17,7 @@ public class HatchTest {
 
     @Test
     public void assertContainsRejectsNullFluid() {
-        assertIllegalArgument("fluid must not be null", () -> hatch().assertContains(null));
+        assertIllegalArgument("fluid must not be null", () -> hatch().assertContains((FluidStack) null));
     }
 
     private static Hatch hatch() {
