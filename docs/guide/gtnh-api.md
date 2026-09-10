@@ -146,9 +146,11 @@ ebf.outputs().assertNotContains(unexpectedStack);
 For fluids:
 
 ```java
-ebf.inputHatch(0).fill(Materials.Nitrogen.getGas(2000));
+ebf.inputHatch(0).fill("nitrogen", 2000);
 ebf.outputHatch(0).assertContains(Materials.Oxygen.getGas(1000));
 ```
+
+The name overload resolves a Forge fluid registry name and rejects unknown names.
 
 ## Facade coverage
 
