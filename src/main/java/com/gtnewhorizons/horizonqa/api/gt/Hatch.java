@@ -98,6 +98,19 @@ public final class Hatch {
     }
 
     /**
+     * Fills this hatch with {@code amount} mB of the fluid registered as {@code fluidName}.
+     *
+     * @throws IllegalArgumentException if {@code fluidName} is not a known fluid registry name
+     */
+    public Hatch fill(String fluidName, int amount) {
+        FluidStack fluid = FluidRegistry.getFluidStack(fluidName, amount);
+        if (fluid == null) {
+            throw new IllegalArgumentException("Unknown fluid registry name: " + fluidName);
+        }
+        return fill(fluid);
+    }
+
+    /**
      * Passes when the hatch contains at least {@code fluid.amount} mB of the given fluid.
      * Handles {@link MTEHatchMultiInput} correctly by checking all internal fluid slots rather
      * than relying on the single-slot {@code drain()} view.
