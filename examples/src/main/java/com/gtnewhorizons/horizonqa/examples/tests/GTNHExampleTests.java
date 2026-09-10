@@ -109,11 +109,18 @@ public class GTNHExampleTests {
 
     @GameTest(template = "ebf", timeoutTicks = 20, batch = "gtnh")
     public static void testFluidHatchFillAndAssert(GameTestHelper helper) {
-        GTNHGameTestHelper gtnh = helper.gtnh();
-        TestPos inputBus = helper.pos("input_hatch");
+        Multiblock ebf = helper.gtnh()
+            .multiblock(helper.pos("controller"));
+        ebf.assertFormed();
 
-        gtnh.fillHatch(inputBus, "nitrogen", 2000);
-        gtnh.assertFluidInHatch(inputBus, "nitrogen", 2000);
+        ebf.inputHatch(0)
+            .fill("nitrogen", 2000)
+            .assertContains(Materials.Nitrogen.getGas(2000));
+        IllegalArgumentException failure = helper.assertThrows(
+            IllegalArgumentException.class,
+            () -> ebf.inputHatch(0)
+                .fill("missing_fluid", 1));
+        helper.assertEquals("Unknown fluid registry name: missing_fluid", failure.getMessage());
 
         helper.succeed();
     }
@@ -187,7 +194,7 @@ public class GTNHExampleTests {
 
         gtnh.withTestRecipe(dt, synthetic);
         dt.inputHatch(0)
-            .fill(Materials.Helium.getGas(120));
+            .fill("helium", 120);
         dt.energyHatch(0)
             .supply(TierEU.EV, 1, 300);
         dt.runRecipe();
