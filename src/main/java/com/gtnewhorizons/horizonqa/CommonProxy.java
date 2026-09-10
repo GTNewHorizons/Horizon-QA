@@ -3,6 +3,10 @@ package com.gtnewhorizons.horizonqa;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.gtnewhorizons.horizonqa.block.BlockDebugIInventory;
+import com.gtnewhorizons.horizonqa.block.BlockDebugInvInterface;
+import com.gtnewhorizons.horizonqa.block.TileDebugIInventory;
+import com.gtnewhorizons.horizonqa.block.TileDebugInvInterface;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.MinecraftForge;
 
@@ -77,6 +81,14 @@ public class CommonProxy {
 
         ItemHorizonWand.INSTANCE = new ItemHorizonWand();
         GameRegistry.registerItem(ItemHorizonWand.INSTANCE, "wand");
+
+        BlockDebugIInventory.INSTANCE = new BlockDebugIInventory();
+        GameRegistry.registerBlock(BlockDebugIInventory.INSTANCE, "iinv_debug");
+        BlockDebugInvInterface.INSTANCE = new BlockDebugInvInterface();
+        GameRegistry.registerBlock(BlockDebugInvInterface.INSTANCE, "debug_inv_interface");
+
+        GameRegistry.registerTileEntity(TileDebugIInventory.class, "iinv_debug");
+        GameRegistry.registerTileEntity(TileDebugInvInterface.class, "debug_inv_interface");
 
         if (HorizonQAProperties.isActive()) {
             MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
