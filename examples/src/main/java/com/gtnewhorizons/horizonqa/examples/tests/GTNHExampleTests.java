@@ -115,11 +115,11 @@ public class GTNHExampleTests {
 
         ebf.inputHatch(0)
             .fill("nitrogen", 2000)
-            .assertContains(Materials.Nitrogen.getGas(2000));
+            .assertContains("nitrogen", 2000);
         IllegalArgumentException failure = helper.assertThrows(
             IllegalArgumentException.class,
             () -> ebf.inputHatch(0)
-                .fill("missing_fluid", 1));
+                .assertContains("missing_fluid", 1));
         helper.assertEquals("Unknown fluid registry name: missing_fluid", failure.getMessage());
 
         helper.succeed();
