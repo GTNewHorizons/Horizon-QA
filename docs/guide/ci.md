@@ -368,6 +368,8 @@ Each launcher invocation uses `<ReportDir>/game` as its writable Minecraft direc
 
 Run separate launcher invocations in parallel with distinct report directories, or omit `-ReportDir` to generate one per invocation. Each process runs its selected batch serially through the existing runner. Distribute selectors between launches when splitting a suite. Keep build inputs stable while clients run and avoid concurrent clean or rebuild operations that replace runtime artifacts. Gradle still owns shared build preparation and caches.
 
+The launcher initializes the fresh game's audio settings with master volume at 50%, music at 0% and weather at 0%. Other sound categories keep Minecraft's defaults. These settings belong to the isolated game directory.
+
 Clients use process-local LWJGL input, so inactive windows do not compete for the OS pointer. Keep their windows rendering. Fully minimized windows may stop rendering with some renderer mods, which prevents frame-dependent steps from completing. Parallel launches also need enough memory and GPU capacity for each Minecraft process.
 
 The underlying JVM opt-in is `-Dhorizonqa.client=true` together with `-Dhorizonqa.mode=ci` and `-Dhorizonqa.world=normal`. Each property must use its own `--mcJvmArgs`. Existing test selectors apply. Auto-run and shutdown must be enabled and turbo must be 1. The local client bootstrap uses a flat creative world, so void-world overrides and server turbo are rejected. No matching tests is an error even when `horizonqa.allowNoTests=true`.

@@ -14,5 +14,8 @@ gradle.projectsEvaluated {
     }
     clientTask.doFirst {
         workingDir = new File(reportPath, 'game')
+        java.nio.file.Files.createDirectories(workingDir.toPath())
+        new File(workingDir, 'options.txt').setText(
+            'soundCategory_master:0.5\nsoundCategory_music:0.0\nsoundCategory_weather:0.0\n', 'UTF-8')
     }
 }
