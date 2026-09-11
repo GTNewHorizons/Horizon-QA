@@ -58,49 +58,54 @@ public final class ClientScenario {
 
     /** Uses the equipped item through its configured world-input binding. */
     public ClientScenario useHeldItem() {
-        return async("use held item", ClientTest::useHeldItem);
+        return async("use held item", ClientTest::useHeldItem).describe("USE_ITEM", "CLIENT");
     }
 
     /** Waits for the current client screen to have the requested type. */
     public ClientScenario awaitScreen(Class<? extends GuiScreen> type) {
         Objects.requireNonNull(type, "type");
-        return awaitClient("await screen " + type.getSimpleName(), c -> c.screen(type));
+        return awaitClient("await screen " + type.getSimpleName(), c -> c.screen(type))
+            .describe("SCREEN_WAIT", "CLIENT");
     }
 
     /** Left-clicks the live target after a rendered frame and its actual hit-test readiness. */
     public ClientScenario click(ClientTarget target) {
-        return async("click " + target.description, c -> c.click(0, target.description, target.resolver));
+        return async("click " + target.description, c -> c.click(0, target.description, target.resolver))
+            .describe("CLICK", "CLIENT");
     }
 
     /** Right-clicks the live target. */
     public ClientScenario rightClick(ClientTarget target) {
-        return async("right click " + target.description, c -> c.click(1, target.description, target.resolver));
+        return async("right click " + target.description, c -> c.click(1, target.description, target.resolver))
+            .describe("RIGHT_CLICK", "CLIENT");
     }
 
     /** Left-clicks the live target while Shift is held. */
     public ClientScenario shiftClick(ClientTarget target) {
-        return async("shift click " + target.description, c -> c.shiftClick(0, target.description, target.resolver));
+        return async("shift click " + target.description, c -> c.shiftClick(0, target.description, target.resolver))
+            .describe("SHIFT_CLICK", "CLIENT");
     }
 
     /** Delivers one wheel event in raw LWJGL units, normally 120 or -120 per notch. */
     public ClientScenario scroll(ClientTarget target, int wheelDelta) {
         if (wheelDelta == 0) throw new IllegalArgumentException("Wheel delta must be nonzero");
-        return async("scroll " + target.description, c -> c.scroll(wheelDelta, target.description, target.resolver));
+        return async("scroll " + target.description, c -> c.scroll(wheelDelta, target.description, target.resolver))
+            .describe("SCROLL", "CLIENT");
     }
 
     /** Sends one native key press with its character and releases it. The consumer owns GUI focus. */
     public ClientScenario key(int keyCode, char character) {
-        return async("key " + keyCode, c -> c.key(keyCode, character));
+        return async("key " + keyCode, c -> c.key(keyCode, character)).describe("KEY", "CLIENT");
     }
 
     /** Closes the active screen through its normal Escape handling. */
     public ClientScenario escape() {
-        return client("Escape", ClientTest::escape);
+        return client("Escape", ClientTest::escape).describe("ESCAPE", "CLIENT");
     }
 
     /** Captures a rendered framebuffer checkpoint. The existing artifact report retains its path. */
     public ClientScenario capture(String checkpoint) {
-        return async("capture " + checkpoint, c -> c.capture(checkpoint));
+        return async("capture " + checkpoint, c -> c.capture(checkpoint)).describe("CAPTURE", "CLIENT");
     }
 
     /** Begins describing a left-button drag. Complete it with to(...).overFrames(...). */
@@ -112,13 +117,13 @@ public final class ClientScenario {
     /** Runs custom code once on the client thread at END. */
     public ClientScenario client(String label, Consumer<ClientTest> action) {
         Objects.requireNonNull(action, "action");
-        return async(label, c -> c.run(action));
+        return async(label, c -> c.run(action)).describe("CLIENT_ACTION", "CLIENT");
     }
 
     /** Retries client-thread assertions until they pass, with at most one attempt in flight. */
     public ClientScenario awaitClient(String label, Consumer<ClientTest> assertion) {
         Objects.requireNonNull(assertion, "assertion");
-        return awaitAsync(label, c -> c.run(assertion));
+        return awaitAsync(label, c -> c.run(assertion)).describe("CLIENT_WAIT", "CLIENT");
     }
 
     /** Runs custom server code once at END. Use serverSequence() for other existing phase operations. */
@@ -127,7 +132,7 @@ public final class ClientScenario {
         Objects.requireNonNull(action, "action");
         if (nextTimeout != null) throw new IllegalStateException("A synchronous server action has no tick budget");
         sequence.thenExecute(takeLabel(label), action);
-        return this;
+        return describe("SERVER_ACTION", "SERVER");
     }
 
     /** Retries assertions on the server at END using the next or default bounded-step budget. */
@@ -135,7 +140,7 @@ public final class ClientScenario {
         checkOpen();
         Objects.requireNonNull(assertion, "assertion");
         sequence.thenWaitUntil(takeLabel(label), takeTimeout(), assertion);
-        return this;
+        return describe("SERVER_WAIT", "SERVER");
     }
 
     /**
@@ -148,7 +153,7 @@ public final class ClientScenario {
         checkOpen();
         Objects.requireNonNull(assertion, "assertion");
         sequence.thenWaitUntilAccelerated(takeLabel(label), takeTimeout(), multiplier, assertion);
-        return this;
+        return describe("SERVER_WAIT", "SERVER");
     }
 
     /**
@@ -199,6 +204,11 @@ public final class ClientScenario {
         String label = nextLabel == null ? Objects.requireNonNull(fallback, "label") : nextLabel;
         nextLabel = null;
         return label;
+    }
+
+    private ClientScenario describe(String operation, String side) {
+        sequence.describeLastStep(operation, side);
+        return this;
     }
 
     private int takeTimeout() {
@@ -258,7 +268,7 @@ public final class ClientScenario {
             added = true;
             return async(
                 "drag " + start.description,
-                c -> c.drag(button, start.description, start.resolver, endpoint, frames));
+                c -> c.drag(button, start.description, start.resolver, endpoint, frames)).describe("DRAG", "CLIENT");
         }
 
         private void checkMutable() {

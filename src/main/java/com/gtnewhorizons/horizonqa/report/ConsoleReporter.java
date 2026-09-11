@@ -1,5 +1,7 @@
 package com.gtnewhorizons.horizonqa.report;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -68,11 +70,83 @@ public final class ConsoleReporter {
         LOG.info("  infrastructure errors: {}", result.infrastructureErrors());
         LOG.info("=======================================================");
         LOG.info(summaryLine(result));
+        for (String line : timingLines(result)) LOG.info(line);
         if (result.passedRun()) {
             LOG.info(runLine(result));
         } else {
             LOG.error(runLine(result));
         }
+    }
+
+    static List<String> timingLines(RunResult result) {
+        List<String> lines = new ArrayList<>();
+        lines.add("Occupied wall time (not CPU): suite " + elapsed(result.elapsed()));
+        result.cases()
+            .stream()
+            .filter(
+                value -> value.timing()
+                    .total()
+                    .state() != ElapsedTime.State.UNAVAILABLE)
+            .sorted(
+                Comparator.comparingDouble(
+                    (CaseResult value) -> value.timing()
+                        .total()
+                        .seconds())
+                    .reversed())
+            .limit(5)
+            .forEach(
+                value -> lines.add(
+                    "  test " + value.id()
+                        + ": "
+                        + elapsed(
+                            value.timing()
+                                .total())));
+        result.cases()
+            .stream()
+            .flatMap(
+                value -> value.steps()
+                    .stream()
+                    .map(step -> new java.util.AbstractMap.SimpleImmutableEntry<>(value.id(), step)))
+            .filter(
+                value -> value.getValue()
+                    .elapsed()
+                    .state() != ElapsedTime.State.UNAVAILABLE)
+            .sorted(
+                Comparator.comparingDouble(
+                    (java.util.Map.Entry<String, StepResult> value) -> value.getValue()
+                        .elapsed()
+                        .seconds())
+                    .reversed())
+            .limit(5)
+            .forEach(
+                value -> lines.add(
+                    "  step " + value.getKey()
+                        + " / "
+                        + value.getValue()
+                            .label()
+                        + " ["
+                        + value.getValue()
+                            .operation()
+                        + ", "
+                        + value.getValue()
+                            .executionSide()
+                        + "]"
+                        + ": "
+                        + elapsed(
+                            value.getValue()
+                                .elapsed())));
+        return lines;
+    }
+
+    private static String elapsed(ElapsedTime value) {
+        if (value.state() == ElapsedTime.State.UNAVAILABLE) return "unavailable";
+        return String.format(
+            Locale.ROOT,
+            "%.3f s (%s)",
+            value.seconds(),
+            value.state()
+                .name()
+                .toLowerCase(Locale.ROOT));
     }
 
     static String summaryLine(RunResult result) {

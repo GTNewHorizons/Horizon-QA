@@ -18,6 +18,39 @@ import com.gtnewhorizons.horizonqa.internal.GameTestSequence;
 public class ClientScenarioTest {
 
     @Test
+    public void operationMetadataComesFromWrappersInsteadOfLabels() throws Exception {
+        Fixture fixture = new Fixture();
+        fixture.scenario.server("capture", () -> {})
+            .capture("server operation")
+            .awaitClient("wait", c -> {});
+        assertEquals(
+            "SERVER_ACTION",
+            fixture.sequence.stepResults()
+                .get(0)
+                .operation());
+        assertEquals(
+            "SERVER",
+            fixture.sequence.stepResults()
+                .get(0)
+                .executionSide());
+        assertEquals(
+            "CAPTURE",
+            fixture.sequence.stepResults()
+                .get(1)
+                .operation());
+        assertEquals(
+            "CLIENT",
+            fixture.sequence.stepResults()
+                .get(1)
+                .executionSide());
+        assertEquals(
+            "CLIENT_WAIT",
+            fixture.sequence.stepResults()
+                .get(2)
+                .operation());
+    }
+
+    @Test
     public void customAsyncWorkIsDeferredAndOrdersServerSteps() throws Exception {
         Fixture fixture = new Fixture();
         CompletableFuture<Void> pending = new CompletableFuture<>();

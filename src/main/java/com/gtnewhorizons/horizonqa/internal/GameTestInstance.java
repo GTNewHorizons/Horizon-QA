@@ -16,6 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.github.bsideup.jabel.Desugar;
+import com.google.common.base.Ticker;
 import com.gtnewhorizons.horizonqa.api.GameTestAssertException;
 import com.gtnewhorizons.horizonqa.api.GameTestAssumptionException;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
@@ -29,6 +30,8 @@ import com.gtnewhorizons.horizonqa.api.event.IsolationViolation;
 import com.gtnewhorizons.horizonqa.api.event.TestFinished;
 import com.gtnewhorizons.horizonqa.api.event.TestStarted;
 import com.gtnewhorizons.horizonqa.api.event.TickCallbackStateChanged;
+import com.gtnewhorizons.horizonqa.report.CaseTiming;
+import com.gtnewhorizons.horizonqa.report.StepResult;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
 import com.gtnewhorizons.horizonqa.structure.StructureAnnotations;
 import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
@@ -38,6 +41,10 @@ public class GameTestInstance {
     private static final Logger LOG = LogManager.getLogger("GameTest");
 
     private final GameTestDefinition definition;
+    private final Ticker ticker;
+    private final ElapsedTimer totalTime;
+    private final ElapsedTimer executionTime;
+    private final ElapsedTimer cleanupTime;
     private final int originX;
     private final int originY;
     private final int originZ;
@@ -75,6 +82,15 @@ public class GameTestInstance {
 
     public GameTestInstance(GameTestDefinition definition, int originX, int originY, int originZ,
         HybridStructureTemplate template) {
+        this(definition, originX, originY, originZ, template, Ticker.systemTicker());
+    }
+
+    GameTestInstance(GameTestDefinition definition, int originX, int originY, int originZ,
+        HybridStructureTemplate template, Ticker ticker) {
+        this.ticker = ticker;
+        totalTime = new ElapsedTimer(ticker);
+        executionTime = new ElapsedTimer(ticker);
+        cleanupTime = new ElapsedTimer(ticker);
         this.definition = definition;
         this.originX = originX;
         this.originY = originY;
@@ -86,6 +102,8 @@ public class GameTestInstance {
     }
 
     public void start(WorldServer world) {
+        totalTime.start();
+        executionTime.start();
         status = GameTestStatus.RUNNING;
         GameTestHelper helper = new GameTestHelper(this, world, originX, originY, originZ);
         recorder.record(
@@ -315,6 +333,9 @@ public class GameTestInstance {
     }
 
     private void runCleanup() {
+        executionTime.finish(isExecutionAborted());
+        if (sequence != null) sequence.interruptActiveStep(tickCount);
+        cleanupTime.start();
         cleaningUp = true;
         if (asynchronousCleanup != null) {
             try {
@@ -346,6 +367,8 @@ public class GameTestInstance {
         }
         runSynchronousCleanup();
         cleaningUp = false;
+        cleanupTime.finish(cleanupFailureCause != null);
+        totalTime.finish(isExecutionAborted() || cleanupFailureCause != null);
         recordFinished();
         if (status == GameTestStatus.PASSED) LOG.info("PASSED   {}", definition.getTestId());
     }
@@ -423,6 +446,46 @@ public class GameTestInstance {
 
     public void setSequence(GameTestSequence seq) {
         this.sequence = seq;
+    }
+
+    ElapsedTimer newTimer() {
+        return new ElapsedTimer(ticker);
+    }
+
+    /** Immutable wall-time observations, including asynchronous cleanup while it is in flight. */
+    public CaseTiming timing() {
+        boolean interrupted = isExecutionAborted();
+        return new CaseTiming(
+            totalTime.snapshot(interrupted),
+            executionTime.snapshot(interrupted),
+            cleanupTime.snapshot(interrupted));
+    }
+
+    /** Structured step observations independent of whether diagnostic event recording is enabled. */
+    public List<StepResult> stepResults() {
+        return sequence == null ? java.util.Collections.emptyList() : sequence.stepResults();
+    }
+
+    String describeProgress() {
+        String phase = status.isDone() ? "cleanup" : "execution";
+        double seconds = status.isDone() ? cleanupTime.snapshot()
+            .seconds()
+            : executionTime.snapshot()
+                .seconds();
+        if (!status.isDone() && sequence != null) {
+            for (StepResult step : stepResults()) {
+                if (!step.status()
+                    .equals("RUNNING")
+                    && !step.status()
+                        .equals("PENDING"))
+                    continue;
+                phase = step.kind() + " " + step.label() + " [" + step.status() + "]";
+                seconds = step.elapsed()
+                    .seconds();
+                break;
+            }
+        }
+        return String.format(java.util.Locale.ROOT, "%s | %s | %.1f s elapsed", definition.getTestId(), phase, seconds);
     }
 
     int tickMultiplier() {

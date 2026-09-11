@@ -11,9 +11,12 @@ import net.minecraft.client.gui.GuiMainMenu;
 import net.minecraft.world.WorldSettings;
 import net.minecraft.world.WorldType;
 
+import org.lwjgl.opengl.Display;
+
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.client.ClientTest;
+import com.gtnewhorizons.horizonqa.internal.ReportedRun;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
 import com.gtnewhorizons.horizonqa.report.RunReportWriter;
 import com.gtnewhorizons.horizonqa.report.RunResult;
@@ -36,6 +39,8 @@ public final class ClientTestRuntime {
     private CompletableFuture<Void> shutdown;
     private int originalGuiScale;
     private boolean settingsChanged;
+    private String originalTitle;
+    private String displayedProgress;
 
     public ClientTestRuntime(Runnable startTests) {
         this.startTests = startTests;
@@ -48,6 +53,7 @@ public final class ClientTestRuntime {
             return;
         }
         if (started == 0) started = System.nanoTime();
+        updateProgressTitle();
         Minecraft mc = Minecraft.getMinecraft();
         File stop = new File(
             HorizonQAProperties.junitReportFile()
@@ -97,7 +103,28 @@ public final class ClientTestRuntime {
         mc.launchIntegratedServer(save, save, settings);
     }
 
+    private void updateProgressTitle() {
+        String progress = ReportedRun.progressText();
+        if (progress != null) {
+            if (originalTitle == null) originalTitle = Display.getTitle();
+            if (!progress.equals(displayedProgress)) {
+                Display.setTitle(progress);
+                displayedProgress = progress;
+            }
+        } else if (originalTitle != null) {
+            restoreProgressTitle();
+        }
+    }
+
+    private void restoreProgressTitle() {
+        if (originalTitle == null) return;
+        Display.setTitle(originalTitle);
+        originalTitle = null;
+        displayedProgress = null;
+    }
+
     private void shutdownClient(Minecraft mc) {
+        restoreProgressTitle();
         if (shutdown == null) shutdown = ClientTest.closeActive();
         if (!shutdown.isDone()) return;
         mc.loadWorld(null);

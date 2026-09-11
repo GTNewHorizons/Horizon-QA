@@ -75,6 +75,7 @@ public final class GameTestRunner {
         if (runner == null) return;
         try {
             runner.doTickEnd();
+            ReportedRun.updateProgress();
             runner.releaseIfIdle();
         } catch (RuntimeException | Error e) {
             runner.abortAndRelease("Execution failed during the END phase", e);

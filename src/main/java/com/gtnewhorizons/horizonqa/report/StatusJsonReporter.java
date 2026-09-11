@@ -4,12 +4,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Locale;
 
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 
 public final class StatusJsonReporter {
 
-    private static final int SCHEMA_VERSION = 3;
+    private static final int SCHEMA_VERSION = 4;
 
     private StatusJsonReporter() {}
 
@@ -29,6 +30,8 @@ public final class StatusJsonReporter {
         first = appendNumberField(out, 1, "exitCode", result.exitCode(), first);
         first = appendConfiguration(out, first);
         first = appendCounts(out, result, first);
+        first = appendWallTime(out, 1, result.elapsed(), first);
+        first = appendElapsedField(out, 1, "timing", result.elapsed(), first);
         first = appendReports(out, result, outputFile, first);
         first = appendIssues(out, result, first);
         appendTests(out, result, first);
@@ -108,7 +111,20 @@ public final class StatusJsonReporter {
 
         boolean reportFirst = true;
         reportFirst = appendStringField(out, 2, "junit", result.junitReport(), reportFirst);
-        appendStringField(out, 2, "status", outputFile == null ? null : outputFile.getPath(), reportFirst);
+        reportFirst = appendStringField(
+            out,
+            2,
+            "status",
+            outputFile == null ? null : outputFile.getPath(),
+            reportFirst);
+        appendStringField(
+            out,
+            2,
+            "timingHtml",
+            outputFile == null ? null
+                : HtmlTimingReporter.outputFile(outputFile)
+                    .getPath(),
+            reportFirst);
 
         out.append('\n');
         indent(out, 1);
@@ -198,6 +214,14 @@ public final class StatusJsonReporter {
         first = appendBooleanField(out, 3, "required", resultCase.required(), first);
         first = appendNumberField(out, 3, "ticks", resultCase.tickCount(), first);
         first = appendNumberField(out, 3, "timeSeconds", resultCase.timeSeconds(), first);
+        first = appendWallTime(
+            out,
+            3,
+            resultCase.timing()
+                .total(),
+            first);
+        first = appendCaseTiming(out, resultCase.timing(), first);
+        first = appendSteps(out, resultCase, first);
         if (hasText(resultCase.parameterSummary())) {
             first = appendStringField(out, 3, "parameters", resultCase.parameterSummary(), first);
         }
@@ -218,6 +242,81 @@ public final class StatusJsonReporter {
         out.append('\n');
         indent(out, 2);
         out.append('}');
+    }
+
+    private static boolean appendWallTime(StringBuilder out, int level, ElapsedTime elapsed, boolean first) {
+        appendFieldPrefix(out, level, first);
+        appendQuoted(out, "wallTimeSeconds");
+        out.append(": ");
+        if (elapsed.state() == ElapsedTime.State.UNAVAILABLE) out.append("null");
+        else out.append(elapsed.seconds());
+        return false;
+    }
+
+    private static boolean appendElapsedField(StringBuilder out, int level, String name, ElapsedTime elapsed,
+        boolean first) {
+        appendFieldPrefix(out, level, first);
+        appendQuoted(out, name);
+        out.append(": {\n");
+        appendWallTime(out, level + 1, elapsed, true);
+        appendStringField(
+            out,
+            level + 1,
+            "state",
+            elapsed.state()
+                .name()
+                .toLowerCase(Locale.ROOT),
+            false);
+        out.append('\n');
+        indent(out, level);
+        out.append('}');
+        return false;
+    }
+
+    private static boolean appendCaseTiming(StringBuilder out, CaseTiming timing, boolean first) {
+        appendFieldPrefix(out, 3, first);
+        out.append("\"timing\": {\n");
+        appendElapsedField(out, 4, "total", timing.total(), true);
+        appendElapsedField(out, 4, "execution", timing.execution(), false);
+        appendElapsedField(out, 4, "cleanup", timing.cleanup(), false);
+        out.append('\n');
+        indent(out, 3);
+        out.append('}');
+        return false;
+    }
+
+    private static boolean appendSteps(StringBuilder out, CaseResult resultCase, boolean first) {
+        appendFieldPrefix(out, 3, first);
+        out.append("\"steps\": [");
+        boolean stepFirst = true;
+        for (StepResult step : resultCase.steps()) {
+            out.append(stepFirst ? "\n" : ",\n");
+            indent(out, 4);
+            out.append("{\n");
+            appendNumberField(out, 5, "index", step.index(), true);
+            appendStringField(out, 5, "label", step.label(), false);
+            appendStringField(out, 5, "kind", step.kind(), false);
+            appendStringField(out, 5, "phase", step.phase(), false);
+            appendStringField(out, 5, "operation", step.operation(), false);
+            appendStringField(out, 5, "executionSide", step.executionSide(), false);
+            appendStringField(out, 5, "status", step.status(), false);
+            appendNumberField(out, 5, "attempts", step.attempts(), false);
+            appendNumberField(out, 5, "simulationTicks", step.simulationTicks(), false);
+            appendNumberField(out, 5, "requestedMultiplier", step.requestedMultiplier(), false);
+            appendWallTime(out, 5, step.elapsed(), false);
+            appendElapsedField(out, 5, "timing", step.elapsed(), false);
+            appendStringField(out, 5, "source", step.source(), false);
+            out.append('\n');
+            indent(out, 4);
+            out.append('}');
+            stepFirst = false;
+        }
+        if (!stepFirst) {
+            out.append('\n');
+            indent(out, 3);
+        }
+        out.append(']');
+        return false;
     }
 
     private static void appendFailure(StringBuilder out, CaseResult resultCase, boolean first) {

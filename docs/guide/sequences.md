@@ -5,6 +5,8 @@ description: GameTestSequence for ordered steps, delays, and bounded waits witho
 
 # Sequences and timing
 
+Every declared step has an automatic monotonic elapsed measurement in the [timing reports](ci.md#wall-time-measurement-and-progress), including explicit `thenIdle` gaps. Measurements cover execution and queued/retried work, not scenario declaration. Unlabeled steps use their source location. Idle entries also appear in step snapshots and diagnostic events without changing their scheduling boundary.
+
 `GameTestSequence` schedules actions on future test ticks. Use it when a test needs to do something, wait a bit, then check the result.
 
 ## Basic usage

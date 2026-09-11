@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Instant;
+import java.util.Locale;
 
 public final class JUnitXmlReporter {
 
@@ -16,6 +17,7 @@ public final class JUnitXmlReporter {
             try (PrintWriter pw = new PrintWriter(Files.newBufferedWriter(tempFile, StandardCharsets.UTF_8))) {
                 pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
                 pw.printf(
+                    Locale.ROOT,
                     "<testsuite name=\"horizonqa\" tests=\"%d\" failures=\"%d\" errors=\"%d\" skipped=\"%d\""
                         + " time=\"%.3f\" timestamp=\"%s\" hostname=\"localhost\">%n",
                     result.cases()
@@ -25,10 +27,23 @@ public final class JUnitXmlReporter {
                     result.junitFailures(),
                     result.junitErrors(),
                     result.junitSkipped(),
-                    result.durationSeconds(),
+                    junitSeconds(result.elapsed()),
                     sanitizeAttr(
                         Instant.now()
                             .toString()));
+
+                pw.println("  <properties>");
+                pw.printf(
+                    Locale.ROOT,
+                    "    <property name=\"wallTimeState\" value=\"%s\"/>%n",
+                    result.elapsed()
+                        .state()
+                        .name()
+                        .toLowerCase(Locale.ROOT));
+                pw.println("    <property name=\"timeMeaning\" value=\"occupied wall time, not CPU time\"/>");
+                pw.println("    <property name=\"bootstrapTiming\" value=\"unavailable\"/>");
+                pw.println("    <property name=\"setupTiming\" value=\"unavailable\"/>");
+                pw.println("  </properties>");
 
                 for (CaseResult resultCase : result.cases()) {
                     writeTestCase(pw, resultCase);
@@ -46,22 +61,14 @@ public final class JUnitXmlReporter {
     }
 
     private static void writeTestCase(PrintWriter pw, CaseResult resultCase) {
-        boolean hasOutput = !resultCase.outputLines()
-            .isEmpty() || hasText(resultCase.blockedByIssueId());
-        if (resultCase.passed() && !hasOutput) {
-            pw.printf(
-                "  <testcase name=\"%s\" classname=\"%s\" time=\"%.3f\"/>%n",
-                sanitizeAttr(resultCase.name()),
-                sanitizeAttr(resultCase.classname()),
-                resultCase.timeSeconds());
-            return;
-        }
-
         pw.printf(
+            Locale.ROOT,
             "  <testcase name=\"%s\" classname=\"%s\" time=\"%.3f\">%n",
             sanitizeAttr(resultCase.name()),
             sanitizeAttr(resultCase.classname()),
-            resultCase.timeSeconds());
+            junitSeconds(
+                resultCase.timing()
+                    .total()));
 
         if (resultCase.failedRequiredCase()) {
             writeFailure(pw, resultCase);
@@ -71,22 +78,32 @@ public final class JUnitXmlReporter {
             writeSkipped(pw, resultCase);
         }
 
-        if (hasOutput) {
-            pw.println("    <system-out>");
-            if (hasText(resultCase.blockedByIssueId())) {
-                pw.print(escapeBody("blockedByIssueId=" + resultCase.blockedByIssueId() + "\n"));
-            }
-            for (String line : resultCase.outputLines()) {
-                pw.print(escapeBody(line + "\n"));
-            }
-            pw.println("    </system-out>");
+        pw.println("    <system-out>");
+        pw.print(
+            escapeBody(
+                "wallTimeState=" + resultCase.timing()
+                    .total()
+                    .state()
+                    .name()
+                    .toLowerCase(Locale.ROOT) + "\n"));
+        if (hasText(resultCase.blockedByIssueId())) {
+            pw.print(escapeBody("blockedByIssueId=" + resultCase.blockedByIssueId() + "\n"));
         }
+        for (String line : resultCase.outputLines()) {
+            pw.print(escapeBody(line + "\n"));
+        }
+        pw.println("    </system-out>");
 
         pw.println("  </testcase>");
     }
 
+    private static double junitSeconds(ElapsedTime elapsed) {
+        return elapsed.state() == ElapsedTime.State.UNAVAILABLE ? 0.0 : elapsed.seconds();
+    }
+
     private static void writeFailure(PrintWriter pw, CaseResult resultCase) {
         pw.printf(
+            Locale.ROOT,
             "    <failure message=\"%s\" type=\"%s\">%n",
             sanitizeAttr(resultCase.failureMessage()),
             sanitizeAttr(resultCase.failureType()));
@@ -98,12 +115,14 @@ public final class JUnitXmlReporter {
         String trace = resultCase.failureTrace();
         if (trace == null || trace.isEmpty()) {
             pw.printf(
+                Locale.ROOT,
                 "    <error message=\"%s\" type=\"%s\"/>%n",
                 sanitizeAttr(resultCase.failureMessage()),
                 sanitizeAttr(resultCase.failureType()));
             return;
         }
         pw.printf(
+            Locale.ROOT,
             "    <error message=\"%s\" type=\"%s\">%n",
             sanitizeAttr(resultCase.failureMessage()),
             sanitizeAttr(resultCase.failureType()));
@@ -115,12 +134,14 @@ public final class JUnitXmlReporter {
         String trace = resultCase.failureTrace();
         if (trace == null || trace.isEmpty()) {
             pw.printf(
+                Locale.ROOT,
                 "    <skipped message=\"%s\" type=\"%s\"/>%n",
                 sanitizeAttr(resultCase.failureMessage()),
                 sanitizeAttr(resultCase.failureType()));
             return;
         }
         pw.printf(
+            Locale.ROOT,
             "    <skipped message=\"%s\" type=\"%s\">%n",
             sanitizeAttr(resultCase.failureMessage()),
             sanitizeAttr(resultCase.failureType()));
@@ -130,11 +151,13 @@ public final class JUnitXmlReporter {
 
     private static void writeIssue(PrintWriter pw, IssueResult issue) {
         pw.printf(
+            Locale.ROOT,
             "  <testcase name=\"%s\" classname=\"%s\" time=\"0.000\">%n",
             sanitizeAttr(issue.name()),
             sanitizeAttr(issue.classname()));
         if (hasText(issue.stackTrace())) {
             pw.printf(
+                Locale.ROOT,
                 "    <error message=\"%s\" type=\"%s\">%n",
                 sanitizeAttr(issue.message()),
                 sanitizeAttr(issue.kind()));
@@ -142,16 +165,15 @@ public final class JUnitXmlReporter {
             pw.println("    </error>");
         } else {
             pw.printf(
+                Locale.ROOT,
                 "    <error message=\"%s\" type=\"%s\"/>%n",
                 sanitizeAttr(issue.message()),
                 sanitizeAttr(issue.kind()));
         }
-        if (issue.details() != null && !issue.details()
-            .isEmpty()) {
-            pw.println("    <system-out>");
-            pw.print(escapeBody(issue.details()));
-            pw.println("    </system-out>");
-        }
+        pw.println("    <system-out>");
+        pw.println("wallTimeState=unavailable");
+        if (hasText(issue.details())) pw.print(escapeBody(issue.details()));
+        pw.println("    </system-out>");
         pw.println("  </testcase>");
     }
 

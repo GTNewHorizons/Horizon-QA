@@ -152,6 +152,8 @@ When using `getWorld()`, convert a local position exactly once with `helper.abso
 
 ## Diagnostics and GTNH
 
+Elapsed time is measured automatically by the runner and sequence. No per-test stopwatch is needed. `GameTestInstance.timing()` returns immutable total/execution/cleanup observations, and `stepResults()` returns structured step measurements. The same data reaches JSON, HTML and JUnit through `CaseResult` and `RunResult`. Authoring adapters can describe the newly registered step through `GameTestSequence.describeLastStep(operation, executionSide)` before execution. The client scenario does this automatically. See [timing reports](../guide/ci.md#wall-time-measurement-and-progress).
+
 `getRecorder()` returns the typed per-test event log. Use it when an assertion naturally depends on history, such as the number of completed recipes.
 
 `gtnh()` returns `GTNHGameTestHelper`, which adds multiblock, hatch, EU supply, time-warp, maintenance, and temporary recipe helpers. See [GTNH multiblock API](../guide/gtnh-api.md).

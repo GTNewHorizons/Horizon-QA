@@ -8,7 +8,8 @@ import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
 
 @Desugar
-public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> issues, String junitReport) {
+public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> issues, String junitReport,
+    ElapsedTime elapsed) {
 
     private static final int EXIT_PASSED = 0;
     private static final int EXIT_REQUIRED_TEST_FAILURE = 1;
@@ -19,6 +20,15 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
         issues = immutableList(issues);
         mode = mode == null ? "" : mode;
         junitReport = junitReport == null ? "" : junitReport;
+    }
+
+    /** Creates a result without an observed suite interval, such as startup failure before a run exists. */
+    public RunResult(String mode, List<CaseResult> cases, List<IssueResult> issues, String junitReport) {
+        this(mode, cases, issues, junitReport, ElapsedTime.unavailable());
+    }
+
+    public RunResult withElapsed(ElapsedTime measurement) {
+        return new RunResult(mode, cases, issues, junitReport, measurement);
     }
 
     public static RunResult completed(String mode, List<GameTestInstance> instances, List<IssueResult> issues,
@@ -45,7 +55,7 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
         }
         List<IssueResult> updated = new ArrayList<>(issues);
         updated.add(issue);
-        return new RunResult(mode, cases, updated, junitReport);
+        return new RunResult(mode, cases, updated, junitReport, elapsed);
     }
 
     public int exitCode() {
