@@ -30,6 +30,8 @@ public final class ClientTestRuntime {
     private volatile boolean ready;
     private boolean launched;
     private boolean startedTests;
+    // Publishes a completed immutable report from the server thread to client shutdown.
+    @SuppressWarnings("java:S3077")
     private volatile RunResult finished;
     private CompletableFuture<Void> shutdown;
     private int originalGuiScale;

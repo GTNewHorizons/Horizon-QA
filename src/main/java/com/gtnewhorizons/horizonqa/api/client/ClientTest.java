@@ -26,6 +26,9 @@ import com.gtnewhorizons.horizonqa.client.LwjglInput;
 /** A test-owned client session. Attach on the server test thread, then await every client operation. */
 public final class ClientTest {
 
+    // Publishes the session. Client state stays on the client thread, queued work is synchronized,
+    // and cross-thread diagnostics and completion use concurrent collections and futures.
+    @SuppressWarnings("java:S3077")
     private static volatile ClientTest active;
     private final ClientTaskQueue operations = new ClientTaskQueue();
     private final List<Runnable> cleanup = new ArrayList<>();
@@ -33,6 +36,8 @@ public final class ClientTest {
     private final FrameCapture frames;
     private final CompletableFuture<Void> teardown = new CompletableFuture<>();
     private volatile boolean closed;
+    // Publishes the original client failure for the server tick to rethrow, not mutable test state.
+    @SuppressWarnings("java:S3077")
     private volatile Throwable failure;
     private Thread clientThread;
     private String waitingForInput = "";
