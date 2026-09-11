@@ -1,6 +1,7 @@
 package com.gtnewhorizons.horizonqa.examples.tests;
 
 import java.awt.Point;
+import java.awt.Rectangle;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
@@ -13,6 +14,8 @@ import org.lwjgl.input.Mouse;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
+import com.gtnewhorizons.horizonqa.api.client.ClickTarget;
+import com.gtnewhorizons.horizonqa.api.client.ClientTarget;
 import com.gtnewhorizons.horizonqa.api.client.ClientTest;
 
 /** Real screen lifecycle smoke tests. These holders must never load on the dedicated server. */
@@ -23,44 +26,46 @@ public final class ClientSmokeTests {
 
     @GameTest(template = "client_smoke", timeoutTicks = 400)
     public static void clickEscapeAndReopen(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecute("prepare real server fixture", () -> helper.setBlock("marker", Blocks.gold_block))
-            .thenExecuteAsync("open test screen", 80, () -> client.run(c -> {
+        ClientTarget openChild = ClientTarget.of(
+            "open child",
+            c -> new ClickTarget(c.screen(ParentScreen.class), new Rectangle(30, 30, 1, 1), () -> true));
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .server("prepare real server fixture", () -> helper.setBlock("marker", Blocks.gold_block))
+            .withinTicks(80)
+            .client("open test screen", c -> {
                 if (c.screen() != null) throw new AssertionError("Previous test left a screen open");
                 Minecraft.getMinecraft()
                     .displayGuiScreen(new ParentScreen());
-            }))
-            .thenExecuteAsync("click through screen input", 40, () -> client.click(0, c -> new Point(30, 30)))
-            .thenWaitUntilAsync("child screen updated normally", 40, () -> client.run(c -> {
+            })
+            .click(openChild)
+            .awaitClient("child screen updated normally", c -> {
                 ChildScreen screen = c.screen(ChildScreen.class);
                 if (screen.updates == 0) throw new AssertionError("Child screen has not received updateScreen");
                 if (!screen.released) throw new AssertionError("Child screen did not receive mouse release");
-            }))
-            .thenExecuteAsync("capture child frame", 40, () -> client.capture("child"))
-            .thenExecuteAsync("Escape returns to parent", 40, () -> client.run(ClientTest::escape))
-            .thenWaitUntilAsync(
-                "parent accepts another interaction",
-                40,
-                () -> client.run(c -> c.screen(ParentScreen.class)))
-            .thenExecuteAsync("reopen child", 40, () -> client.click(0, c -> new Point(30, 30)))
-            .thenWaitUntilAsync("child reopened", 40, () -> client.run(c -> c.screen(ChildScreen.class)))
-            .thenExecute("verify real server state", () -> helper.assertBlockPresent(Blocks.gold_block, "marker"))
-            .thenSucceed();
+            })
+            .capture("child")
+            .escape()
+            .awaitScreen(ParentScreen.class)
+            .click(openChild)
+            .awaitScreen(ChildScreen.class)
+            .server("verify real server state", () -> helper.assertBlockPresent(Blocks.gold_block, "marker"))
+            .succeed();
     }
 
     @GameTest(template = "client_smoke", timeoutTicks = 200)
     public static void intentionalFailure(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync(
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .withinTicks(80)
+            .client(
                 "open test screen",
-                80,
-                () -> client.run(
-                    c -> Minecraft.getMinecraft()
-                        .displayGuiScreen(new ParentScreen())))
-            .thenWaitUntilAsync("intentional missing child", 5, () -> client.run(c -> c.screen(ChildScreen.class)))
-            .thenSucceed();
+                c -> Minecraft.getMinecraft()
+                    .displayGuiScreen(new ParentScreen()))
+            .withinTicks(5)
+            .step("intentional missing child")
+            .awaitScreen(ChildScreen.class)
+            .succeed();
     }
 
     /** Verifies Shift keyboard events and polled state through a normal screen click. */
@@ -76,18 +81,16 @@ public final class ClientSmokeTests {
     }
 
     private static void checkShiftClick(GameTestHelper helper, boolean failOnPress) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync(
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .withinTicks(80)
+            .client(
                 "open modifier screen",
-                80,
-                () -> client.run(
-                    c -> Minecraft.getMinecraft()
-                        .displayGuiScreen(new ShiftScreen(failOnPress))))
-            .thenExecuteAsync(
+                c -> Minecraft.getMinecraft()
+                    .displayGuiScreen(new ShiftScreen(failOnPress)))
+            .async(
                 "Shift click through real input",
-                40,
-                () -> client.shiftClick(0, c -> new Point(30, 30), c -> true)
+                client -> client.shiftClick(0, c -> new Point(30, 30), c -> true)
                     .handle((ignored, error) -> {
                         if (failOnPress != (error != null))
                             throw new AssertionError("Unexpected Shift-click outcome", error);
@@ -97,7 +100,7 @@ public final class ClientSmokeTests {
                         }
                         return null;
                     }))
-            .thenExecuteAsync("modifier and mouse released", 40, () -> client.run(c -> {
+            .client("modifier and mouse released", c -> {
                 ShiftScreen screen = c.screen(ShiftScreen.class);
                 if (!screen.pressed) throw new AssertionError("Screen never received the mouse press");
                 if (!failOnPress && (!screen.released || !screen.shiftReleased)) {
@@ -106,8 +109,8 @@ public final class ClientSmokeTests {
                 if (GuiScreen.isShiftKeyDown() || Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Mouse.isButtonDown(0)) {
                     throw new AssertionError("Input remained held after Shift click");
                 }
-            }))
-            .thenSucceed();
+            })
+            .succeed();
     }
 
     /** In a holder-wide run, proves the intentional failure releases the client before another scenario. */

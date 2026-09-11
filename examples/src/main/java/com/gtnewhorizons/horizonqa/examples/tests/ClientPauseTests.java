@@ -24,22 +24,22 @@ public final class ClientPauseTests {
     /** Run with an inactive, visible game window to exercise the renderer's real focus-loss path. */
     @GameTest(template = "client_smoke", timeoutTicks = 400)
     public static void inactiveWindowAllowsWorldInputAfterScreenCleanup(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecute("equip a real written book", () -> WorldInputTests.equipBook(helper))
-            .thenWaitUntilAsync("book reached client", 80, () -> client.run(c -> {
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .server("equip a real written book", () -> WorldInputTests.equipBook(helper))
+            .withinTicks(80)
+            .awaitClient("book reached client", c -> {
                 ItemStack held = Minecraft.getMinecraft().thePlayer.getHeldItem();
                 if (held == null || held.getItem() != Items.written_book)
                     throw new AssertionError("Book not synchronized");
-            }))
-            .thenWaitUntilAsync(
+            })
+            .withinTicks(160)
+            .awaitClient(
                 "game window is inactive",
-                160,
-                () -> client.run(
-                    c -> {
-                        if (Display.isActive()) throw new AssertionError("Regression requires an inactive game window");
-                    }))
-            .thenExecuteAsync("enable focus-loss pause and close screen like teardown", 40, () -> client.run(c -> {
+                c -> {
+                    if (Display.isActive()) throw new AssertionError("Regression requires an inactive game window");
+                })
+            .client("enable focus-loss pause and close screen like teardown", c -> {
                 Minecraft mc = Minecraft.getMinecraft();
                 boolean previous = mc.gameSettings.pauseOnLostFocus;
                 float pitch = mc.thePlayer.rotationPitch;
@@ -51,40 +51,36 @@ public final class ClientPauseTests {
                 mc.thePlayer.rotationPitch = -90;
                 mc.displayInGameMenu();
                 mc.displayGuiScreen(null);
-            }))
-            .thenExecuteAsync("render world after screen cleanup", 40, () -> client.capture("inactive-world"))
-            .thenExecuteAsync("inactive renderer left world input available", 40, () -> client.run(c -> {
+            })
+            .capture("inactive-world")
+            .client("inactive renderer left world input available", c -> {
                 if (Display.isActive()) throw new AssertionError("Window became active during regression");
                 if (!Minecraft.getMinecraft().gameSettings.pauseOnLostFocus)
                     throw new AssertionError("Setting was reset");
                 if (c.screen() != null) throw new AssertionError("Automatic pause reopened after screen cleanup");
-            }))
-            .thenExecuteAsync("use book after screen cleanup", 60, client::useHeldItem)
-            .thenExecuteAsync("normal input opens book", 40, () -> client.run(c -> c.screen(GuiScreenBook.class)))
-            .thenExecuteAsync("close book through Escape", 40, () -> client.run(ClientTest::escape))
-            .thenExecuteAsync(
+            })
+            .withinTicks(60)
+            .useHeldItem()
+            .client("normal input opens book", c -> c.screen(GuiScreenBook.class))
+            .escape()
+            .client(
                 "explicit pause remains available",
-                40,
-                () -> client.run(
-                    c -> Minecraft.getMinecraft()
-                        .displayInGameMenu()))
-            .thenExecuteAsync("render explicit pause", 40, () -> client.capture("explicit-pause"))
-            .thenExecuteAsync("Escape closes explicit pause", 40, () -> client.run(c -> {
+                c -> Minecraft.getMinecraft()
+                    .displayInGameMenu())
+            .capture("explicit-pause")
+            .client("Escape closes explicit pause", c -> {
                 c.screen(GuiIngameMenu.class);
                 c.escape();
-            }))
-            .thenExecuteAsync("render world after Escape", 40, () -> client.capture("world-after-escape"))
-            .thenExecuteAsync(
+            })
+            .capture("world-after-escape")
+            .client(
                 "explicit pause stayed closed",
-                40,
-                () -> client
-                    .run(c -> { if (c.screen() != null) throw new AssertionError("Pause reopened after Escape"); }))
-            .thenSucceed();
+                c -> { if (c.screen() != null) throw new AssertionError("Pause reopened after Escape"); })
+            .succeed();
     }
 
     @GameTest(template = "client_smoke", timeoutTicks = 300)
     public static void serverInventorySynchronizesWhilePauseMenuRemainsOpen(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
         if (helper.getWorld().playerEntities.size() != 1) throw new AssertionError("Expected one real test player");
         EntityPlayer player = (EntityPlayer) helper.getWorld().playerEntities.get(0);
         ItemStack previous = player.inventory.getStackInSlot(8);
@@ -92,29 +88,28 @@ public final class ClientPauseTests {
             player.inventory.setInventorySlotContents(8, previous);
             player.inventoryContainer.detectAndSendChanges();
         });
-        helper.startSequence()
-            .thenExecute("prepare synchronized baseline", () -> setSlot(player, Items.stick))
-            .thenWaitUntilAsync("baseline reached client", 80, () -> client.run(c -> assertSlot(Items.stick)))
-            .thenExecuteAsync(
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .server("prepare synchronized baseline", () -> setSlot(player, Items.stick))
+            .withinTicks(80)
+            .awaitClient("baseline reached client", c -> assertSlot(Items.stick))
+            .client(
                 "open real pause menu",
-                40,
-                () -> client.run(
-                    c -> Minecraft.getMinecraft()
-                        .displayInGameMenu()))
-            .thenExecuteAsync("capture rendered pause menu", 40, () -> client.capture("pause-menu"))
-            .thenExecuteAsync("pause menu is active", 40, () -> client.run(c -> c.screen(GuiIngameMenu.class)))
-            .thenExecute("server changes inventory while menu is open", () -> setSlot(player, Items.diamond))
-            .thenWaitUntilAsync("server update arrives without closing menu", 80, () -> client.run(c -> {
+                c -> Minecraft.getMinecraft()
+                    .displayInGameMenu())
+            .capture("pause-menu")
+            .client("pause menu is active", c -> c.screen(GuiIngameMenu.class))
+            .server("server changes inventory while menu is open", () -> setSlot(player, Items.diamond))
+            .withinTicks(80)
+            .awaitClient("server update arrives without closing menu", c -> {
                 c.screen(GuiIngameMenu.class);
                 assertSlot(Items.diamond);
-            }))
-            .thenExecuteAsync("Escape closes the real menu", 40, () -> client.run(ClientTest::escape))
-            .thenWaitUntilAsync(
+            })
+            .escape()
+            .awaitClient(
                 "returned to world",
-                40,
-                () -> client.run(
-                    c -> { if (c.screen() != null) throw new AssertionError("Pause menu did not respond to Escape"); }))
-            .thenSucceed();
+                c -> { if (c.screen() != null) throw new AssertionError("Pause menu did not respond to Escape"); })
+            .succeed();
     }
 
     private static void setSlot(EntityPlayer player, Item item) {

@@ -11,6 +11,7 @@ import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
 import com.gtnewhorizons.horizonqa.api.client.ClickTarget;
+import com.gtnewhorizons.horizonqa.api.client.ClientTarget;
 import com.gtnewhorizons.horizonqa.api.client.ClientTest;
 
 /** Exercises target discovery against layout changes through real screen input. */
@@ -31,83 +32,70 @@ public final class ClientTargetTests {
 
     @GameTest(template = "client_smoke", timeoutTicks = 200)
     public static void waitsForElementToAppear(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync(
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .withinTicks(80)
+            .client(
                 "open empty screen",
-                80,
-                () -> client.run(
-                    c -> Minecraft.getMinecraft()
-                        .displayGuiScreen(new AppearingScreen())))
-            .thenExecuteAsync(
-                "wait for save to appear and click it",
-                40,
-                () -> client.click(
-                    0,
+                c -> Minecraft.getMinecraft()
+                    .displayGuiScreen(new AppearingScreen()))
+            .click(
+                ClientTarget.of(
                     "appearing.save",
                     c -> c.screen(AppearingScreen.class)
                         .target()))
-            .thenExecuteAsync("appearing button received real input", 40, () -> client.run(c -> {
+            .client("appearing button received real input", c -> {
                 AppearingScreen screen = c.screen(AppearingScreen.class);
                 if (!screen.observedMissing || !screen.clicked)
                     throw new AssertionError("Missing target was not awaited");
-            }))
-            .thenSucceed();
+            })
+            .succeed();
     }
 
     @GameTest(template = "client_smoke", timeoutTicks = 200)
     public static void resolverFailureDoesNotDispatchInput(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
         IllegalStateException ambiguous = new IllegalStateException("Two controls match settings.save");
-        helper.startSequence()
-            .thenExecuteAsync(
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .withinTicks(80)
+            .client(
                 "open screen",
-                80,
-                () -> client.run(
-                    c -> Minecraft.getMinecraft()
-                        .displayGuiScreen(new MovingScreen(false))))
-            .thenExecuteAsync(
+                c -> Minecraft.getMinecraft()
+                    .displayGuiScreen(new MovingScreen(false)))
+            .async(
                 "ambiguous target fails immediately",
-                40,
-                () -> client.click(0, "settings.save", c -> { throw ambiguous; })
+                client -> client.click(0, "settings.save", c -> { throw ambiguous; })
                     .handle((ignored, error) -> {
                         if (error != ambiguous)
                             throw new AssertionError("Original resolver failure was not preserved", error);
                         return null;
                     }))
-            .thenExecuteAsync(
+            .client(
                 "no input was dispatched",
-                40,
-                () -> client.run(
-                    c -> {
-                        if (c.screen(MovingScreen.class).clicked)
-                            throw new AssertionError("Ambiguous target was clicked");
-                    }))
-            .thenSucceed();
+                c -> {
+                    if (c.screen(MovingScreen.class).clicked) throw new AssertionError("Ambiguous target was clicked");
+                })
+            .succeed();
     }
 
     private static void checkMovingButton(GameTestHelper helper, boolean continuous) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync(
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .withinTicks(80)
+            .client(
                 "open changing layout",
-                80,
-                () -> client.run(
-                    c -> Minecraft.getMinecraft()
-                        .displayGuiScreen(new MovingScreen(continuous))))
-            .thenExecuteAsync(
-                "click current save button",
-                40,
-                () -> client.click(
-                    0,
+                c -> Minecraft.getMinecraft()
+                    .displayGuiScreen(new MovingScreen(continuous)))
+            .click(
+                ClientTarget.of(
                     "changing-layout.save",
                     c -> c.screen(MovingScreen.class)
                         .target()))
-            .thenExecuteAsync("real button accepted click after moving", 40, () -> client.run(c -> {
+            .client("real button accepted click after moving", c -> {
                 MovingScreen screen = c.screen(MovingScreen.class);
                 if (!screen.moved || !screen.clicked) throw new AssertionError("Moving button was not clicked");
-            }))
-            .thenSucceed();
+            })
+            .succeed();
     }
 
     private static final class AppearingScreen extends GuiScreen {

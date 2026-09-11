@@ -16,6 +16,8 @@ public final class LwjglInput {
     private static boolean hasPointer;
     private static int pointerX;
     private static int pointerY;
+    private static int heldButton = -1;
+    private static GuiScreen dragScreen;
 
     private LwjglInput() {}
 
@@ -31,6 +33,7 @@ public final class LwjglInput {
         if (!hasPointer) return;
         set(Mouse.class, "x", pointerX);
         set(Mouse.class, "y", pointerY);
+        if (heldButton >= 0) buffer(Mouse.class, "buttons").put(heldButton, (byte) 1);
     }
 
     public static void end() {
@@ -46,10 +49,35 @@ public final class LwjglInput {
         dispatch(screen);
     }
 
+    /** Starts a held gesture whose polled state survives native input polling between frames. */
+    public static void beginDrag(GuiScreen screen, int x, int y, int button) {
+        if (isDragging()) throw new IllegalStateException("A drag is already active");
+        if (button < 0 || button >= Mouse.getButtonCount()) throw new IllegalArgumentException("Invalid mouse button");
+        heldButton = button;
+        dragScreen = screen;
+        mouse(screen, x, y, button, true);
+    }
+
+    /** Delivers native motion with the existing button still held. */
+    public static void dragMove(GuiScreen screen, int x, int y) {
+        move(screen, x, y);
+        writeMouseEvent(pointerX, pointerY, -1, false, 0);
+        dispatch(screen);
+    }
+
+    public static boolean isDragging() {
+        return heldButton >= 0;
+    }
+
+    /** A replacement screen must never inherit the previous screen's held gesture. */
+    public static void screenChanging(GuiScreen next) {
+        if (isDragging() && next != dragScreen) release();
+    }
+
     /** Supplies a configured Minecraft binding for consumption by the normal input loop. */
     public static void binding(int key, boolean down) {
         if (key < 0) mouseEvent(Mouse.getX(), Mouse.getY(), key + 100, down);
-        else keyEvent(key, down);
+        else keyEvent(key, '\0', down);
     }
 
     /** Delivers a single native wheel event and matching polled wheel delta to the real screen. */
@@ -80,26 +108,22 @@ public final class LwjglInput {
         set(Mouse.class, "y", rawY);
     }
 
-    public static void escape(GuiScreen screen, boolean down) {
-        key(screen, Keyboard.KEY_ESCAPE, down);
-    }
-
     public static void shift(GuiScreen screen, boolean down) {
-        key(screen, Keyboard.KEY_LSHIFT, down);
+        key(screen, Keyboard.KEY_LSHIFT, '\0', down);
     }
 
-    private static void key(GuiScreen screen, int key, boolean down) {
-        keyEvent(key, down);
+    public static void key(GuiScreen screen, int key, char character, boolean down) {
+        keyEvent(key, character, down);
         dispatch(screen);
     }
 
-    private static void keyEvent(int key, boolean down) {
+    private static void keyEvent(int key, char character, boolean down) {
         if (key <= 0 || key >= Keyboard.KEYBOARD_SIZE) throw new IllegalArgumentException("Invalid keyboard key");
         ByteBuffer event = buffer(Keyboard.class, "readBuffer");
         event.clear();
         event.putInt(key)
             .put((byte) (down ? 1 : 0))
-            .putInt(0)
+            .putInt(down ? character : 0)
             .putLong(System.nanoTime())
             .put((byte) 0)
             .flip();
@@ -111,6 +135,8 @@ public final class LwjglInput {
     }
 
     public static void release() {
+        heldButton = -1;
+        dragScreen = null;
         KeyBinding.unPressAllKeys();
         set(Mouse.class, "dwheel", 0);
         clear(buffer(Mouse.class, "buttons"));

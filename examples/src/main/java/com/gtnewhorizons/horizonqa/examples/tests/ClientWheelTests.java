@@ -11,6 +11,7 @@ import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
 import com.gtnewhorizons.horizonqa.api.client.ClickTarget;
+import com.gtnewhorizons.horizonqa.api.client.ClientTarget;
 import com.gtnewhorizons.horizonqa.api.client.ClientTest;
 
 /** Real wheel input follows a moving GUI target and preserves native signed deltas. */
@@ -21,59 +22,52 @@ public final class ClientWheelTests {
 
     @GameTest(template = "client_smoke", timeoutTicks = 300)
     public static void wheelFollowsMovingTargetAndPreservesDelta(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync(
+        ClientTarget wheelPanel = ClientTarget.of(
+            "wheel panel",
+            c -> c.screen(WheelScreen.class)
+                .target());
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .withinTicks(80)
+            .client(
                 "open moving wheel target",
-                80,
-                () -> client.run(
-                    c -> Minecraft.getMinecraft()
-                        .displayGuiScreen(new WheelScreen())))
-            .thenExecuteAsync(
-                "scroll down at live target",
-                40,
-                () -> client.scroll(
-                    -120,
-                    "wheel panel",
-                    c -> c.screen(WheelScreen.class)
-                        .target()))
-            .thenExecuteAsync("one negative wheel event arrived", 40, () -> client.run(c -> {
+                c -> Minecraft.getMinecraft()
+                    .displayGuiScreen(new WheelScreen()))
+            .scroll(wheelPanel, -120)
+            .client("one negative wheel event arrived", c -> {
                 WheelScreen screen = c.screen(WheelScreen.class);
                 if (!screen.moved || screen.events != 1 || screen.lastDelta != -120)
                     throw new AssertionError("Wrong first wheel event");
                 assertReleased();
-            }))
-            .thenExecuteAsync(
-                "scroll up two native notches",
-                40,
-                () -> client.scroll(
-                    240,
-                    "wheel panel",
-                    c -> c.screen(WheelScreen.class)
-                        .target()))
-            .thenExecuteAsync("one positive wheel event arrived", 40, () -> client.run(c -> {
+            })
+            .scroll(wheelPanel, 240)
+            .client("one positive wheel event arrived", c -> {
                 WheelScreen screen = c.screen(WheelScreen.class);
                 if (screen.events != 2 || screen.lastDelta != 240)
                     throw new AssertionError("Wheel sign or event count changed");
                 assertReleased();
-            }))
-            .thenSucceed();
+            })
+            .succeed();
     }
 
     @GameTest(template = "client_smoke", timeoutTicks = 300)
     public static void wheelHandlerFailureClearsInputAndAllowsNextScroll(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync("open throwing wheel target", 80, () -> client.run(c -> {
+        ClientTarget wheelPanel = ClientTarget.of(
+            "wheel panel",
+            c -> c.screen(WheelScreen.class)
+                .target());
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .withinTicks(80)
+            .client("open throwing wheel target", c -> {
                 WheelScreen screen = new WheelScreen();
                 screen.fail = true;
                 Minecraft.getMinecraft()
                     .displayGuiScreen(screen);
-            }))
-            .thenExecuteAsync(
+            })
+            .async(
                 "wheel handler failure is preserved",
-                40,
-                () -> client.scroll(
+                client -> client.scroll(
                     120,
                     "throwing wheel panel",
                     c -> c.screen(WheelScreen.class)
@@ -85,24 +79,17 @@ public final class ClientWheelTests {
                         }
                         return null;
                     }))
-            .thenExecuteAsync("failed dispatch cleared input", 40, () -> client.run(c -> {
+            .client("failed dispatch cleared input", c -> {
                 assertReleased();
                 c.screen(WheelScreen.class).fail = false;
-            }))
-            .thenExecuteAsync(
-                "next scroll still reaches target",
-                40,
-                () -> client.scroll(
-                    -120,
-                    "recovered wheel panel",
-                    c -> c.screen(WheelScreen.class)
-                        .target()))
-            .thenExecuteAsync("recovered wheel event arrived", 40, () -> client.run(c -> {
+            })
+            .scroll(wheelPanel, -120)
+            .client("recovered wheel event arrived", c -> {
                 WheelScreen screen = c.screen(WheelScreen.class);
                 if (screen.events != 2 || screen.lastDelta != -120) throw new AssertionError("Scroll did not recover");
                 assertReleased();
-            }))
-            .thenSucceed();
+            })
+            .succeed();
     }
 
     private static void assertReleased() {

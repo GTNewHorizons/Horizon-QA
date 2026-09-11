@@ -52,16 +52,17 @@ public final class WorldInputTests {
     }
 
     private static void checkBookInput(GameTestHelper helper, int binding, Outcome outcome) {
-        ClientTest client = ClientTest.attach(helper);
         InputProbe probe = new InputProbe(binding, outcome);
-        var sequence = helper.startSequence()
-            .thenExecute("equip a real written book", () -> equipBook(helper))
-            .thenWaitUntilAsync("held book synchronized", 80, () -> client.run(c -> {
+        var sequence = ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .server("equip a real written book", () -> equipBook(helper))
+            .withinTicks(80)
+            .awaitClient("held book synchronized", c -> {
                 ItemStack held = Minecraft.getMinecraft().thePlayer.getHeldItem();
                 if (held == null || held.getItem() != Items.written_book)
                     throw new AssertionError("Book not synchronized");
-            }))
-            .thenExecuteAsync("observe normal world input", 40, () -> client.run(c -> {
+            })
+            .client("observe normal world input", c -> {
                 Minecraft mc = Minecraft.getMinecraft();
                 if (c.screen() != null) throw new AssertionError("Expected world without GUI before item use");
                 float pitch = mc.thePlayer.rotationPitch;
@@ -83,9 +84,10 @@ public final class WorldInputTests {
                     mc.thePlayer.rotationPitch = pitch;
                 });
                 c.afterTest(probe::assertReleased);
-            }))
-            .thenExecuteAsync("use held item through normal input", 60, client::useHeldItem)
-            .thenExecuteAsync("normal input was observed and respected", 40, () -> client.run(c -> {
+            })
+            .withinTicks(60)
+            .useHeldItem()
+            .client("normal input was observed and respected", c -> {
                 if (probe.presses != 1) throw new AssertionError("Expected one input press, got " + probe.presses);
                 if (outcome == Outcome.CANCEL_PRESS) {
                     if (c.screen() != null) throw new AssertionError("Cancelled input still opened a GUI");
@@ -93,12 +95,11 @@ public final class WorldInputTests {
                     c.screen(GuiScreenBook.class);
                 }
                 probe.assertReleased();
-            }));
+            });
         if (outcome == Outcome.OPEN_BOOK) {
-            sequence.thenExecuteAsync(
+            sequence.async(
                 "world input rejects an active GUI",
-                40,
-                () -> client.useHeldItem()
+                client -> client.useHeldItem()
                     .handle((ignored, error) -> {
                         Throwable cause = error;
                         while (cause instanceof java.util.concurrent.CompletionException) cause = cause.getCause();
@@ -109,7 +110,7 @@ public final class WorldInputTests {
                         return null;
                     }));
         }
-        sequence.thenSucceed();
+        sequence.succeed();
     }
 
     static void equipBook(GameTestHelper helper) {

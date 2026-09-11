@@ -38,7 +38,7 @@ Use `pos("label")` when a position must be stored or passed to another API. Use 
 | `getTestId()` | Obtain the selected test id including its parameter case suffix |
 | `recordDiagnostic(String)` | Append a report line from the server test thread |
 
-`ClientTest.attach(helper)` owns asynchronous teardown for [client scenarios](../guide/ci.md#automated-client-tests). Register consumer client cleanup through its session.
+For [client scenarios](../guide/ci.md#automated-client-tests), use `ClientTest.scenario(helper)` to create a fluent chain backed by one existing sequence and one client session. It owns the asynchronous teardown slot. Do not also call `startSequence()` or attach a second client session for that test. Register client cleanup with `scenario.afterTest(c -> ...)`. Ordinary `helper.afterTest(...)` cleanup remains on the server thread after client teardown.
 
 See [Sequences and timing](../guide/sequences.md) for phase ordering and bounded waits.
 
@@ -49,6 +49,32 @@ position while reports identify the named callback. Call `disable()` to pause th
 resume it, or `remove()` to unregister it permanently. These operations are idempotent; enabling or
 disabling a removed handle has no effect. Actual registration and state changes appear in the test event
 log. See [Scoped sequence windows](../guide/negative-tests.md#scoped-sequence-windows).
+
+## Client scenarios
+
+`ClientTest.scenario(helper)` provides the default client authoring surface in `com.gtnewhorizons.horizonqa.api.client`:
+
+| Task | Methods |
+|---|---|
+| Name a reusable live lookup | `ClientTarget.of(description, resolver)` |
+| Send native input | `useHeldItem`, `click`, `rightClick`, `shiftClick`, `scroll`, `key`, `escape` |
+| Describe a drag | `drag(target).to(endpoint).overFrames(n)`, with optional `button(index)` |
+| Wait for a screen | `awaitScreen(type)` |
+| Run custom work | `client(label, action)`, `server(label, action)` |
+| Retry custom assertions | `awaitClient(label, assertion)`, `awaitServer(label, assertion)` |
+| Compose completion stages | `async(label, action)`, `awaitAsync(label, assertion)` |
+| Configure the next step | `step(label)`, `withinTicks(n)` |
+| Change subsequent bounded-step defaults | `defaultTimeoutTicks(n)`, initially 100 ticks |
+| Retain a rendered checkpoint | `capture(name)` |
+| Register client cleanup | `afterTest(cleanup)` |
+| Access existing phase scheduling | `serverSequence()`, returning the same sequence |
+| Finish authoring | `succeed()` |
+
+A `ClientTarget` stores a description and a resolver without reading the GUI. During execution the resolver returns a `ClickTarget` observation containing stable identity, clipped visible bounds and actual hit-test readiness. Return `null` while unavailable and throw for ambiguity.
+
+`client` callbacks run on the client thread. `server`, `async` and `awaitAsync` callbacks start on the server thread, so custom asynchronous client work must use the supplied session's queued methods. Bounded operations include queue time in their budget. `withinTicks` does not apply to synchronous `server` actions.
+
+Low-level `ClientTest.attach(helper)` remains available for direct sequence authoring, and the same low-level methods are available in custom scenario callbacks. This advanced surface supports specialized future composition and input operations without adding another executor or cleanup lifecycle.
 
 ## General assertions
 

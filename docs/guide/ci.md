@@ -315,6 +315,27 @@ Client tests run a real Minecraft 1.7.10 client and integrated server. They need
 
 Use `@GameTestHolder(value = "mymod", clientOnly = true)` on a separate holder. Its methods still receive `GameTestHelper` and run on the server thread. Client mode selects only client holders. Normal server discovery filters those holders from Forge ASM metadata before class loading. Explicitly selecting an unavailable client test on a dedicated server produces a selection error, not a skipped pass.
 
+### Write a client scenario
+
+Use `ClientTest.scenario(helper)` to build the test as one ordered chain:
+
+```java
+ClientTarget next = ClientTarget.of("details.next", c -> findNextButton(c));
+
+ClientTest.scenario(helper)
+    .useHeldItem()
+    .awaitScreen(MyScreen.class)
+    .click(next)
+    .awaitScreen(DetailsScreen.class)
+    .capture("details")
+    .escape()
+    .succeed();
+```
+
+The screen types and `findNextButton` belong to the consumer. The lookup returns a live `ClickTarget`, including visible bounds and actual hit-test readiness. Creating a `ClientTarget` stores its description and resolver without querying the GUI. It can be reused across steps even when the screen or layout changes.
+
+Scenario methods register deferred steps on the existing server-owned `GameTestSequence`. Building the chain does not perform input. It creates one client session and one sequence, so do not also call `attach(helper)` or `helper.startSequence()` for that test. Finish registration with `succeed()`.
+
 ### One unattended command
 
 From this repository on Windows:
@@ -349,40 +370,102 @@ Bootstrap creates a new `horizonqa-<UUID>` scratch save under the launcher's cli
 
 ### Server and client operations
 
+Mix server fixture work, native client input and client assertions in the same scenario:
+
 ```java
 @GameTestHolder(value = "mymod", clientOnly = true)
 public final class ScreenTests {
     @GameTest(template = "screen_fixture", timeoutTicks = 400)
     public static void openAndReturn(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecute("prepare server fixture", () -> {
+        ClientTarget next = ClientTarget.of("details.next", c -> findNextButton(c));
+        ClientTest.scenario(helper)
+            .server("prepare server fixture", () -> {
                 helper.setBlock("marker", Blocks.gold_block);
             })
-            .thenExecuteAsync("open screen", 80, () -> client.run(c -> {
+            .afterTest(c -> removeTestOwnedClientState())
+            .client("open fixture screen", c -> {
                 Minecraft.getMinecraft().displayGuiScreen(new MyScreen());
-                c.afterTest(() -> removeTestOwnedClientState());
-            }))
-            .thenExecuteAsync("click next", 40, () -> client.click(0, c -> {
-                MyScreen screen = c.screen(MyScreen.class);
-                // Resolve this point from the unique visible control's live bounds.
-                return new java.awt.Point(screen.nextButtonCenterX(), screen.nextButtonCenterY());
-            }))
-            .thenWaitUntilAsync("details visible", 40,
-                () -> client.run(c -> c.screen(DetailsScreen.class)))
-            .thenExecuteAsync("details frame", 40, () -> client.capture("details"))
-            .thenExecuteAsync("return", 40, () -> client.run(ClientTest::escape))
-            .thenExecute("verify server state", () -> {
+            })
+            .click(next)
+            .awaitScreen(DetailsScreen.class)
+            .capture("details")
+            .escape()
+            .server("verify server state", () -> {
                 helper.assertBlockPresent(Blocks.gold_block, "marker");
             })
-            .thenSucceed();
+            .succeed();
     }
 }
 ```
 
-The screen types and lookup methods above belong to the consumer. The runnable framework example is `ClientSmokeTests` in `examples`.
+The screen types and lookup methods above belong to the consumer. Opening a supplied fixture screen is appropriate for a framework input test. Product scenarios should enter their screen through normal gameplay, for example with `useHeldItem()`. The runnable framework examples are in `examples`.
 
-`ClientTest` lives in `com.gtnewhorizons.horizonqa.api.client`. `attach(helper)` is the single access path. Attach at most one session per test. `run(Consumer<ClientTest>)` returns `CompletableFuture<Void>`. The action executes at client END and its completion is consumed by the sequence on server END. Synchronous sequence steps remain on the server thread. Do not capture live server worlds or tile entities in a client action. Pass immutable values between the two sides and perform server assertions in ordinary sequence steps.
+`ClientScenario`, `ClientTarget` and `ClientTest` live in `com.gtnewhorizons.horizonqa.api.client`. Custom `client` actions execute at client END, and completion is consumed at server END. `server` actions execute on the server at END. Do not capture live server worlds or tile entities in a client action. Pass immutable values between the two sides and perform server assertions in `server` or `awaitServer`.
+
+| Scenario method | Contract |
+|---|---|
+| `useHeldItem()` | Use the equipped item through its configured world-input binding |
+| `awaitScreen(type)` | Wait until the active screen has the requested type |
+| `click(target)`, `rightClick(target)`, `shiftClick(target)` | Resolve a live target and dispatch a left, right or Shift-left click |
+| `scroll(target, delta)` | Dispatch one signed native wheel event at a live target |
+| `drag(target).to(endpoint).overFrames(n)` | Hold the mouse through rendered movement frames and release at the endpoint |
+| `key(code, character)`, `escape()` | Dispatch native key input through the active screen |
+| `capture(checkpoint)` | Wait for a rendered PNG checkpoint to be written |
+| `client(label, action)`, `server(label, action)` | Run a custom action once on the indicated thread |
+| `awaitClient(label, assertion)`, `awaitServer(label, assertion)` | Retry assertions on the indicated thread |
+| `async(label, action)`, `awaitAsync(label, assertion)` | Await custom asynchronous work once or retry completed assertion failures |
+| `afterTest(cleanup)` | Register client cleanup when this step executes |
+| `serverSequence()` | Access this scenario's existing sequence for advanced scheduling |
+| `succeed()` | Append the success step and finish authoring |
+
+#### Budgets and step descriptions
+
+Client operations and assertion waits default to **100 test ticks per step**. The test's `@GameTest(timeoutTicks = ...)` still bounds the whole scenario. Native operations generate descriptions from the action and target name.
+
+```java
+ClientTest.scenario(helper)
+    .defaultTimeoutTicks(80)
+    .step("save the edited recipe")
+    .withinTicks(160)
+    .click(save)
+    .awaitClient("confirmation is visible", c -> assertConfirmation(c))
+    .succeed();
+```
+
+`step(label)` overrides only the next step's description, including an explicit custom label. `withinTicks(n)` overrides only the next bounded step's budget. In this example the click has 160 ticks, and the assertion returns to the 80-tick default. Budgets must be positive. A synchronous `server` action has no tick budget, so placing `withinTicks` before it is rejected. Consume pending options before `succeed()` or `serverSequence()`.
+
+#### Custom operations
+
+Use `client` and `awaitClient` for client observations and assertions. Use `async` when an operation already returns a completion stage or needs a specialized composition:
+
+```java
+scenario.async("verify a rejected input", c -> c.useHeldItem().handle((ignored, error) -> {
+    assertExpectedRejection(error);
+    return null;
+}));
+scenario.awaitAsync("external result is available", c -> checkExternalResultAsync());
+```
+
+The `async` and `awaitAsync` callbacks themselves begin on the **server thread**. Queue client work through the supplied `ClientTest`, such as `c.run(...)` or its input methods. Do not read Minecraft client state directly in these callbacks.
+
+Advanced server scheduling uses the same sequence:
+
+```java
+var scenario = ClientTest.scenario(helper);
+scenario.serverSequence()
+    .thenExecuteAtStart(() -> supplyFixtureInput());
+scenario.useHeldItem()
+    .awaitServer("operation completed", () -> assertServerResult())
+    .succeed();
+```
+
+Finish registering raw sequence steps before returning to the fluent chain. Existing START/END ordering rules still apply. There is no second executor or separate cleanup lifecycle.
+
+### Low-level client operations
+
+`ClientTest.attach(helper)` remains available when authoring directly with `GameTestSequence`. Attach at most one session per test. The fluent scenario uses this same session internally. Low-level methods are also available through custom callbacks for specialized input and future composition. They are an advanced API, not a deprecated compatibility layer.
+
+`run(Consumer<ClientTest>)` returns `CompletableFuture<Void>` and queues work at client END. Its completion is consumed by the sequence on server END.
 
 | Client method | Contract |
 |---|---|
@@ -395,7 +478,9 @@ The screen types and lookup methods above belong to the consumer. The runnable f
 | `click(button, description, resolver)` | Repeatedly resolve a live `ClickTarget`, wait for visible bounds and actual hit-test readiness, then dispatch a real click |
 | `shiftClick(button, description, resolver)` | The same dynamically resolved click with Shift held through mouse release |
 | `scroll(wheelDelta, description, resolver)` | Resolve a live target and dispatch one mouse-wheel event at its current position |
+| `drag(button, description, start, end, frames)` | Resolve a live start target, hold the button through rendered movement frames, then release at a plain screen-coordinate endpoint |
 | `escape()` | Escape press and release through the current screen's keyboard dispatch |
+| `key(keyCode, character)` | Queue one LWJGL key press with a typed character, followed by release through the active screen |
 | `afterTest(Runnable)` | Register client cleanup inside a client action |
 | `capture(checkpoint)` | Await a rendered PNG and obtain its `File` path |
 
@@ -405,22 +490,48 @@ GUI libraries can update hit-test caches on a clock separate from rendering. For
 
 ### Input and rendering
 
-The supported input seam is LWJGL 2.9: Horizon supplies both queued events and polled button/key state, plus event and polled cursor coordinates. A click waits for a normal rendered frame at the target before pressing, so libraries that record hover coordinates during rendering observe the new pointer. Normal `GuiScreen.handleInput` dispatch invokes the screen lifecycle. There is no OS mouse automation and no direct widget business callback. Unsupported LWJGL layouts fail explicitly. Complete clicks, Shift-clicks and Escape are supported. Dragging, text entry and arbitrary held-key gestures are outside this version.
+The supported input seam is LWJGL 2.9: Horizon supplies both queued events and polled button/key state, plus event and polled cursor coordinates. A click waits for a normal rendered frame at the target before pressing, so libraries that record hover coordinates during rendering observe the new pointer. Normal `GuiScreen.handleInput` dispatch invokes the screen lifecycle. There is no OS mouse automation and no direct widget business callback. Unsupported LWJGL layouts fail explicitly. Complete clicks, Shift-clicks, scrolling, straight drags and individual keys with typed characters are supported. Whole-string entry and arbitrary held-key gestures are outside this version.
 
 Use `shiftClick` for interactions such as NEI's modifier-assisted recipe transfer. Shift press is dispatched through the real screen keyboard path and is visible through `Keyboard.isKeyDown` and `GuiScreen.isShiftKeyDown` during both mouse callbacks. The helper dispatches Shift release after the mouse release and clears held input even if a callback throws. It does not change NEI preferences or invoke recipe-transfer handlers directly.
 
+### Sending a single key
+
+Use `.key(Keyboard.KEY_SPACE, ' ')` for a Space shortcut or `.key(Keyboard.KEY_B, 'b')` to type a character in a scenario:
+
+```java
+scenario.key(Keyboard.KEY_SPACE, ' ')
+    .click(searchField)
+    .key(Keyboard.KEY_B, 'b')
+    .client("search contains b", c -> assertSearchText(c, "b"));
+```
+
+The keycode is a nonzero LWJGL key constant. Pass `'\0'` for non-text keys. Horizon delivers the press with its character, then releases the key and clears held input even if a handler fails or closes the screen. An active GUI is required. The consumer selects focus through its own GUI interactions, such as clicking a text field, and separately asserts the result. This operation does not type whole strings or choose a focused widget. The scenario's `escape()` schedules the same dispatch path on the client thread. World interactions still use `useHeldItem()` and the configured use binding. `ClientKeyTests` exercises a Space shortcut, native text-field entry, Escape and handler-failure cleanup.
+
+### Dragging from a live target
+
+`drag(target).to(endpoint).overFrames(frames)` uses the same `ClientTarget` lookup and readiness as clicks for its start. The endpoint resolver returns a `java.awt.Point` in the active screen's coordinates and runs once immediately before the press. It can identify empty space and does not need a clickable widget. The positive `frames` argument controls the number of movement frames along a straight path. Each position is rendered with the button held before Horizon dispatches its motion event through normal screen input handling.
+
+```java
+ClientTarget handle = ClientTarget.of("toolbar handle", c -> findToolbarHandle(c));
+scenario.drag(handle)
+    .to(c -> new Point(c.screen().width / 2, c.screen().height / 2))
+    .overFrames(6);
+```
+
+`findToolbarHandle` belongs to the consumer and returns a live `ClickTarget`. The drag defaults to the left button. Use `.button(index)` to select another LWJGL mouse button or `.to(x, y)` for a fixed GUI-coordinate endpoint. `overFrames` registers the gesture and returns the scenario. The next step waits for the drag to finish. Assert the resulting state in a separate step. Completion confirms dispatch and release, not acceptance by the GUI. A replacement screen, resize or handler failure aborts the drag and clears held input. Test teardown also releases the gesture. `ClientDragTests` contains runnable cases for movement across rendered frames, handler failure and screen replacement.
+
 ### Scrolling a live target
 
-Use `scroll(wheelDelta, description, resolver)` to scroll a panel or zoom a view through its normal mouse handler. It uses the same live target lookup, rendered frame and hit-test readiness as semantic clicks. The delta is in raw signed LWJGL units, conventionally `120` upward or `-120` downward per notch. Horizon dispatches exactly one event with the supplied magnitude. Zero is rejected. The GUI decides what that event means, so wait for the resulting state in a separate sequence step. Completion confirms input dispatch and cleanup, not that the view moved. `ClientWheelTests` provides runnable moving-target and handler-failure cases.
+Use `scenario.scroll(panel, -120)` to scroll a live `ClientTarget` through the view's normal mouse handler. It uses the same live target lookup, rendered frame and hit-test readiness as semantic clicks. The delta is in raw signed LWJGL units, conventionally `120` upward or `-120` downward per notch. Horizon dispatches exactly one event with the supplied magnitude. Zero is rejected. The GUI decides what that event means, so wait for the resulting state in a separate sequence step. Completion confirms input dispatch and cleanup, not that the view moved. `ClientWheelTests` provides runnable moving-target and handler-failure cases.
 
 ### Using an item from the world
 
-Use `client.useHeldItem()` to enter a GUI or perform a world interaction through normal input. A fixture may equip the player and prepare their position and aim. The operation requires an active world and player, a held item and no active screen. Missing prerequisites fail with a diagnostic instead of silently closing a screen or choosing an item.
+Use `.useHeldItem()` in a scenario to enter a GUI or perform a world interaction through normal input. A fixture may equip the player and prepare their position and aim. The operation requires an active world and player, a held item and no active screen. Missing prerequisites fail with a diagnostic instead of silently closing a screen or choosing an item.
 
 ```java
-.thenWaitUntilAsync("map equipped on client", 80, () -> client.run(c -> assertMapEquipped()))
-.thenExecuteAsync("use map through normal input", 60, client::useHeldItem)
-.thenWaitUntilAsync("map visible", 80, () -> client.run(c -> assertMapScreen(c.screen())))
+scenario.awaitClient("map equipped on client", c -> assertMapEquipped())
+    .useHeldItem()
+    .awaitClient("map visible", c -> assertMapScreen(c.screen()));
 ```
 
 The assertions in this example belong to the consumer. `WorldInputTests` in `examples` provides runnable cases using a real written book equipped on the server and synchronized to the client.
@@ -435,20 +546,23 @@ Core has no ModularUI, NEI, or consumer dependency. Resolve controls using the c
 
 ### Targets that follow the live GUI
 
-Prefer `click(button, description, resolver)` when the element can appear later or move during rendering. The resolver runs on each client tick until the click can be dispatched. It returns a `ClickTarget` from `com.gtnewhorizons.horizonqa.api.client`, or `null` while the element is absent, hidden or disabled. Throw an exception when the lookup is ambiguous or invalid. Exceptions from discovery and hit testing fail immediately with their original cause.
+Define a reusable `ClientTarget` when an element can appear later or move during rendering. The resolver runs on each client tick until the click can be dispatched. It returns a `ClickTarget` from `com.gtnewhorizons.horizonqa.api.client`, or `null` while the element is absent, hidden or disabled. Throw an exception when the lookup is ambiguous or invalid. Exceptions from discovery and hit testing fail immediately with their original cause.
 
 ```java
-.thenExecuteAsync("save recipe", 80, () -> client.click(0, "recipe-editor.save", c -> {
+ClientTarget saveTarget = ClientTarget.of("recipe-editor.save", c -> {
     if (!(c.screen() instanceof RecipeScreen)) return null;
     RecipeScreen screen = (RecipeScreen) c.screen();
     // These lookup and hit-test methods belong to the consumer's GUI integration.
     Control save = screen.findUniqueControl("recipe-editor.save");
     if (save == null || !save.isVisible() || !save.isEnabled()) return null;
     return new ClickTarget(save, save.visibleBounds(), () -> screen.isActualMouseTarget(save));
-}))
+});
+scenario.click(saveTarget);
 ```
 
 The description identifies the pending target in failure diagnostics. Discovery uses stable widget names or domain keys, scoped to the correct panel, instead of translated labels or list indices. For example, two panels may both contain a Save button. The resolver must distinguish them and reject multiple matches within its scope.
+
+If a target ID comes from a fixture created during execution, compute that ID inside the resolver too. For example, use `ClientTarget.of("created asset action", c -> findAction(createdAssetId()))` rather than calling `createdAssetId()` while building the scenario. Java evaluates ordinary method arguments immediately, even when the called helper returns a deferred target. Wait for the fixture ID to be available and safely publish it before the client reads it. The target description can remain a stable label.
 
 `ClickTarget(identity, visibleBounds, ready)` represents one current observation:
 
@@ -472,6 +586,6 @@ A request to open Minecraft's pause menu records the caller stack, previous scre
 
 Ending a test invalidates queued client work immediately. An already claimed action may finish on the client thread. Client teardown then releases input, runs registered client cleanup and closes the screen. Server cleanup and the next test wait for teardown and final artifact writing. Teardown failure or its 100-tick deadline makes the run an infrastructure failure and prevents subsequent client scenarios from starting.
 
-`GameTestHelper.afterTestAsync(maxTicks, supplier)` owns the single asynchronous teardown slot. `ClientTest.attach` uses it, so consumers register their client cleanup through `ClientTest.afterTest`. Ordinary `helper.afterTest` callbacks continue to run on the server thread after client teardown.
+`GameTestHelper.afterTestAsync(maxTicks, supplier)` owns the single asynchronous teardown slot. The client session uses it, so consumers register client cleanup through the scenario's `afterTest(c -> ...)` or the low-level `ClientTest.afterTest` inside a client action. Registration is deferred until the scenario cleanup-registration step executes. If setup captures state for restoration, register its cleanup inside that same client setup callback. Ordinary `helper.afterTest` callbacks continue to run on the server thread after client teardown.
 
 Tick budgets cannot detect a frozen game loop. Use the bounded launcher for unattended runs and retain `launch-result.json`, `launch.log`, and any thread dump alongside the normal reports.

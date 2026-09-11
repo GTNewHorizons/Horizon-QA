@@ -15,6 +15,8 @@ import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 
+import org.lwjgl.input.Keyboard;
+
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
@@ -43,7 +45,7 @@ public final class ClientTest {
     private String waitingForInput = "";
     private long renderedFrames;
 
-    private ClientTest(GameTestHelper helper) {
+    ClientTest(GameTestHelper helper) {
         frames = new FrameCapture(
             new File(
                 HorizonQAProperties.junitReportFile()
@@ -51,6 +53,11 @@ public final class ClientTest {
                     .getParentFile(),
                 "artifacts/" + helper.getTestId()
                     .replaceAll("[^a-zA-Z0-9._-]", "_")));
+    }
+
+    /** Starts fluent authoring on this test's existing sequence and attaches its sole client session. */
+    public static ClientScenario scenario(GameTestHelper helper) {
+        return new ClientScenario(helper.startSequence(), attach(helper));
     }
 
     /**
@@ -219,6 +226,21 @@ public final class ClientTest {
         return atTarget(description, resolver, point -> dispatchClick(point.x, point.y, button, shift));
     }
 
+    /**
+     * Drags from a live target to a screen-coordinate endpoint along a straight path.
+     * Resolves the endpoint once immediately before pressing, without requiring a clickable endpoint.
+     * Each of the positive number of movement frames is rendered with the button held before its motion event.
+     * Releases at the endpoint. A screen change, resize or handler failure aborts the gesture and clears input.
+     * Test teardown also releases held input. Await completion before submitting another input operation.
+     */
+    public CompletableFuture<Void> drag(int button, String description, Function<ClientTest, ClickTarget> start,
+        Function<ClientTest, Point> end, int frames) {
+        if (frames <= 0) throw new IllegalArgumentException("Drag frames must be positive");
+        Drag drag = new Drag(button, description, Objects.requireNonNull(end, "end"), frames);
+        return atTarget(description, start, drag::begin)
+            .thenCompose(ignored -> operations.submitWhenReady(Phase.END, drag::advance, () -> null));
+    }
+
     private CompletableFuture<Void> atTarget(String description, Function<ClientTest, ClickTarget> resolver,
         Consumer<Point> action) {
         DynamicTarget target = new DynamicTarget(description, resolver);
@@ -280,11 +302,28 @@ public final class ClientTest {
 
     /** Dispatches Escape press/release through the real screen keyboard lifecycle. */
     public void escape() {
+        dispatchKey(Keyboard.KEY_ESCAPE, '\0');
+    }
+
+    /**
+     * Queues a single key press and release through the active screen's normal input handling.
+     * Uses a nonzero LWJGL keycode and the supplied typed character, or '\0' for a non-text key.
+     * The consumer owns GUI focus. Completion confirms dispatch and input cleanup, not text acceptance.
+     * Requires an active screen and preserves the original handler failure while releasing held input.
+     */
+    public CompletableFuture<Void> key(int keyCode, char character) {
+        return operations.submit(Phase.END, () -> {
+            dispatchKey(keyCode, character);
+            return null;
+        });
+    }
+
+    private void dispatchKey(int keyCode, char character) {
         GuiScreen screen = requireScreen();
         try {
-            LwjglInput.escape(screen, true);
+            LwjglInput.key(screen, keyCode, character, true);
             GuiScreen afterPress = Minecraft.getMinecraft().currentScreen;
-            if (afterPress != null) LwjglInput.escape(afterPress, false);
+            if (afterPress != null) LwjglInput.key(afterPress, keyCode, '\0', false);
         } finally {
             LwjglInput.release();
         }
@@ -395,6 +434,80 @@ public final class ClientTest {
     @SuppressWarnings("unchecked")
     private static <T extends Throwable> void rethrow(Throwable error) throws T {
         throw (T) error;
+    }
+
+    private final class Drag {
+
+        private final int button;
+        private final String description;
+        private final Function<ClientTest, Point> endpoint;
+        private final int frames;
+        private PositionedTarget origin;
+        private Point end;
+        private Point point;
+        private int step;
+        private long positionedFrame;
+
+        private Drag(int button, String description, Function<ClientTest, Point> endpoint, int frames) {
+            this.button = button;
+            this.description = description;
+            this.endpoint = endpoint;
+            this.frames = frames;
+        }
+
+        private void begin(Point start) {
+            try {
+                GuiScreen screen = requireScreen();
+                origin = new PositionedTarget(screen, new Point(start), screen.width, screen.height);
+                end = new Point(Objects.requireNonNull(endpoint.apply(ClientTest.this), "Drag endpoint"));
+                validatePoint(screen, end.x, end.y);
+                LwjglInput.beginDrag(screen, start.x, start.y, button);
+                checkScreen();
+                positionNextFrame();
+            } catch (RuntimeException | Error error) {
+                LwjglInput.release();
+                throw error;
+            }
+        }
+
+        private boolean advance() {
+            try {
+                checkScreen();
+                if (renderedFrames <= positionedFrame) return false;
+                LwjglInput.dragMove(origin.screen, point.x, point.y);
+                checkScreen();
+                if (step == frames) {
+                    LwjglInput.mouse(origin.screen, end.x, end.y, button, false);
+                    LwjglInput.release();
+                    waitingForInput = "";
+                    return true;
+                }
+                positionNextFrame();
+                return false;
+            } catch (RuntimeException | Error error) {
+                LwjglInput.release();
+                throw error;
+            }
+        }
+
+        private void checkScreen() {
+            if (screen() != origin.screen || origin.screen.width != origin.width
+                || origin.screen.height != origin.height
+                || !LwjglInput.isDragging()) {
+                throw new IllegalStateException("Screen changed during drag");
+            }
+        }
+
+        private void positionNextFrame() {
+            step++;
+            double progress = (double) step / frames;
+            point = new Point(
+                origin.point.x + (int) Math.round((end.x - origin.point.x) * progress),
+                origin.point.y + (int) Math.round((end.y - origin.point.y) * progress));
+            LwjglInput.move(origin.screen, point.x, point.y);
+            positionedFrame = renderedFrames;
+            waitingForInput = "waitingForInput=" + description + ", drag frame " + step + "/" + frames + " at " + point;
+        }
     }
 
     private final class DynamicTarget {

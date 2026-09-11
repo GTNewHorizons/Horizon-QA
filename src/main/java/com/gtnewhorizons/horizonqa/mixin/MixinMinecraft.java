@@ -28,7 +28,8 @@ public abstract class MixinMinecraft {
     private boolean isGamePaused;
 
     @Inject(method = "displayGuiScreen", at = @At("HEAD"))
-    private void horizonqa$recordPauseRequest(GuiScreen requested, CallbackInfo ci) {
+    private void horizonqa$prepareScreenChange(GuiScreen requested, CallbackInfo ci) {
+        LwjglInput.screenChanging(requested);
         if (!HorizonQAProperties.clientTestsEnabled() || !(requested instanceof GuiIngameMenu)) return;
         Minecraft mc = Minecraft.getMinecraft();
         ClientTest.recordLifecycleDiagnostic(

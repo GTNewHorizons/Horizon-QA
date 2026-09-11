@@ -433,9 +433,14 @@ public class GameTestSequence {
     private static SourceLocation captureSource() {
         StackTraceElement[] trace = new Throwable().getStackTrace();
         String sequenceClass = GameTestSequence.class.getName();
+        String clientScenarioClass = "com.gtnewhorizons.horizonqa.api.client.ClientScenario";
         for (StackTraceElement frame : trace) {
             if (!frame.getClassName()
-                .equals(sequenceClass)) {
+                .equals(sequenceClass)
+                && !frame.getClassName()
+                    .equals(clientScenarioClass)
+                && !frame.getClassName()
+                    .startsWith(clientScenarioClass + "$")) {
                 return new SourceLocation(frame.getClassName(), frame.getFileName(), frame.getLineNumber());
             }
         }
