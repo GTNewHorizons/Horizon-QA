@@ -62,6 +62,7 @@ log. See [Scoped sequence windows](../guide/negative-tests.md#scoped-sequence-wi
 | Wait for a screen | `awaitScreen(type)` |
 | Run custom work | `client(label, action)`, `server(label, action)` |
 | Retry custom assertions | `awaitClient(label, assertion)`, `awaitServer(label, assertion)` |
+| Accelerate a server-state wait | `awaitServerAccelerated(label, multiplier, assertion)` |
 | Compose completion stages | `async(label, action)`, `awaitAsync(label, assertion)` |
 | Configure the next step | `step(label)`, `withinTicks(n)` |
 | Change subsequent bounded-step defaults | `defaultTimeoutTicks(n)`, initially 100 ticks |

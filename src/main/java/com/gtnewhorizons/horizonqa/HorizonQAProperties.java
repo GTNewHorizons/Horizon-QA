@@ -27,7 +27,8 @@ public final class HorizonQAProperties {
 
     private static final String DEFAULT_JUNIT_REPORT = "TEST-horizonqa.xml";
     private static final String DEFAULT_STATUS_REPORT = "horizonqa-result.json";
-    private static final int MAX_TURBO_MULTIPLIER = 100;
+    /** Maximum number of full server ticks requested per normal server-loop iteration. */
+    public static final int MAX_TURBO_MULTIPLIER = 100;
     private static final GridOrigin DEFAULT_GRID_ORIGIN = new GridOrigin(0, 64, 0);
 
     private static final boolean CLIENT_TESTS = Boolean.getBoolean(CLIENT_PROPERTY);

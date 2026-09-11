@@ -10,6 +10,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
+import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.event.SequenceStepFinished;
 import com.gtnewhorizons.horizonqa.api.event.SequenceStepStarted;
 
@@ -118,6 +119,25 @@ public class GameTestSequence {
 
     public GameTestSequence thenWaitUntil(String label, int maxTicks, Runnable condition) {
         return thenWaitUntilAtEnd(label, maxTicks, condition);
+    }
+
+    /**
+     * Waits on server assertions at END while requesting full server ticks at the given rate.
+     * The budget counts simulated server ticks. Only this running step requests acceleration.
+     * Callbacks must observe server state without submitting client work.
+     */
+    public GameTestSequence thenWaitUntilAccelerated(String label, int maxTicks, int multiplier, Runnable condition) {
+        if (multiplier < 1 || multiplier > HorizonQAProperties.MAX_TURBO_MULTIPLIER) {
+            throw new IllegalArgumentException("Tick multiplier must be between 1 and 100");
+        }
+        thenWaitUntilAtEnd(label, maxTicks, condition);
+        pendingSteps.getLast().tickMultiplier = multiplier;
+        return this;
+    }
+
+    int tickMultiplier() {
+        SequenceStep step = pendingSteps.peek();
+        return step != null && step.state == StepState.RUNNING ? step.tickMultiplier : 1;
     }
 
     public GameTestSequence thenWaitUntilAtStart(Runnable condition) {
@@ -629,6 +649,7 @@ public class GameTestSequence {
         long startedTick = -1;
         long completedTick = -1;
         int attempts;
+        int tickMultiplier = 1;
         AssertionError lastAssertion;
 
         SequenceStep(int index, long scheduledTick, int maxTicks, TestPhase phase, StepKind kind, String label,

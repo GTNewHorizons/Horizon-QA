@@ -423,6 +423,7 @@ The screen types and lookup methods above belong to the consumer. Opening a supp
 | `capture(checkpoint)` | Wait for a rendered PNG checkpoint to be written |
 | `client(label, action)`, `server(label, action)` | Run a custom action once on the indicated thread |
 | `awaitClient(label, assertion)`, `awaitServer(label, assertion)` | Retry assertions on the indicated thread |
+| `awaitServerAccelerated(label, multiplier, assertion)` | Retry server assertions while requesting accelerated full server ticks |
 | `async(label, action)`, `awaitAsync(label, assertion)` | Await custom asynchronous work once or retry completed assertion failures |
 | `afterTest(cleanup)` | Register client cleanup when this step executes |
 | `serverSequence()` | Access this scenario's existing sequence for advanced scheduling |
@@ -444,7 +445,26 @@ ClientTest.scenario(helper)
 
 `step(label)` overrides only the next step's description, including an explicit custom label. `withinTicks(n)` overrides only the next bounded step's budget. In this example the click has 160 ticks, and the assertion returns to the 80-tick default. Budgets must be positive. A synchronous `server` action has no tick budget, so placing `withinTicks` before it is rejected. Consume pending options before `succeed()` or `serverSequence()`.
 
-#### Custom operations
+#### Accelerating server-state waits
+
+Use an explicitly accelerated wait for long server-owned work such as construction or smelting:
+
+```java
+scenario.withinTicks(1200)
+    .awaitServerAccelerated("construction completed", 10, () -> assertConstructionComplete())
+    .awaitClient("completed module visible", c -> assertModuleVisible(c))
+    .capture("completed");
+```
+
+The multiplier is between 1 and 100, bounded by `HorizonQAProperties.MAX_TURBO_MULTIPLIER`. It requests that many full server ticks per normal server-loop iteration while the assertion is pending. World simulation, mod lifecycle callbacks and server test callbacks all run normally for each tick. It does not skip construction, change world time directly or accelerate client rendering. Actual speed depends on server workload.
+
+The assertion runs at server END and must only observe server state. Do not queue client operations or wait for client synchronization inside it. Follow it with a normal client wait to observe the result on screen. The step budget and whole-test timeout still count simulated server ticks, so size them for the real gameplay duration.
+
+The request belongs to the currently running sequence step. Success, failure, timeout, cancellation and cleanup remove its effect. The server loop checks the effective rate after every full tick before continuing its burst. Subsequent input and render steps run at the normal rate. If multiple tests share a server, acceleration is limited by the slowest active test, including cleanup. Ordinary scenarios remain at 1x.
+
+Scoped acceleration applies to CI batches. Keep the global `horizonqa.turbo=1` for client launches. Dedicated-server batches may still use global turbo, which takes precedence over individual step requests. `ClientTurboTests` compares the wall time of real furnace smelting at 1x and 10x, verifies normal-rate rendering afterward and checks cleanup after an intentional optional timeout. Its timing regression expects 10x to finish in less than half the baseline duration, allowing substantial headroom without requiring an exact speed ratio.
+
+#### Custom asynchronous operations
 
 Use `client` and `awaitClient` for client observations and assertions. Use `async` when an operation already returns a completion stage or needs a specialized composition:
 

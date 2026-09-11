@@ -28,6 +28,57 @@ import com.gtnewhorizons.horizonqa.report.CaseResult;
 public class GameTestSequenceTest {
 
     @Test
+    public void accelerationEndsBeforeFollowingAsyncStep() {
+        GameTestSequence sequence = new GameTestSequence(new GameTestInstance(null, 0, 0, 0));
+        AtomicInteger attempts = new AtomicInteger();
+        sequence
+            .thenWaitUntilAccelerated(
+                "world progresses",
+                10,
+                5,
+                () -> { if (attempts.incrementAndGet() < 3) throw new AssertionError("not ready"); })
+            .thenExecuteAsync("render", 3, CompletableFuture::new);
+        assertEquals(1, sequence.tickMultiplier());
+        sequence.tick(1, TestPhase.END);
+        assertEquals(5, sequence.tickMultiplier());
+        sequence.tick(2, TestPhase.END);
+        sequence.tick(3, TestPhase.END);
+        assertEquals(1, sequence.tickMultiplier());
+        assertEquals(
+            5,
+            sequence.getActiveStep()
+                .deadlineTick());
+    }
+
+    @Test
+    public void acceleratedWaitStopsRequestingTicksOnTimeoutOrException() {
+        GameTestSequence sequence = new GameTestSequence(new GameTestInstance(null, 0, 0, 0));
+        sequence.thenWaitUntilAccelerated("timeout", 2, 10, () -> { throw new AssertionError("pending"); });
+        sequence.tick(1, TestPhase.END);
+        assertEquals(10, sequence.tickMultiplier());
+        assertThrows(SequenceStepTimeoutException.class, () -> sequence.tick(2, TestPhase.END));
+        assertEquals(1, sequence.tickMultiplier());
+
+        GameTestSequence broken = new GameTestSequence(new GameTestInstance(null, 0, 0, 0));
+        broken.thenWaitUntilAccelerated("exception", 10, 10, () -> { throw new IllegalStateException("broken"); });
+        assertThrows(IllegalStateException.class, () -> broken.tick(1, TestPhase.END));
+        assertEquals(1, broken.tickMultiplier());
+    }
+
+    @Test
+    public void acceleratedWaitStopsRequestingTicksWhenAborted() throws Exception {
+        GameTestInstance instance = instance("test:cancel", "unboundedWait", 100);
+        instance.start(null);
+        GameTestSequence sequence = new GameTestSequence(instance);
+        instance.setSequence(sequence);
+        sequence.thenWaitUntilAccelerated("pending", 50, 5, () -> { throw new AssertionError("pending"); });
+        sequence.tick(1, TestPhase.END);
+        assertEquals(5, instance.tickMultiplier());
+        instance.abortExecution("cancelled", null);
+        assertEquals(1, instance.tickMultiplier());
+    }
+
+    @Test
     public void asynchronousActionRunsOnceAndNextStepWaitsForCompletion() {
         GameTestSequence sequence = new GameTestSequence(new GameTestInstance(null, 0, 0, 0));
         CompletableFuture<Void> action = new CompletableFuture<>();

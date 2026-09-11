@@ -139,6 +139,19 @@ public final class ClientScenario {
     }
 
     /**
+     * Waits on server state while requesting 1 to 100 full server ticks per normal loop iteration in CI.
+     * The next/default budget still counts simulated server ticks. Other steps retain their normal rate.
+     * The assertion must not submit client work. Rendering and client synchronization are not accelerated.
+     * Completion, failure and test teardown end this step's request without a separate reset operation.
+     */
+    public ClientScenario awaitServerAccelerated(String label, int multiplier, Runnable assertion) {
+        checkOpen();
+        Objects.requireNonNull(assertion, "assertion");
+        sequence.thenWaitUntilAccelerated(takeLabel(label), takeTimeout(), multiplier, assertion);
+        return this;
+    }
+
+    /**
      * Schedules a custom asynchronous operation once from the server thread and awaits completion.
      * Use the supplied session's queued methods for client work. Do not access Minecraft client state directly
      * in this callback. Composed futures remain available for specialized multi-action steps.

@@ -425,6 +425,10 @@ public class GameTestInstance {
         this.sequence = seq;
     }
 
+    int tickMultiplier() {
+        return status == GameTestStatus.RUNNING && sequence != null ? sequence.tickMultiplier() : 1;
+    }
+
     public void setSucceedWhen(BooleanSupplier predicate) {
         if (predicate == null) {
             throw new IllegalArgumentException("succeedWhen predicate must not be null");

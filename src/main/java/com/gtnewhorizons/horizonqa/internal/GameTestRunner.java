@@ -87,8 +87,23 @@ public final class GameTestRunner {
     }
 
     public static boolean isTurboActive() {
-        return isBatchActive() && HorizonQAProperties.usesHeadlessServerBehavior()
-            && HorizonQAProperties.turboMultiplier() > 1;
+        return tickMultiplier() > 1;
+    }
+
+    /** Effective server-loop rate, read on the server thread between full world ticks. */
+    public static int tickMultiplier() {
+        GameTestRunner runner = activeRunner();
+        if (runner == null || runner.kind != Kind.BATCH || !HorizonQAProperties.usesHeadlessServerBehavior()) return 1;
+        int configured = HorizonQAProperties.turboMultiplier();
+        if (configured > 1) return configured;
+        int multiplier = HorizonQAProperties.MAX_TURBO_MULTIPLIER;
+        boolean hasActiveTest = false;
+        for (GameTestInstance instance : runner.instances) {
+            if (instance.isDone()) continue;
+            hasActiveTest = true;
+            multiplier = Math.min(multiplier, instance.tickMultiplier());
+        }
+        return hasActiveTest ? multiplier : 1;
     }
 
     public static void shutdown() {

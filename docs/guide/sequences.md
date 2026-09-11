@@ -43,6 +43,7 @@ The screen, target lookup and fixture methods belong to the consumer. The chain 
 - `awaitClient(label, assertion)` retries client assertions, keeping at most one attempt in flight.
 - `server(label, action)` runs once at server END.
 - `awaitServer(label, assertion)` retries assertions at server END.
+- `awaitServerAccelerated(label, multiplier, assertion)` requests 1 to 100 full server ticks per normal loop iteration only while that wait is running in CI. Budgets still count simulated ticks. The assertion observes server state and must not submit client work. See [scoped acceleration](ci.md#accelerating-server-state-waits).
 - `async(label, action)` and `awaitAsync(label, assertion)` expose the existing completion-stage operations. Their callbacks start on the server thread. Use the supplied session's queued methods for client work.
 
 Client operations and assertion waits default to 100 ticks per step. `defaultTimeoutTicks(n)` changes subsequent defaults. `withinTicks(n)` overrides the next bounded step only, and `step(label)` overrides the next diagnostic label. The overall test timeout still applies. A synchronous `server` action cannot consume a tick budget.
@@ -66,6 +67,7 @@ See [Automated client tests](ci.md#automated-client-tests) for live targets, inp
 | `thenWaitUntilAtStart(Runnable)`           | START | Same, before world tick                       |
 | `thenWaitUntilAtEnd(Runnable)`             | END   | Alias of `thenWaitUntil`                      |
 | `thenWaitUntil(maxTicks, Runnable)`        | END   | Retry assertion failures for at most `maxTicks` |
+| `thenWaitUntilAccelerated(label, maxTicks, multiplier, Runnable)` | END | Bounded server-state wait requesting a scoped tick multiplier in CI |
 | `thenWaitUntilAtStart(maxTicks, Runnable)` | START | Same, before world tick                       |
 | `thenWaitUntilAtEnd(maxTicks, Runnable)`   | END   | Alias of bounded `thenWaitUntil`              |
 | `thenSucceed()`                            | END   | Pass the test                                 |
