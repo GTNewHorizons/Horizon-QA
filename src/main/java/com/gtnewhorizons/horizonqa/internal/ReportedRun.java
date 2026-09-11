@@ -34,8 +34,6 @@ import com.gtnewhorizons.horizonqa.report.ReportPathPreflight;
 import com.gtnewhorizons.horizonqa.report.RunReportWriter;
 import com.gtnewhorizons.horizonqa.report.RunResult;
 
-import cpw.mods.fml.common.FMLCommonHandler;
-
 public final class ReportedRun {
 
     private static final Logger LOG = LogManager.getLogger("GameTest");
@@ -253,6 +251,10 @@ public final class ReportedRun {
             batchInstances.add(inst);
         }
 
+        if (HorizonQAProperties.clientTestsEnabled()) {
+            runClientTest(batchInstances, 0, idx, world);
+            return;
+        }
         runner.run(batchInstances, () -> {
             invokeOwedAfterHooks();
             runNextBatchOrFinish(idx);
@@ -270,6 +272,24 @@ public final class ReportedRun {
         } else {
             finish(true, exitWhenComplete);
         }
+    }
+
+    private void runClientTest(List<GameTestInstance> instances, int index, int batchIndex, WorldServer world) {
+        if (index == instances.size()) {
+            invokeOwedAfterHooks();
+            runNextBatchOrFinish(batchIndex);
+            return;
+        }
+        GameTestInstance instance = instances.get(index);
+        runner.run(Collections.singletonList(instance), () -> {
+            if (instance.getCleanupFailureCause() != null) {
+                abortAndFinish("Client teardown failed", instance.getCleanupFailureCause(), true);
+                return;
+            }
+            runClientTest(instances, index + 1, batchIndex, world);
+        });
+        resultEntries.add(ResultEntry.instance(instance));
+        instance.start(world);
     }
 
     private void abortAndFinish(String message, Throwable cause, boolean allowExit) {
@@ -349,8 +369,7 @@ public final class ReportedRun {
                     result.requiredFailures(),
                     result.incomplete(),
                     result.infrastructureErrors());
-                FMLCommonHandler.instance()
-                    .exitJava(result.exitCode(), false);
+                HorizonQAMod.proxy.finishRun(result);
             }
         } finally {
             finishing = false;

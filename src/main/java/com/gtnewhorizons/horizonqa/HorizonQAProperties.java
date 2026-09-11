@@ -11,6 +11,7 @@ import com.github.bsideup.jabel.Desugar;
 public final class HorizonQAProperties {
 
     public static final String MODE_PROPERTY = "horizonqa.mode";
+    public static final String CLIENT_PROPERTY = "horizonqa.client";
     public static final String WORLD_PROPERTY = "horizonqa.world";
     public static final String AUTO_RUN_PROPERTY = "horizonqa.autoRun";
     public static final String STOP_SERVER_PROPERTY = "horizonqa.stopServer";
@@ -29,9 +30,15 @@ public final class HorizonQAProperties {
     private static final int MAX_TURBO_MULTIPLIER = 100;
     private static final GridOrigin DEFAULT_GRID_ORIGIN = new GridOrigin(0, 64, 0);
 
+    private static final boolean CLIENT_TESTS = Boolean.getBoolean(CLIENT_PROPERTY);
     private static final ParsedProperties PARSED = parse();
 
     private HorizonQAProperties() {}
+
+    /** Explicit opt-in for automated tests in an isolated integrated client. */
+    public static boolean clientTestsEnabled() {
+        return CLIENT_TESTS;
+    }
 
     public static Mode mode() {
         return PARSED.mode();
@@ -293,6 +300,9 @@ public final class HorizonQAProperties {
 
     private static ParsedProperties parse(PropertySource properties) {
         List<PropertyIssue> issues = new ArrayList<>();
+
+        BooleanParseResult client = parseStrictBoolean(CLIENT_PROPERTY, properties.getProperty(CLIENT_PROPERTY), false);
+        if (client.issue() != null) issues.add(client.issue());
 
         String rawMode = properties.getProperty(MODE_PROPERTY);
         ModeParseResult mode = parseMode(rawMode);
