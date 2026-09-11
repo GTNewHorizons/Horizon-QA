@@ -33,7 +33,6 @@ public final class ClientTestRuntime {
     private volatile RunResult finished;
     private CompletableFuture<Void> shutdown;
     private int originalGuiScale;
-    private boolean originalPauseOnLostFocus;
     private boolean settingsChanged;
 
     public ClientTestRuntime(Runnable startTests) {
@@ -88,9 +87,7 @@ public final class ClientTestRuntime {
             return;
         }
         originalGuiScale = mc.gameSettings.guiScale;
-        originalPauseOnLostFocus = mc.gameSettings.pauseOnLostFocus;
         settingsChanged = true;
-        mc.gameSettings.pauseOnLostFocus = false;
         mc.gameSettings.guiScale = 1;
         HorizonQAMod.LOG.info("CLIENT_TEST scratchWorld={}", directory.getAbsolutePath());
         WorldSettings settings = new WorldSettings(0L, WorldSettings.GameType.CREATIVE, false, false, WorldType.FLAT);
@@ -104,7 +101,6 @@ public final class ClientTestRuntime {
         mc.loadWorld(null);
         if (settingsChanged) {
             mc.gameSettings.guiScale = originalGuiScale;
-            mc.gameSettings.pauseOnLostFocus = originalPauseOnLostFocus;
             mc.gameSettings.saveOptions();
         }
         mc.shutdown();

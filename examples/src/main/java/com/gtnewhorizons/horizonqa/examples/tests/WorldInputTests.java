@@ -112,7 +112,7 @@ public final class WorldInputTests {
         sequence.thenSucceed();
     }
 
-    private static void equipBook(GameTestHelper helper) {
+    static void equipBook(GameTestHelper helper) {
         if (helper.getWorld().playerEntities.size() != 1) throw new AssertionError("Expected one real test player");
         EntityPlayer player = (EntityPlayer) helper.getWorld().playerEntities.get(0);
         int slot = player.inventory.currentItem;

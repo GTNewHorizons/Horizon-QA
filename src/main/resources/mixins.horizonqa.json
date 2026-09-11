@@ -6,5 +6,5 @@
   "compatibilityLevel": "JAVA_8",
   "mixins": ["MixinFMLCommonHandler", "MixinItemStack"],
   "server": ["MixinDedicatedServer", "MixinMinecraftServer", "MixinNetHandlerPlayServer"],
-  "client": ["MixinMinecraft"]
+  "client": ["MixinMinecraft", "MixinEntityRenderer"]
 }
