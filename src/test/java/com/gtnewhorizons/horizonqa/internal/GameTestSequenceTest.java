@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
@@ -25,6 +26,67 @@ import com.gtnewhorizons.horizonqa.internal.GameTestSequence.StepState;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 
 public class GameTestSequenceTest {
+
+    @Test
+    public void asynchronousActionRunsOnceAndNextStepWaitsForCompletion() {
+        GameTestSequence sequence = new GameTestSequence(new GameTestInstance(null, 0, 0, 0));
+        CompletableFuture<Void> action = new CompletableFuture<>();
+        AtomicInteger submissions = new AtomicInteger();
+        AtomicInteger following = new AtomicInteger();
+        sequence.thenExecuteAsync("client click", 20, () -> {
+            submissions.incrementAndGet();
+            return action;
+        })
+            .thenExecute(following::incrementAndGet);
+
+        sequence.tick(1, TestPhase.END);
+        sequence.tick(2, TestPhase.END);
+        assertEquals(1, submissions.get());
+        assertEquals(0, following.get());
+        action.complete(null);
+        assertEquals(0, following.get());
+        sequence.tick(3, TestPhase.END);
+        assertEquals(1, submissions.get());
+        assertEquals(1, following.get());
+    }
+
+    @Test
+    public void asynchronousWaitRetriesOnlyCompletedAssertionsAndPreservesUnexpectedCause() {
+        GameTestSequence sequence = new GameTestSequence(new GameTestInstance(null, 0, 0, 0));
+        CompletableFuture<Void> first = new CompletableFuture<>();
+        CompletableFuture<Void> second = new CompletableFuture<>();
+        AtomicInteger submissions = new AtomicInteger();
+        sequence.thenWaitUntilAsync("screen ready", 20, () -> submissions.getAndIncrement() == 0 ? first : second);
+        sequence.tick(1, TestPhase.END);
+        sequence.tick(2, TestPhase.END);
+        assertEquals(1, submissions.get());
+        first.completeExceptionally(new AssertionError("not ready"));
+        sequence.tick(3, TestPhase.END);
+        sequence.tick(4, TestPhase.END);
+        assertEquals(2, submissions.get());
+        IllegalStateException failure = new IllegalStateException("render broke");
+        second.completeExceptionally(new java.util.concurrent.CompletionException(failure));
+        assertSame(failure, assertThrows(IllegalStateException.class, () -> sequence.tick(5, TestPhase.END)));
+        assertEquals(2, submissions.get());
+    }
+
+    @Test
+    public void asynchronousBudgetIncludesTimeInFlight() {
+        GameTestSequence sequence = new GameTestSequence(new GameTestInstance(null, 0, 0, 0));
+        sequence.thenExecuteAsync("unresponsive client", 3, CompletableFuture::new);
+        sequence.tick(1, TestPhase.END);
+        sequence.tick(2, TestPhase.END);
+        SequenceStepTimeoutException failure = assertThrows(
+            SequenceStepTimeoutException.class,
+            () -> sequence.tick(3, TestPhase.END));
+        assertTrue(
+            failure.getMessage()
+                .contains("unresponsive client"));
+        assertEquals(
+            1,
+            sequence.getActiveStep()
+                .attempts());
+    }
 
     @Test
     public void finishedStepSummaryOnlyShowsUsefulTiming() {

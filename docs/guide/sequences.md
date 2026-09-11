@@ -43,6 +43,8 @@ One sequence per test. For an immediate pass use `helper.succeed()` directly.
 
 ## Tick phases
 
+`thenExecuteAsync(label, maxTicks, supplier)` invokes a supplier of `CompletionStage<?>` once at END and waits without blocking. `thenWaitUntilAsync(label, maxTicks, supplier)` retries completed assertion failures, keeping at most one operation in flight. Unexpected exceptions preserve their original cause. The budget includes time in flight, and the next step starts only after completion is consumed on the server thread. See [Automated client tests](ci.md#automated-client-tests) for a runnable use of both methods.
+
 Every server tick has a START phase and an END phase. World logic (tile entity updates, hopper transfers, machine processing) runs between them.
 
 Default sequence methods run at END, so assertions see the world after it has ticked. Use the `AtStart` variants to deliver input before the world ticks, which is what you want when testing machines that consume their input during the tick.

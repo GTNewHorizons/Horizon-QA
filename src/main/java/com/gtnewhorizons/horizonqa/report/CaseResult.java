@@ -67,6 +67,7 @@ public record CaseResult(String id, String classname, String name, Status status
         for (String warning : inst.getWarnings()) {
             output.add("WARNING: " + warning);
         }
+        output.addAll(inst.getDiagnostics());
 
         return new CaseResult(
             testId,
@@ -329,6 +330,14 @@ public record CaseResult(String id, String classname, String name, Status status
     private static String failureTrace(GameTestInstance inst, Throwable cause) {
         String trace = stackTrace(cause);
         String context = inst.getFailureContext();
+        Throwable original = inst.getFailureCause();
+        if (original != null && original != cause) {
+            return trace + System.lineSeparator()
+                + "Original test failure:"
+                + System.lineSeparator()
+                + (context.isEmpty() ? "" : context + System.lineSeparator())
+                + stackTrace(original);
+        }
         if (context.isEmpty() || cause != inst.getFailureCause()) return trace;
         return context + System.lineSeparator() + trace;
     }

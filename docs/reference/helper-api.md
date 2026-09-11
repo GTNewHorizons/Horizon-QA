@@ -34,6 +34,11 @@ Use `pos("label")` when a position must be stored or passed to another API. Use 
 | `TickCallbackHandle onEachTickDisabled(String, Runnable)` | Register a named callback for a later sequence window |
 | `startSequence()` | Build one ordered sequence of START/END actions and waits |
 | `afterTest(Runnable)` | Register cleanup that runs on pass, skip, failure, timeout, or error |
+| `afterTestAsync(int, Supplier<? extends CompletionStage<?>>)` | Register one bounded asynchronous teardown before ordinary cleanup |
+| `getTestId()` | Obtain the selected test id including its parameter case suffix |
+| `recordDiagnostic(String)` | Append a report line from the server test thread |
+
+`ClientTest.attach(helper)` owns asynchronous teardown for [client scenarios](../guide/ci.md#automated-client-tests). Register consumer client cleanup through its session.
 
 See [Sequences and timing](../guide/sequences.md) for phase ordering and bounded waits.
 
