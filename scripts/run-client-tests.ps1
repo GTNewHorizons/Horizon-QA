@@ -7,6 +7,7 @@ param(
     [int]$ShutdownSeconds = 20,
     [string]$HorizonQaJar,
     [string[]]$GradleArguments = @(),
+    [string]$LaunchId,
     [switch]$Worker
 )
 
@@ -23,6 +24,8 @@ if ($Worker) {
         '--mcJvmArgs=-Dhorizonqa.client=true', '--mcJvmArgs=-Dhorizonqa.world=normal', "--mcJvmArgs=-Dhorizonqa.tests=$Tests",
         "--mcJvmArgs=-Dhorizonqa.reportDir=$ReportDir", '--mcArgs=--width', '--mcArgs=1280',
         '--mcArgs=--height', '--mcArgs=720')
+    $clientGradleArguments += @('--init-script', (Join-Path $PSScriptRoot 'client-test-isolation.init.gradle'),
+        "-PhorizonQaClientTask=$Task", "-PhorizonQaClientReportDir=$ReportDir", "--mcJvmArgs=-Dhorizonqa.launchId=$LaunchId")
     if ($HorizonQaJar) { $clientGradleArguments += "-PhorizonQaJar=$HorizonQaJar" }
     $extraArguments = Get-Content -LiteralPath (Join-Path $ReportDir 'gradle-arguments.json') -Raw | ConvertFrom-Json
     $clientGradleArguments += @($extraArguments)
@@ -32,10 +35,12 @@ if ($Worker) {
 
 if (Test-Path -LiteralPath $ReportDir) { throw "Report directory must be new: $ReportDir" }
 New-Item -ItemType Directory -Path $ReportDir | Out-Null
+$LaunchId = [Guid]::NewGuid().ToString('N')
+$processMarker = "-Dhorizonqa.launchId=$LaunchId"
 ConvertTo-Json -InputObject $GradleArguments | Set-Content -LiteralPath (Join-Path $ReportDir 'gradle-arguments.json')
 $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-Worker',
     '-Tests', "`"$Tests`"", '-ProjectRoot', "`"$ProjectRoot`"", '-Task', "`"$Task`"",
-    '-ReportDir', "`"$ReportDir`"")
+    '-ReportDir', "`"$ReportDir`"", '-LaunchId', $LaunchId)
 if ($HorizonQaJar) { $arguments += @('-HorizonQaJar', "`"$HorizonQaJar`"") }
 $shellExecutable = (Get-Process -Id $PID).Path
 $workerProcess = Start-Process -FilePath $shellExecutable -ArgumentList $arguments -PassThru -WindowStyle Hidden
@@ -43,8 +48,8 @@ $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
 $testProcess = $null
 while (!$workerProcess.HasExited -and [DateTime]::UtcNow -lt $deadline) {
     $matches = @(Get-CimInstance Win32_Process -Filter "Name = 'java.exe'" |
-        Where-Object { $_.CommandLine -and $_.CommandLine.Contains("-Dhorizonqa.reportDir=$ReportDir") -and
-            $_.CommandLine -notmatch 'org\.gradle\.(wrapper|launcher)' })
+        Where-Object { $_.CommandLine -and $_.CommandLine.Contains($processMarker) -and
+            $_.CommandLine -notmatch 'org\.gradle\.(wrapper|launcher)|gradle-wrapper\.jar' })
     if ($matches.Count -eq 1) { $testProcess = $matches[0] }
     Start-Sleep -Milliseconds 500
     $workerProcess.Refresh()
@@ -64,7 +69,7 @@ if ($timedOut) {
     if (!$workerProcess.WaitForExit($ShutdownSeconds * 1000) -and $testProcess) {
         $current = Get-CimInstance Win32_Process -Filter "ProcessId = $($testProcess.ProcessId)"
         if ($current -and $current.CreationDate -eq $testProcess.CreationDate -and
-            $current.CommandLine.Contains("-Dhorizonqa.reportDir=$ReportDir")) {
+            $current.CommandLine.Contains($processMarker)) {
             Stop-Process -Id $testProcess.ProcessId
             $forcedTermination = $true
         }
@@ -80,6 +85,7 @@ if (!$timedOut -and (Test-Path -LiteralPath $statusPath)) {
     }
 }
 $summary = [ordered]@{ exitCode = $exitCode; timedOut = $timedOut; forcedTermination = $forcedTermination; reportDir = $ReportDir
+    gameDir = (Join-Path $ReportDir 'game'); launchId = $LaunchId
     statusFile = $statusPath; launchLog = (Join-Path $ReportDir 'launch.log') }
 $summary | ConvertTo-Json | Tee-Object -FilePath (Join-Path $ReportDir 'launch-result.json')
 exit $exitCode

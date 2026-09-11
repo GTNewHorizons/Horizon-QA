@@ -1,0 +1,18 @@
+// Each automated client owns its writable game directory. RFG derives --gameDir from workingDir.
+gradle.projectsEvaluated {
+    def requestedTask = gradle.startParameter.projectProperties['horizonQaClientTask']
+    def reportPath = gradle.startParameter.projectProperties['horizonQaClientReportDir']
+    // Gradle also applies init scripts to included plugin builds, which have no client launch request.
+    if (!requestedTask && !reportPath) return
+    if (!requestedTask || !reportPath) {
+        throw new GradleException('Client isolation requires a task and report directory')
+    }
+    def taskPath = requestedTask.startsWith(':') ? requestedTask : ':' + requestedTask
+    def clientTask = gradle.rootProject.tasks.getByPath(taskPath)
+    if (!clientTask.hasProperty('cmdlineJvmArgs') || !clientTask.hasProperty('assetsDirectory')) {
+        throw new GradleException('Client isolation requires an RFG RunMinecraftTask: ' + taskPath)
+    }
+    clientTask.doFirst {
+        workingDir = new File(reportPath, 'game')
+    }
+}
