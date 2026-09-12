@@ -8,6 +8,7 @@ import java.util.function.Function;
 
 import net.minecraft.client.gui.GuiScreen;
 
+import com.gtnewhorizons.horizonqa.client.LwjglWindow;
 import com.gtnewhorizons.horizonqa.internal.GameTestSequence;
 
 /**
@@ -106,6 +107,15 @@ public final class ClientScenario {
     /** Captures a rendered framebuffer checkpoint. The existing artifact report retains its path. */
     public ClientScenario capture(String checkpoint) {
         return async("capture " + checkpoint, c -> c.capture(checkpoint)).describe("CAPTURE", "CLIENT");
+    }
+
+    /**
+     * Resizes the existing OS window and awaits normal game resize handling and rendering. Teardown restores its size.
+     */
+    public ClientScenario resizeWindow(int width, int height) {
+        LwjglWindow.validateSize(width, height);
+        return async("resize window to " + width + "x" + height, c -> c.resizeWindow(width, height))
+            .describe("WINDOW_RESIZE", "CLIENT");
     }
 
     /** Begins describing a left-button drag. Complete it with to(...).overFrames(...). */

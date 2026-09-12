@@ -16,6 +16,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.opengl.Display;
 
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
@@ -24,6 +25,7 @@ import com.gtnewhorizons.horizonqa.client.ClientTaskQueue;
 import com.gtnewhorizons.horizonqa.client.ClientTaskQueue.Phase;
 import com.gtnewhorizons.horizonqa.client.FrameCapture;
 import com.gtnewhorizons.horizonqa.client.LwjglInput;
+import com.gtnewhorizons.horizonqa.client.LwjglWindow;
 
 /** A test-owned client session. Attach on the server test thread, then await every client operation. */
 public final class ClientTest {
@@ -44,6 +46,10 @@ public final class ClientTest {
     private Thread clientThread;
     private String waitingForInput = "";
     private long renderedFrames;
+    private Point originalWindowSize;
+    private WindowResize restoringWindow;
+    private CompletableFuture<File> finalCapture;
+    private Throwable cleanupError;
 
     ClientTest(GameTestHelper helper) {
         frames = new FrameCapture(
@@ -95,6 +101,27 @@ public final class ClientTest {
             action.accept(this);
             return null;
         });
+    }
+
+    /**
+     * Resizes the existing resizable, windowed Display through its native OS event path.
+     * Completes after both LWJGL and Minecraft observe the requested positive pixel dimensions and a normal frame.
+     * The first call records the original dimensions. Client teardown restores them through the same path and
+     * waits for observation before the next test. Await this operation before submitting other client input.
+     */
+    public CompletableFuture<Void> resizeWindow(int width, int height) {
+        LwjglWindow.validateSize(width, height);
+        WindowResize resize = new WindowResize(width, height);
+        return operations.submit(Phase.END, () -> {
+            Point previous = new Point(Display.getWidth(), Display.getHeight());
+            resize.request();
+            if (originalWindowSize == null) originalWindowSize = previous;
+            return null;
+        })
+            .thenCompose(ignored -> operations.submitWhenReady(Phase.FRAME, resize::ready, () -> {
+                waitingForInput = "";
+                return null;
+            }));
     }
 
     /**
@@ -350,11 +377,11 @@ public final class ClientTest {
         ClientTest session = active;
         if (session == null) return;
         session.clientThread = Thread.currentThread();
+        if (phase == Phase.FRAME) session.renderedFrames++;
         if (session.closed) {
             if (phase == Phase.FRAME) session.finish();
             return;
         }
-        if (phase == Phase.FRAME) session.renderedFrames++;
         session.operations.dispatch(phase);
     }
 
@@ -381,8 +408,21 @@ public final class ClientTest {
     }
 
     private void finish() {
+        if (finalCapture == null) beginCleanup();
+        if (cleanupError == null && restoringWindow != null && !restoringWindow.ready()) return;
+        active = null;
+        Throwable error = cleanupError;
+        finalCapture.whenComplete((file, captureError) -> {
+            if (captureError != null) diagnostics.add("captureFailure=" + captureError);
+            if (error != null) teardown.completeExceptionally(error);
+            else if (captureError != null) teardown.completeExceptionally(captureError);
+            else teardown.complete(null);
+        });
+    }
+
+    private void beginCleanup() {
         if (!waitingForInput.isEmpty()) diagnostics.add(waitingForInput);
-        CompletableFuture<File> finalCapture = CompletableFuture.completedFuture(null);
+        finalCapture = CompletableFuture.completedFuture(null);
         GuiScreen screen = Minecraft.getMinecraft().currentScreen;
         diagnostics.add(
             "lastScreen=" + (screen == null ? "<none>"
@@ -401,14 +441,51 @@ public final class ClientTest {
         teardownActions.add(
             () -> Minecraft.getMinecraft()
                 .displayGuiScreen(null));
-        Throwable cleanupError = runCleanup(teardownActions);
-        active = null;
-        finalCapture.whenComplete((file, captureError) -> {
-            if (captureError != null) diagnostics.add("captureFailure=" + captureError);
-            if (cleanupError != null) teardown.completeExceptionally(cleanupError);
-            else if (captureError != null) teardown.completeExceptionally(captureError);
-            else teardown.complete(null);
+        if (originalWindowSize != null) teardownActions.add(() -> {
+            restoringWindow = new WindowResize(originalWindowSize.x, originalWindowSize.y);
+            restoringWindow.request();
         });
+        cleanupError = runCleanup(teardownActions);
+    }
+
+    private final class WindowResize {
+
+        private final int width;
+        private final int height;
+        private long readyFrame = -1;
+
+        private WindowResize(int width, int height) {
+            this.width = width;
+            this.height = height;
+        }
+
+        private void request() {
+            LwjglInput.end();
+            LwjglWindow.resize(width, height);
+        }
+
+        private boolean ready() {
+            Minecraft mc = Minecraft.getMinecraft();
+            waitingForInput = "waitingForWindow=" + width
+                + "x"
+                + height
+                + ", display="
+                + Display.getWidth()
+                + "x"
+                + Display.getHeight()
+                + ", minecraft="
+                + mc.displayWidth
+                + "x"
+                + mc.displayHeight;
+            if (Display.getWidth() != width || Display.getHeight() != height
+                || mc.displayWidth != width
+                || mc.displayHeight != height) {
+                readyFrame = -1;
+                return false;
+            }
+            if (readyFrame < 0) readyFrame = renderedFrames;
+            return renderedFrames > readyFrame;
+        }
     }
 
     private static Throwable runCleanup(List<Runnable> actions) {

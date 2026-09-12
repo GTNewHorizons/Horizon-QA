@@ -441,6 +441,7 @@ The screen types and lookup methods above belong to the consumer. Opening a supp
 | `drag(target).to(endpoint).overFrames(n)` | Hold the mouse through rendered movement frames and release at the endpoint |
 | `key(code, character)`, `escape()` | Dispatch native key input through the active screen |
 | `capture(checkpoint)` | Wait for a rendered PNG checkpoint to be written |
+| `resizeWindow(width, height)` | Resize the existing OS window, await normal game resize handling and a rendered frame |
 | `client(label, action)`, `server(label, action)` | Run a custom action once on the indicated thread |
 | `awaitClient(label, assertion)`, `awaitServer(label, assertion)` | Retry assertions on the indicated thread |
 | `awaitServerAccelerated(label, multiplier, assertion)` | Retry server assertions while requesting accelerated full server ticks |
@@ -539,6 +540,12 @@ Click once, then wait for the resulting state in a separate step. Async waits re
 GUI libraries can update hit-test caches on a clock separate from rendering. For those controls, pass a `ready` predicate based on the library's public observable state. For example, a ModularUI consumer can check whether its panel considers the uniquely located target widget below the mouse. False keeps the click pending without dispatching input. A thrown exception fails immediately. The enclosing sequence's tick budget bounds this readiness wait, and diagnostics retain the pending point. No extra frame count or fixed delay is required.
 
 ### Input and rendering
+
+Use `scenario.resizeWindow(width, height)` for a real window resize. Dimensions are positive pixels. The operation requires a created, resizable, windowed LWJGL Display without an AWT parent. It requests native resizing of the existing window and waits for both LWJGL and Minecraft to observe the dimensions, followed by a normal completed frame. Its time budget comes from the existing scenario step.
+
+Do not use `Display.setDisplayMode` as a substitute. LWJGL 2 recreates the window for that call, and its Linux backend may never report a resize event when the new window already has the target dimensions. Horizon's narrow LWJGL adapter calls the backend's native `reshape` path under the library's display lock. It does not call `Minecraft.resize`, set resize flags or manually poll display events. Unsupported library layouts fail explicitly.
+
+The first resize records the session's original dimensions. Client teardown restores them through the same native path and waits for Minecraft and a frame before releasing the session. This runs even when a later test step fails. Remove manual `setDisplayMode` cleanup for scenarios using this operation. Custom code can await `ClientTest.resizeWindow(width, height)` through `scenario.async`. Do not enqueue it from a cleanup callback because teardown already owns restoration and ordinary operation submission is closed. `ClientResizeTests.resizesExistingWindowAndRestoresDimensions` exercises a round trip while preserving the active screen instance.
 
 The supported input seam is LWJGL 2.9: Horizon supplies both queued events and polled button/key state, plus event and polled cursor coordinates. A click waits for a normal rendered frame at the target before pressing, so libraries that record hover coordinates during rendering observe the new pointer. Normal `GuiScreen.handleInput` dispatch invokes the screen lifecycle. There is no OS mouse automation and no direct widget business callback. Unsupported LWJGL layouts fail explicitly. Complete clicks, Shift-clicks, scrolling, straight drags and individual keys with typed characters are supported. Whole-string entry and arbitrary held-key gestures are outside this version.
 

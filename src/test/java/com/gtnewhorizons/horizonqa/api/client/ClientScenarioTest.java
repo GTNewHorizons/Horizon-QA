@@ -18,6 +18,46 @@ import com.gtnewhorizons.horizonqa.internal.GameTestSequence;
 public class ClientScenarioTest {
 
     @Test
+    public void resizeIsDeferredAndUsesTheConfiguredBudget() throws Exception {
+        Fixture fixture = new Fixture();
+        fixture.scenario.withinTicks(75)
+            .resizeWindow(960, 540);
+        assertEquals(
+            75,
+            fixture.sequence.getSteps()
+                .get(0)
+                .maxTicks());
+        assertEquals(
+            "WINDOW_RESIZE",
+            fixture.sequence.stepResults()
+                .get(0)
+                .operation());
+        assertEquals(
+            "CLIENT",
+            fixture.sequence.stepResults()
+                .get(0)
+                .executionSide());
+        assertEquals(
+            "PENDING",
+            fixture.sequence.stepResults()
+                .get(0)
+                .status());
+    }
+
+    @Test
+    public void invalidResizeDimensionsFailBeforeQueueingOrAddingSteps() throws Exception {
+        Fixture fixture = new Fixture();
+        assertThrows(IllegalArgumentException.class, () -> fixture.scenario.resizeWindow(0, 540));
+        assertThrows(IllegalArgumentException.class, () -> fixture.scenario.resizeWindow(960, -1));
+        ClientTest session = new ClientTest(new GameTestHelper(fixture.instance, null, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> session.resizeWindow(-1, 540));
+        assertThrows(IllegalArgumentException.class, () -> session.resizeWindow(960, 0));
+        assertTrue(
+            fixture.sequence.getSteps()
+                .isEmpty());
+    }
+
+    @Test
     public void operationMetadataComesFromWrappersInsteadOfLabels() throws Exception {
         Fixture fixture = new Fixture();
         fixture.scenario.server("capture", () -> {})
