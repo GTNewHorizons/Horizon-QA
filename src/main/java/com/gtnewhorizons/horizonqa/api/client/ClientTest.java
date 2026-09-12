@@ -113,15 +113,26 @@ public final class ClientTest {
         LwjglWindow.validateSize(width, height);
         WindowResize resize = new WindowResize(width, height);
         return operations.submit(Phase.END, () -> {
-            Point previous = new Point(Display.getWidth(), Display.getHeight());
             resize.request();
-            if (originalWindowSize == null) originalWindowSize = previous;
             return null;
         })
             .thenCompose(ignored -> operations.submitWhenReady(Phase.FRAME, resize::ready, () -> {
                 waitingForInput = "";
                 return null;
             }));
+    }
+
+    /**
+     * Requests native resize immediately from an active client-thread callback, without queueing or awaiting it.
+     * Use this for external window events during an in-flight operation. Observe actual dimensions separately.
+     * Target resolvers must remain observation-only. The session retains its original dimensions for teardown.
+     * Ordinary scenarios should use {@link #resizeWindow(int, int)} for queued, awaited resizing.
+     */
+    public void requestWindowResize(int width, int height) {
+        LwjglWindow.validateSize(width, height);
+        requireClientThread();
+        if (closed) throw new IllegalStateException("Client test has ended");
+        new WindowResize(width, height).request();
     }
 
     /**
@@ -460,8 +471,10 @@ public final class ClientTest {
         }
 
         private void request() {
+            Point previous = new Point(Display.getWidth(), Display.getHeight());
             LwjglInput.end();
             LwjglWindow.resize(width, height);
+            if (originalWindowSize == null) originalWindowSize = previous;
         }
 
         private boolean ready() {

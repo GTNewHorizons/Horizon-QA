@@ -61,6 +61,7 @@ log. See [Scoped sequence windows](../guide/negative-tests.md#scoped-sequence-wi
 | Describe a drag | `drag(target).to(endpoint).overFrames(n)`, with optional `button(index)` |
 | Wait for a screen | `awaitScreen(type)` |
 | Resize the native window | `resizeWindow(width, height)`, with automatic teardown restoration |
+| Request resize during an external client callback | `ClientTest.requestWindowResize(width, height)`, immediate request with separate observation |
 | Run custom work | `client(label, action)`, `server(label, action)` |
 | Retry custom assertions | `awaitClient(label, assertion)`, `awaitServer(label, assertion)` |
 | Accelerate a server-state wait | `awaitServerAccelerated(label, multiplier, assertion)` |

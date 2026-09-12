@@ -18,6 +18,15 @@ import com.gtnewhorizons.horizonqa.internal.GameTestSequence;
 public class ClientScenarioTest {
 
     @Test
+    public void immediateResizeRequiresTheClientThreadBeforeNativeAccess() throws Exception {
+        Fixture fixture = new Fixture();
+        ClientTest session = new ClientTest(new GameTestHelper(fixture.instance, null, 0, 0, 0));
+        assertThrows(IllegalStateException.class, () -> session.requestWindowResize(960, 540));
+        assertThrows(IllegalArgumentException.class, () -> session.requestWindowResize(0, 540));
+        assertThrows(IllegalArgumentException.class, () -> session.requestWindowResize(960, -1));
+    }
+
+    @Test
     public void resizeIsDeferredAndUsesTheConfiguredBudget() throws Exception {
         Fixture fixture = new Fixture();
         fixture.scenario.withinTicks(75)
