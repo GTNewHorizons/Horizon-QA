@@ -181,7 +181,7 @@ public class ReporterOutputTest {
         StatusJsonReporter.write(result, output);
 
         String json = read(output);
-        assertTrue(json.contains("\"schemaVersion\": 3"));
+        assertTrue(json.contains("\"schemaVersion\": 4"));
         assertTrue(json.contains("\"status\": \"error\""));
         assertTrue(json.contains("\"exitCode\": 2"));
         assertTrue(json.contains("\"configuration\": {"));

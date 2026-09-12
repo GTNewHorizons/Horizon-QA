@@ -4,7 +4,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 import net.minecraft.world.WorldServer;
 
@@ -12,6 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.github.bsideup.jabel.Desugar;
+import com.google.common.base.Ticker;
 import com.gtnewhorizons.horizonqa.api.GameTestAssertException;
 import com.gtnewhorizons.horizonqa.api.GameTestAssumptionException;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
@@ -25,6 +30,8 @@ import com.gtnewhorizons.horizonqa.api.event.IsolationViolation;
 import com.gtnewhorizons.horizonqa.api.event.TestFinished;
 import com.gtnewhorizons.horizonqa.api.event.TestStarted;
 import com.gtnewhorizons.horizonqa.api.event.TickCallbackStateChanged;
+import com.gtnewhorizons.horizonqa.report.CaseTiming;
+import com.gtnewhorizons.horizonqa.report.StepResult;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
 import com.gtnewhorizons.horizonqa.structure.StructureAnnotations;
 import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
@@ -34,6 +41,10 @@ public class GameTestInstance {
     private static final Logger LOG = LogManager.getLogger("GameTest");
 
     private final GameTestDefinition definition;
+    private final Ticker ticker;
+    private final ElapsedTimer totalTime;
+    private final ElapsedTimer executionTime;
+    private final ElapsedTimer cleanupTime;
     private final int originX;
     private final int originY;
     private final int originZ;
@@ -53,7 +64,13 @@ public class GameTestInstance {
     private final List<EachTickCallback> eachTickCallbacks = new ArrayList<>();
     private final List<DelayedAction> delayedActions = new ArrayList<>();
     private final List<Runnable> cleanupCallbacks = new ArrayList<>();
+    private Supplier<? extends CompletionStage<?>> asynchronousCleanup;
+    private CompletableFuture<?> cleanupInFlight;
+    private int cleanupBudget;
+    private int cleanupTicks;
+    private boolean cleaningUp;
     private final List<String> warnings = new ArrayList<>();
+    private final List<String> diagnostics = new ArrayList<>();
     private final TestEventRecorder recorder = new TestEventRecorder();
 
     private int failX, failY, failZ;
@@ -65,6 +82,15 @@ public class GameTestInstance {
 
     public GameTestInstance(GameTestDefinition definition, int originX, int originY, int originZ,
         HybridStructureTemplate template) {
+        this(definition, originX, originY, originZ, template, Ticker.systemTicker());
+    }
+
+    GameTestInstance(GameTestDefinition definition, int originX, int originY, int originZ,
+        HybridStructureTemplate template, Ticker ticker) {
+        this.ticker = ticker;
+        totalTime = new ElapsedTimer(ticker);
+        executionTime = new ElapsedTimer(ticker);
+        cleanupTime = new ElapsedTimer(ticker);
         this.definition = definition;
         this.originX = originX;
         this.originY = originY;
@@ -76,6 +102,8 @@ public class GameTestInstance {
     }
 
     public void start(WorldServer world) {
+        totalTime.start();
+        executionTime.start();
         status = GameTestStatus.RUNNING;
         GameTestHelper helper = new GameTestHelper(this, world, originX, originY, originZ);
         recorder.record(
@@ -145,6 +173,10 @@ public class GameTestInstance {
     }
 
     public void tickEnd() {
+        if (cleaningUp) {
+            pollCleanup();
+            return;
+        }
         if (status != GameTestStatus.RUNNING) return;
 
         if (!eachTickCallbacks.isEmpty()) {
@@ -206,10 +238,6 @@ public class GameTestInstance {
         if (status != GameTestStatus.RUNNING) return;
         status = GameTestStatus.PASSED;
         runCleanup();
-        recordFinished();
-        if (status == GameTestStatus.PASSED) {
-            LOG.info("PASSED   {}", definition.getTestId());
-        }
     }
 
     public void fail(String message) {
@@ -249,7 +277,6 @@ public class GameTestInstance {
             LOG.error("Caused by:", cause);
         }
         runCleanup();
-        recordFinished();
     }
 
     private void skip(GameTestAssumptionException assumption) {
@@ -258,7 +285,6 @@ public class GameTestInstance {
         failureCause = assumption;
         LOG.info("SKIPPED  {} - {}", definition.getTestId(), assumption.getMessage());
         runCleanup();
-        recordFinished();
     }
 
     private void timeout() {
@@ -275,12 +301,19 @@ public class GameTestInstance {
         status = GameTestStatus.TIMED_OUT;
         LOG.warn("TIMEOUT  {} - {}", definition.getTestId(), message);
         runCleanup();
-        recordFinished();
     }
 
     public void addCleanup(Runnable callback) {
         if (callback == null) throw new IllegalArgumentException("cleanup callback must not be null");
         cleanupCallbacks.add(callback);
+    }
+
+    /** Registers exclusive asynchronous teardown, which completes before synchronous cleanup callbacks. */
+    public void addAsyncCleanup(int maxTicks, Supplier<? extends CompletionStage<?>> callback) {
+        if (maxTicks <= 0 || callback == null) throw new IllegalArgumentException("Invalid asynchronous cleanup");
+        if (asynchronousCleanup != null) throw new IllegalStateException("Asynchronous cleanup is already registered");
+        asynchronousCleanup = callback;
+        cleanupBudget = maxTicks;
     }
 
     public void addWarning(String message) {
@@ -291,7 +324,56 @@ public class GameTestInstance {
         return warnings;
     }
 
+    public void addDiagnostic(String message) {
+        diagnostics.add(message);
+    }
+
+    public List<String> getDiagnostics() {
+        return diagnostics;
+    }
+
     private void runCleanup() {
+        executionTime.finish(isExecutionAborted());
+        if (sequence != null) sequence.interruptActiveStep(tickCount);
+        cleanupTime.start();
+        cleaningUp = true;
+        if (asynchronousCleanup != null) {
+            try {
+                cleanupInFlight = asynchronousCleanup.get()
+                    .toCompletableFuture();
+            } catch (Throwable t) {
+                cleanupFailureCause = t;
+                status = GameTestStatus.ERROR;
+            }
+        }
+        pollCleanup();
+    }
+
+    private void pollCleanup() {
+        if (cleanupInFlight != null) {
+            if (!cleanupInFlight.isDone() && cleanupTicks++ < cleanupBudget) return;
+            try {
+                if (!cleanupInFlight.isDone()) {
+                    throw new GameTestInfrastructureException(
+                        "CLEANUP_TIMEOUT",
+                        "Client teardown did not finish within " + cleanupBudget + " ticks");
+                }
+                cleanupInFlight.join();
+            } catch (Throwable t) {
+                cleanupFailureCause = t instanceof CompletionException && t.getCause() != null ? t.getCause() : t;
+                status = GameTestStatus.ERROR;
+            }
+            cleanupInFlight = null;
+        }
+        runSynchronousCleanup();
+        cleaningUp = false;
+        cleanupTime.finish(cleanupFailureCause != null);
+        totalTime.finish(isExecutionAborted() || cleanupFailureCause != null);
+        recordFinished();
+        if (status == GameTestStatus.PASSED) LOG.info("PASSED   {}", definition.getTestId());
+    }
+
+    private void runSynchronousCleanup() {
         Throwable cleanupFailure = null;
         Error fatalFailure = null;
         for (Runnable cb : cleanupCallbacks) {
@@ -309,7 +391,7 @@ public class GameTestInstance {
         }
         cleanupCallbacks.clear();
         if (cleanupFailure != null) {
-            cleanupFailureCause = cleanupFailure;
+            cleanupFailureCause = appendCleanupFailure(cleanupFailureCause, cleanupFailure);
             if (isExecutionAborted() && cleanupFailure != failureCause) failureCause.addSuppressed(cleanupFailure);
             status = GameTestStatus.ERROR;
         }
@@ -364,6 +446,50 @@ public class GameTestInstance {
 
     public void setSequence(GameTestSequence seq) {
         this.sequence = seq;
+    }
+
+    ElapsedTimer newTimer() {
+        return new ElapsedTimer(ticker);
+    }
+
+    /** Immutable wall-time observations, including asynchronous cleanup while it is in flight. */
+    public CaseTiming timing() {
+        boolean interrupted = isExecutionAborted();
+        return new CaseTiming(
+            totalTime.snapshot(interrupted),
+            executionTime.snapshot(interrupted),
+            cleanupTime.snapshot(interrupted));
+    }
+
+    /** Structured step observations independent of whether diagnostic event recording is enabled. */
+    public List<StepResult> stepResults() {
+        return sequence == null ? java.util.Collections.emptyList() : sequence.stepResults();
+    }
+
+    String describeProgress() {
+        String phase = status.isDone() ? "cleanup" : "execution";
+        double seconds = status.isDone() ? cleanupTime.snapshot()
+            .seconds()
+            : executionTime.snapshot()
+                .seconds();
+        if (!status.isDone() && sequence != null) {
+            for (StepResult step : stepResults()) {
+                if (!step.status()
+                    .equals("RUNNING")
+                    && !step.status()
+                        .equals("PENDING"))
+                    continue;
+                phase = step.kind() + " " + step.label() + " [" + step.status() + "]";
+                seconds = step.elapsed()
+                    .seconds();
+                break;
+            }
+        }
+        return String.format(java.util.Locale.ROOT, "%s | %s | %.1f s elapsed", definition.getTestId(), phase, seconds);
+    }
+
+    int tickMultiplier() {
+        return status == GameTestStatus.RUNNING && sequence != null ? sequence.tickMultiplier() : 1;
     }
 
     public void setSucceedWhen(BooleanSupplier predicate) {
@@ -469,7 +595,7 @@ public class GameTestInstance {
     }
 
     public boolean isDone() {
-        return status.isDone();
+        return status.isDone() && !cleaningUp;
     }
 
     public GameTestStatus getStatus() {

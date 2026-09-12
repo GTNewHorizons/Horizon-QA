@@ -18,9 +18,11 @@ import com.gtnewhorizons.horizonqa.internal.ReportedRun;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.network.HorizonQANetwork;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
+import com.gtnewhorizons.horizonqa.report.RunResult;
 import com.gtnewhorizons.horizonqa.visual.SelectionBoxRenderer;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.discovery.ASMDataTable;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
@@ -90,6 +92,29 @@ public class CommonProxy {
     public void postInit(FMLPostInitializationEvent event) {}
 
     public void serverStarting(FMLServerStartingEvent event) {
+        if (HorizonQAProperties.clientTestsEnabled()) {
+            if (FMLCommonHandler.instance()
+                .getSide()
+                .isServer()) {
+                ReportedRun
+                    .configurationFailure(
+                        () -> java.util.Collections.singletonList(
+                            new IssueResult(
+                                "client:dedicatedServer",
+                                "CLIENT_UNAVAILABLE",
+                                "horizonqa.client",
+                                "startup",
+                                "Client test mode requires runClient, not a dedicated server",
+                                "horizonqa.client=true",
+                                true)))
+                    .start();
+            }
+            return;
+        }
+        startTests(event);
+    }
+
+    protected void startTests(FMLServerStartingEvent event) {
         ReportedRun.clearLastResult();
         if (HorizonQAProperties.hasModeError()) {
             ReportedRun.configurationFailure(CommonProxy::ciConfigurationIssues)
@@ -102,7 +127,7 @@ public class CommonProxy {
 
         HorizonQAMod.LOG.info("Discovering tests...");
         GameTestCatalog catalog = GameTestRegistry.discoverTests(asmData);
-        event.registerServerCommand(new HorizonQACommand(catalog));
+        if (event != null) event.registerServerCommand(new HorizonQACommand(catalog));
 
         if (!HorizonQAProperties.autoRunTests()) return;
 
@@ -111,7 +136,7 @@ public class CommonProxy {
         List<SelectionIssue> infrastructureIssues = new ArrayList<>(selection.infrastructureIssues());
         if (selection.selectedTests()
             .isEmpty() && infrastructureIssues.isEmpty()
-            && !HorizonQAProperties.allowNoTests()) {
+            && (HorizonQAProperties.clientTestsEnabled() || !HorizonQAProperties.allowNoTests())) {
             infrastructureIssues.add(
                 GameTestSelection
                     .noSelectedTests(HorizonQAProperties.selectsAllTests(), HorizonQAProperties.rawTests()));
@@ -154,6 +179,12 @@ public class CommonProxy {
         List<PropertyIssue> issues = HorizonQAProperties.ciInfrastructureIssues();
         logInfrastructureIssues(issues);
         return toPropertyIssueResults(issues);
+    }
+
+    /** Completes a reported run using the shutdown policy for this physical side. */
+    public void finishRun(RunResult result) {
+        FMLCommonHandler.instance()
+            .exitJava(result.exitCode(), false);
     }
 
     private static void logInfrastructureIssues(List<PropertyIssue> issues) {

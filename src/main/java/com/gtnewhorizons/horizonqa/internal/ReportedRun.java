@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import net.minecraft.server.MinecraftServer;
@@ -23,6 +24,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.github.bsideup.jabel.Desugar;
+import com.google.common.base.Ticker;
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
@@ -34,8 +36,6 @@ import com.gtnewhorizons.horizonqa.report.ReportPathPreflight;
 import com.gtnewhorizons.horizonqa.report.RunReportWriter;
 import com.gtnewhorizons.horizonqa.report.RunResult;
 
-import cpw.mods.fml.common.FMLCommonHandler;
-
 public final class ReportedRun {
 
     private static final Logger LOG = LogManager.getLogger("GameTest");
@@ -46,8 +46,13 @@ public final class ReportedRun {
 
     private static ReportedRun currentRun;
     private static RunResult lastResult;
+    private static volatile String progressText;
 
     private final List<Batch> batches;
+    private final ElapsedTimer elapsed = new ElapsedTimer(Ticker.systemTicker());
+    private int totalTests;
+    private long lastProgressNanos;
+    private boolean aborted;
     private final List<GameTestDefinition> runnableTests;
     private final GameTestRunner runner;
     private final FixturePreparation fixturePreparation;
@@ -72,6 +77,7 @@ public final class ReportedRun {
         Supplier<List<IssueResult>> configurationIssues) {
         runner = new GameTestRunner();
         fixturePreparation = new FixturePreparation();
+        totalTests = tests.size();
         this.configurationIssues = Objects.requireNonNull(configurationIssues, "configurationIssues");
         runnableTests = new ArrayList<>();
         for (GameTestDefinition test : tests) {
@@ -136,6 +142,7 @@ public final class ReportedRun {
     }
 
     private void startClaimed() {
+        elapsed.start();
         List<IssueResult> blockingIssues = Objects
             .requireNonNull(configurationIssues.get(), "configurationIssues.get()");
         if (!blockingIssues.isEmpty()) {
@@ -253,6 +260,10 @@ public final class ReportedRun {
             batchInstances.add(inst);
         }
 
+        if (HorizonQAProperties.clientTestsEnabled()) {
+            runClientTest(batchInstances, 0, idx, world);
+            return;
+        }
         runner.run(batchInstances, () -> {
             invokeOwedAfterHooks();
             runNextBatchOrFinish(idx);
@@ -272,8 +283,27 @@ public final class ReportedRun {
         }
     }
 
+    private void runClientTest(List<GameTestInstance> instances, int index, int batchIndex, WorldServer world) {
+        if (index == instances.size()) {
+            invokeOwedAfterHooks();
+            runNextBatchOrFinish(batchIndex);
+            return;
+        }
+        GameTestInstance instance = instances.get(index);
+        runner.run(Collections.singletonList(instance), () -> {
+            if (instance.getCleanupFailureCause() != null) {
+                abortAndFinish("Client teardown failed", instance.getCleanupFailureCause(), true);
+                return;
+            }
+            runClientTest(instances, index + 1, batchIndex, world);
+        });
+        resultEntries.add(ResultEntry.instance(instance));
+        instance.start(world);
+    }
+
     private void abortAndFinish(String message, Throwable cause, boolean allowExit) {
         if (finishing || finished) return;
+        aborted = true;
         IssueResult rootIssue = executionAbortedIssue(message, cause);
         issues.add(rootIssue);
         try {
@@ -336,7 +366,9 @@ public final class ReportedRun {
             invokeOwedAfterHooks();
             releaseChunks();
 
-            RunResult result = RunResult.completedCases(mode, collectCaseResults(), issues, junitReportFile.getPath());
+            elapsed.finish(aborted);
+            RunResult result = RunResult.completedCases(mode, collectCaseResults(), issues, junitReportFile.getPath())
+                .withElapsed(elapsed.snapshot());
             result = writeFiles ? RunReportWriter.write(result, junitReportFile, statusReportFile, LOG)
                 : RunReportWriter.writeConsole(result, LOG);
             publish(result);
@@ -349,8 +381,7 @@ public final class ReportedRun {
                     result.requiredFailures(),
                     result.incomplete(),
                     result.infrastructureErrors());
-                FMLCommonHandler.instance()
-                    .exitJava(result.exitCode(), false);
+                HorizonQAMod.proxy.finishRun(result);
             }
         } finally {
             finishing = false;
@@ -638,7 +669,39 @@ public final class ReportedRun {
     }
 
     private static synchronized void clearCurrent(ReportedRun run) {
-        if (currentRun == run) currentRun = null;
+        if (currentRun == run) {
+            currentRun = null;
+            progressText = null;
+        }
+    }
+
+    /** Safely published text for the client window title. No live server objects cross threads. */
+    public static String progressText() {
+        return progressText;
+    }
+
+    static void updateProgress() {
+        ReportedRun run = current();
+        if (run == null || run.finishing || run.finished) return;
+        long now = System.nanoTime();
+        if (run.lastProgressNanos != 0 && now - run.lastProgressNanos < TimeUnit.SECONDS.toNanos(2)) return;
+        run.lastProgressNanos = now;
+        int completed = 0;
+        int active = 0;
+        GameTestInstance observed = null;
+        for (ResultEntry entry : run.resultEntries) {
+            if (entry.instance == null || entry.instance.isDone()) {
+                completed++;
+            } else {
+                active++;
+                if (observed == null) observed = entry.instance;
+            }
+        }
+        String text = "Horizon QA " + Math.min(completed + 1, run.totalTests) + "/" + run.totalTests;
+        if (observed != null) text += " " + observed.describeProgress();
+        if (active > 1) text += " | " + active + " active tests";
+        progressText = text;
+        LOG.info(text);
     }
 
     private static synchronized void publish(RunResult result) {

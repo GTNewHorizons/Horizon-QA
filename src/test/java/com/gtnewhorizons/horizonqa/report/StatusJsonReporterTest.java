@@ -37,7 +37,7 @@ public class StatusJsonReporterTest {
         assertContainsInOrder(
             json,
             "{\n",
-            "  \"schemaVersion\": 3",
+            "  \"schemaVersion\": 4",
             "  \"status\": \"failed\"",
             "  \"exitCode\": 1",
             "  \"configuration\": {",

@@ -24,10 +24,10 @@ public abstract class MixinMinecraftServer {
 
     @Redirect(method = "run", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;tick()V"))
     private void gametest$tickAtTurboRate(MinecraftServer server) {
-        int multiplier = gametest$isTurboTicking() ? HorizonQAProperties.turboMultiplier() : 1;
+        int multiplier = GameTestRunner.tickMultiplier();
         for (int tick = 0; tick < multiplier; tick++) {
             server.tick();
-            if (!gametest$isTurboTicking()) {
+            if (GameTestRunner.tickMultiplier() < multiplier) {
                 break;
             }
         }
