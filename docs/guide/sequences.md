@@ -5,6 +5,8 @@ description: GameTestSequence for ordered steps, delays, and bounded waits witho
 
 # Sequences and timing
 
+Every declared step has an automatic monotonic elapsed measurement in the [timing reports](ci.md#wall-time-measurement-and-progress), including explicit `thenIdle` gaps. Measurements cover execution and queued/retried work, not scenario declaration. Unlabeled steps use their source location. Idle entries also appear in step snapshots and diagnostic events without changing their scheduling boundary.
+
 `GameTestSequence` schedules actions on future test ticks. Use it when a test needs to do something, wait a bit, then check the result.
 
 ## Basic usage
@@ -21,6 +23,37 @@ public static void delayedAssert(GameTestHelper helper) {
 
 One sequence per test. For an immediate pass use `helper.succeed()` directly.
 
+## Fluent client scenarios
+
+For client tests, start with `ClientTest.scenario(helper)`. It authors the same `GameTestSequence` while scheduling client work through the test's single client session:
+
+```java
+ClientTarget apply = ClientTarget.of("settings.apply", c -> findApplyControl(c));
+ClientTest.scenario(helper)
+    .server("prepare fixture", () -> prepareFixture(helper))
+    .useHeldItem()
+    .awaitScreen(SettingsScreen.class)
+    .click(apply)
+    .awaitServer("settings applied", () -> assertApplied(helper))
+    .capture("applied")
+    .succeed();
+```
+
+The screen, target lookup and fixture methods belong to the consumer. The chain registers deferred steps. It does not access the GUI during authoring. Do not also create another sequence or attach another client session.
+
+- `client(label, action)` runs once at client END.
+- `awaitClient(label, assertion)` retries client assertions, keeping at most one attempt in flight.
+- `server(label, action)` runs once at server END.
+- `awaitServer(label, assertion)` retries assertions at server END.
+- `awaitServerAccelerated(label, multiplier, assertion)` requests 1 to 100 full server ticks per normal loop iteration only while that wait is running in CI. Budgets still count simulated ticks. The assertion observes server state and must not submit client work. See [scoped acceleration](ci.md#accelerating-server-state-waits).
+- `async(label, action)` and `awaitAsync(label, assertion)` expose the existing completion-stage operations. Their callbacks start on the server thread. Use the supplied session's queued methods for client work.
+
+Client operations and assertion waits default to 100 ticks per step. `defaultTimeoutTicks(n)` changes subsequent defaults. `withinTicks(n)` overrides the next bounded step only, and `step(label)` overrides the next diagnostic label. The overall test timeout still applies. A synchronous `server` action cannot consume a tick budget.
+
+For existing phase operations, obtain `scenario.serverSequence()`, register those steps, then continue the same scenario. Clear pending step overrides first and retain the START/END ordering described below. Finish with `scenario.succeed()`. Low-level `ClientTest.attach(helper)` and direct sequence authoring remain available for advanced consumers.
+
+See [Automated client tests](ci.md#automated-client-tests) for live targets, input gestures, cleanup and runnable examples.
+
 ## Methods
 
 | Method                                     | Phase | What it does                                  |
@@ -36,12 +69,15 @@ One sequence per test. For an immediate pass use `helper.succeed()` directly.
 | `thenWaitUntilAtStart(Runnable)`           | START | Same, before world tick                       |
 | `thenWaitUntilAtEnd(Runnable)`             | END   | Alias of `thenWaitUntil`                      |
 | `thenWaitUntil(maxTicks, Runnable)`        | END   | Retry assertion failures for at most `maxTicks` |
+| `thenWaitUntilAccelerated(label, maxTicks, multiplier, Runnable)` | END | Bounded server-state wait requesting a scoped tick multiplier in CI |
 | `thenWaitUntilAtStart(maxTicks, Runnable)` | START | Same, before world tick                       |
 | `thenWaitUntilAtEnd(maxTicks, Runnable)`   | END   | Alias of bounded `thenWaitUntil`              |
 | `thenSucceed()`                            | END   | Pass the test                                 |
 | `thenFail(msg)`                            | END   | Fail the test                                 |
 
 ## Tick phases
+
+`thenExecuteAsync(label, maxTicks, supplier)` invokes a supplier of `CompletionStage<?>` once at END and waits without blocking. `thenWaitUntilAsync(label, maxTicks, supplier)` retries completed assertion failures, keeping at most one operation in flight. Unexpected exceptions preserve their original cause. The budget includes time in flight, and the next step starts only after completion is consumed on the server thread. See [Automated client tests](ci.md#automated-client-tests) for their fluent client authoring surface and advanced use.
 
 Every server tick has a START phase and an END phase. World logic (tile entity updates, hopper transfers, machine processing) runs between them.
 
@@ -175,5 +211,6 @@ case is a runnable demonstration of labelled sequence failure output.
 |                    | Use when                                                   |
 |--------------------|------------------------------------------------------------|
 | `onEachTick`       | Something must hold true on every tick or during a scoped window |
-| `GameTestSequence` | Steps need to happen in order with delays between them     |
+| `GameTestSequence` | Server steps need to happen in order with bounded waits or phase-specific actions |
+| `ClientScenario` | Client input and assertions need to be mixed with server steps on the same sequence |
 | `succeedWhen`      | Waiting for a single condition to become true              |

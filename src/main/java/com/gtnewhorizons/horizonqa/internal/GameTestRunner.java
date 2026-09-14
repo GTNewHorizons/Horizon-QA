@@ -59,6 +59,7 @@ public final class GameTestRunner {
     }
 
     public static void handleTickStart() {
+        ReportedRun.pollAbortRequest();
         GameTestRunner runner = activeRunner();
         if (runner == null) return;
         try {
@@ -71,10 +72,12 @@ public final class GameTestRunner {
     }
 
     public static void handleTickEnd() {
+        ReportedRun.pollAbortRequest();
         GameTestRunner runner = activeRunner();
         if (runner == null) return;
         try {
             runner.doTickEnd();
+            ReportedRun.updateProgress();
             runner.releaseIfIdle();
         } catch (RuntimeException | Error e) {
             runner.abortAndRelease("Execution failed during the END phase", e);
@@ -87,8 +90,23 @@ public final class GameTestRunner {
     }
 
     public static boolean isTurboActive() {
-        return isBatchActive() && HorizonQAProperties.usesHeadlessServerBehavior()
-            && HorizonQAProperties.turboMultiplier() > 1;
+        return tickMultiplier() > 1;
+    }
+
+    /** Effective server-loop rate, read on the server thread between full world ticks. */
+    public static int tickMultiplier() {
+        GameTestRunner runner = activeRunner();
+        if (runner == null || runner.kind != Kind.BATCH || !HorizonQAProperties.usesHeadlessServerBehavior()) return 1;
+        int configured = HorizonQAProperties.turboMultiplier();
+        if (configured > 1) return configured;
+        int multiplier = HorizonQAProperties.MAX_TURBO_MULTIPLIER;
+        boolean hasActiveTest = false;
+        for (GameTestInstance instance : runner.instances) {
+            if (instance.isDone()) continue;
+            hasActiveTest = true;
+            multiplier = Math.min(multiplier, instance.tickMultiplier());
+        }
+        return hasActiveTest ? multiplier : 1;
     }
 
     public static void shutdown() {
@@ -98,12 +116,24 @@ public final class GameTestRunner {
         }
     }
 
-    void abortIfActive(String message) {
-        abortAndRelease(message, null);
-    }
-
-    void abortIfActive(String message, Throwable cause) {
-        abortAndRelease(message, cause);
+    /** Keeps execution owned while asynchronous cleanup is polled by normal END ticks. */
+    void abortIfActive(String message, Throwable cause, Runnable afterCleanup) {
+        if (activeRunner != this) {
+            afterCleanup.run();
+            return;
+        }
+        if (aborting) return;
+        aborting = true;
+        onFirstTick = null;
+        onAllDone = afterCleanup;
+        running = true;
+        for (GameTestInstance instance : instances) {
+            instance.abortExecution(message, cause);
+        }
+        if (instances.isEmpty()) {
+            doTickEnd();
+            releaseIfIdle();
+        }
     }
 
     private void doTickStart() {
@@ -168,8 +198,10 @@ public final class GameTestRunner {
         }
     }
 
-    private void abortAndRelease(String message, Throwable cause) {
-        if (activeRunner != this || aborting) return;
+    /** Terminal shutdown cannot rely on further server ticks to settle cleanup. */
+    void abortAndRelease(String message, Throwable cause) {
+        if (activeRunner != this) return;
+        if (aborting && instances.isEmpty()) return;
         aborting = true;
         List<GameTestInstance> aborted = new ArrayList<>(instances);
         instances.clear();
@@ -181,6 +213,7 @@ public final class GameTestRunner {
             for (GameTestInstance instance : aborted) {
                 try {
                     instance.abortExecution(message, cause);
+                    instance.interruptCleanup(message);
                 } catch (Throwable failure) {
                     if (abortFailure == null) {
                         abortFailure = failure;

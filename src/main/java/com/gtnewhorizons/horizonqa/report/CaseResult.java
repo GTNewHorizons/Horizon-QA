@@ -17,7 +17,7 @@ import com.gtnewhorizons.horizonqa.internal.GameTestStatus;
 @Desugar
 public record CaseResult(String id, String classname, String name, Status status, boolean required, int tickCount,
     double timeSeconds, String failureMessage, String failureType, String failureTrace, List<String> outputLines,
-    String blockedByIssueId) {
+    String blockedByIssueId, CaseTiming timing, List<StepResult> steps) {
 
     private static final String PARAMETERS_PREFIX = "parameters=";
     public static final String CLEANUP_ERROR = "CLEANUP_ERROR";
@@ -28,7 +28,29 @@ public record CaseResult(String id, String classname, String name, Status status
 
     public CaseResult {
         outputLines = immutableList(outputLines);
+        steps = immutableList(steps);
         blockedByIssueId = blockedByIssueId == null ? "" : blockedByIssueId;
+    }
+
+    /** Creates a result without runtime measurements, for skipped or externally supplied cases. */
+    public CaseResult(String id, String classname, String name, Status status, boolean required, int tickCount,
+        double timeSeconds, String failureMessage, String failureType, String failureTrace, List<String> outputLines,
+        String blockedByIssueId) {
+        this(
+            id,
+            classname,
+            name,
+            status,
+            required,
+            tickCount,
+            timeSeconds,
+            failureMessage,
+            failureType,
+            failureTrace,
+            outputLines,
+            blockedByIssueId,
+            CaseTiming.unavailable(),
+            Collections.emptyList());
     }
 
     public CaseResult(String id, String classname, String name, Status status, boolean required, int tickCount,
@@ -67,6 +89,7 @@ public record CaseResult(String id, String classname, String name, Status status
         for (String warning : inst.getWarnings()) {
             output.add("WARNING: " + warning);
         }
+        output.addAll(inst.getDiagnostics());
 
         return new CaseResult(
             testId,
@@ -80,7 +103,9 @@ public record CaseResult(String id, String classname, String name, Status status
             failureType,
             failureTrace,
             output,
-            "");
+            "",
+            inst.timing(),
+            inst.stepResults());
     }
 
     public static CaseResult skippedByIssue(GameTestDefinition definition, String blockedByIssueId, String message) {
@@ -329,6 +354,14 @@ public record CaseResult(String id, String classname, String name, Status status
     private static String failureTrace(GameTestInstance inst, Throwable cause) {
         String trace = stackTrace(cause);
         String context = inst.getFailureContext();
+        Throwable original = inst.getFailureCause();
+        if (original != null && original != cause) {
+            return trace + System.lineSeparator()
+                + "Original test failure:"
+                + System.lineSeparator()
+                + (context.isEmpty() ? "" : context + System.lineSeparator())
+                + stackTrace(original);
+        }
         if (context.isEmpty() || cause != inst.getFailureCause()) return trace;
         return context + System.lineSeparator() + trace;
     }

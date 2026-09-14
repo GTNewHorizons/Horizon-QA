@@ -5,9 +5,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 
+import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.event.SequenceStepFinished;
 import com.gtnewhorizons.horizonqa.api.event.SequenceStepStarted;
+import com.gtnewhorizons.horizonqa.report.StepResult;
 
 public class GameTestSequence {
 
@@ -26,6 +32,21 @@ public class GameTestSequence {
     public GameTestSequence thenIdle(int ticks) {
         if (ticks < 0) throw new IllegalArgumentException("ticks must not be negative");
         currentScheduledTick += ticks;
+        if (ticks > 0) {
+            SequenceStep idle = new SequenceStep(
+                steps.size() + 1,
+                currentScheduledTick,
+                -1,
+                TestPhase.END,
+                StepKind.IDLE,
+                "idle " + ticks + " ticks",
+                captureSource(),
+                () -> {},
+                false,
+                instance.newTimer());
+            pendingSteps.add(idle);
+            steps.add(idle);
+        }
         return this;
     }
 
@@ -35,6 +56,42 @@ public class GameTestSequence {
 
     public GameTestSequence thenExecute(String label, Runnable action) {
         return thenExecuteAtEnd(label, action);
+    }
+
+    /**
+     * Starts one asynchronous operation at END and consumes its result on the test thread.
+     * The next step waits for completion. The supplier is called exactly once.
+     */
+    public GameTestSequence thenExecuteAsync(String label, int maxTicks,
+        Supplier<? extends CompletionStage<?>> action) {
+        return addAsyncStep(label, maxTicks, action, StepKind.EXECUTE);
+    }
+
+    /**
+     * Retries completed assertion failures at END, with at most one operation in flight.
+     * Other exceptions fail immediately with their original cause. The budget includes time in flight.
+     */
+    public GameTestSequence thenWaitUntilAsync(String label, int maxTicks,
+        Supplier<? extends CompletionStage<?>> assertion) {
+        return addAsyncStep(label, maxTicks, assertion, StepKind.WAIT_UNTIL);
+    }
+
+    private GameTestSequence addAsyncStep(String label, int maxTicks, Supplier<? extends CompletionStage<?>> action,
+        StepKind kind) {
+        validateMaxTicks(maxTicks);
+        if (action == null) throw new IllegalArgumentException("sequence action must not be null");
+        addStep(TestPhase.END, kind, label, () -> {}, maxTicks);
+        pendingSteps.getLast().asyncAction = action;
+        pendingSteps.getLast().executionSide = "UNKNOWN";
+        return this;
+    }
+
+    /** Supplies operation metadata from an authoring adapter before the newly registered step executes. */
+    public void describeLastStep(String operation, String executionSide) {
+        SequenceStep step = pendingSteps.getLast();
+        if (step.state != StepState.PENDING) throw new IllegalStateException("Step execution has already started");
+        step.operation = java.util.Objects.requireNonNull(operation, "operation");
+        step.executionSide = java.util.Objects.requireNonNull(executionSide, "executionSide");
     }
 
     public GameTestSequence thenExecuteAtStart(Runnable action) {
@@ -87,6 +144,25 @@ public class GameTestSequence {
 
     public GameTestSequence thenWaitUntil(String label, int maxTicks, Runnable condition) {
         return thenWaitUntilAtEnd(label, maxTicks, condition);
+    }
+
+    /**
+     * Waits on server assertions at END while requesting full server ticks at the given rate.
+     * The budget counts simulated server ticks. Only this running step requests acceleration.
+     * Callbacks must observe server state without submitting client work.
+     */
+    public GameTestSequence thenWaitUntilAccelerated(String label, int maxTicks, int multiplier, Runnable condition) {
+        if (multiplier < 1 || multiplier > HorizonQAProperties.MAX_TURBO_MULTIPLIER) {
+            throw new IllegalArgumentException("Tick multiplier must be between 1 and 100");
+        }
+        thenWaitUntilAtEnd(label, maxTicks, condition);
+        pendingSteps.getLast().tickMultiplier = multiplier;
+        return this;
+    }
+
+    int tickMultiplier() {
+        SequenceStep step = pendingSteps.peek();
+        return step != null && step.state == StepState.RUNNING ? step.tickMultiplier : 1;
     }
 
     public GameTestSequence thenWaitUntilAtStart(Runnable condition) {
@@ -189,7 +265,8 @@ public class GameTestSequence {
             normalizeLabel(label),
             captureSource(),
             action,
-            endsTest);
+            endsTest,
+            instance.newTimer());
         pendingSteps.add(step);
         steps.add(step);
         currentScheduledTick = tick;
@@ -213,12 +290,25 @@ public class GameTestSequence {
     // same tick, ticks always ascending) guarantees remaining steps are either same-tick later-phase
     // or a later tick — both will be processed by the matching phase call.
     void tick(long currentTick, TestPhase phase) {
-        while (!pendingSteps.isEmpty() && !instance.isDone()) {
+        while (!pendingSteps.isEmpty() && !instance.getStatus()
+            .isDone()) {
             SequenceStep head = pendingSteps.peek();
+            if (head.kind == StepKind.IDLE) {
+                if (head.start(currentTick)) recordStarted(head);
+                if (currentTick < head.scheduledTick) break;
+                head.complete(currentTick);
+                recordFinished(head);
+                pendingSteps.poll();
+                continue;
+            }
             if (currentTick < head.scheduledTick) break;
             if (head.phase != phase) break;
 
             if (head.start(currentTick)) recordStarted(head);
+            if (head.asyncAction != null) {
+                if (!tickAsync(head, currentTick)) break;
+                continue;
+            }
             if (head.kind == StepKind.WAIT_UNTIL) {
                 head.attempts++;
                 try {
@@ -266,11 +356,101 @@ public class GameTestSequence {
         }
     }
 
+    private boolean tickAsync(SequenceStep step, long currentTick) {
+        try {
+            if (step.inFlight == null) {
+                step.attempts++;
+                step.inFlight = step.asyncAction.get()
+                    .toCompletableFuture();
+            }
+            if (step.inFlight.isDone()) {
+                try {
+                    step.inFlight.join();
+                } catch (CompletionException e) {
+                    throwOriginal(e);
+                }
+                long delay = currentTick - step.scheduledTick;
+                step.complete(currentTick);
+                recordFinished(step);
+                pendingSteps.poll();
+                shiftPendingSteps(delay);
+                return true;
+            }
+        } catch (AssertionError e) {
+            if (step.kind != StepKind.WAIT_UNTIL) {
+                failAsync(step, currentTick);
+                throw e;
+            }
+            step.lastAssertion = e;
+            step.inFlight = null;
+        } catch (Throwable e) {
+            failAsync(step, currentTick);
+            GameTestSequence.<RuntimeException>rethrow(e);
+        }
+        if (currentTick >= step.deadlineTick) {
+            failAsync(step, currentTick);
+            throw new SequenceStepTimeoutException(step.snapshot(steps.size()), step.lastAssertion);
+        }
+        return false;
+    }
+
+    private void failAsync(SequenceStep step, long currentTick) {
+        step.fail(currentTick);
+        recordFinished(step);
+        setFailureContext(step);
+    }
+
+    private static void throwOriginal(Throwable error) {
+        Throwable cause = error;
+        while ((cause instanceof CompletionException || cause instanceof java.util.concurrent.ExecutionException)
+            && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        GameTestSequence.<RuntimeException>rethrow(cause);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void rethrow(Throwable error) throws T {
+        throw (T) error;
+    }
+
     void failActiveStep(long currentTick) {
         SequenceStep step = pendingSteps.peek();
         if (step == null || step.state == StepState.COMPLETED || step.state == StepState.FAILED) return;
         step.fail(currentTick);
         recordFinished(step);
+    }
+
+    void interruptActiveStep(long currentTick) {
+        SequenceStep step = pendingSteps.peek();
+        if (step == null || step.state != StepState.RUNNING) return;
+        step.state = StepState.INTERRUPTED;
+        step.completedTick = currentTick;
+        step.elapsed.finish(true);
+        recordFinished(step);
+    }
+
+    public List<StepResult> stepResults() {
+        List<StepResult> results = new ArrayList<>(steps.size());
+        for (SequenceStep step : steps) {
+            long end = step.completedTick < 0 ? instance.getTickCount() : step.completedTick;
+            long ticks = step.startedTick < 0 ? 0 : Math.max(0, end - step.startedTick + 1);
+            results.add(
+                new StepResult(
+                    step.index,
+                    displayLabel(step),
+                    step.kind.name(),
+                    step.phase.name(),
+                    step.state.name(),
+                    step.attempts,
+                    ticks,
+                    step.tickMultiplier,
+                    step.elapsed.snapshot(),
+                    step.source.toString(),
+                    step.operation,
+                    step.executionSide));
+        }
+        return Collections.unmodifiableList(results);
     }
 
     private void recordStarted(SequenceStep step) {
@@ -296,6 +476,7 @@ public class GameTestSequence {
         String outcome = switch (step.state) {
             case COMPLETED -> "completed";
             case FAILED -> "failed";
+            case INTERRUPTED -> "interrupted";
             default -> throw new IllegalStateException("Cannot record unfinished sequence step");
         };
         instance.getRecorder()
@@ -339,9 +520,14 @@ public class GameTestSequence {
     private static SourceLocation captureSource() {
         StackTraceElement[] trace = new Throwable().getStackTrace();
         String sequenceClass = GameTestSequence.class.getName();
+        String clientScenarioClass = "com.gtnewhorizons.horizonqa.api.client.ClientScenario";
         for (StackTraceElement frame : trace) {
             if (!frame.getClassName()
-                .equals(sequenceClass)) {
+                .equals(sequenceClass)
+                && !frame.getClassName()
+                    .equals(clientScenarioClass)
+                && !frame.getClassName()
+                    .startsWith(clientScenarioClass + "$")) {
                 return new SourceLocation(frame.getClassName(), frame.getFileName(), frame.getLineNumber());
             }
         }
@@ -359,14 +545,16 @@ public class GameTestSequence {
 
     public enum StepKind {
         EXECUTE,
-        WAIT_UNTIL
+        WAIT_UNTIL,
+        IDLE
     }
 
     public enum StepState {
         PENDING,
         RUNNING,
         COMPLETED,
-        FAILED
+        FAILED,
+        INTERRUPTED
     }
 
     public static final class SourceLocation {
@@ -522,16 +710,23 @@ public class GameTestSequence {
         final String label;
         final SourceLocation source;
         final Runnable action;
+        Supplier<? extends CompletionStage<?>> asyncAction;
+        CompletableFuture<?> inFlight;
         final boolean endsTest;
+        final ElapsedTimer elapsed;
         StepState state = StepState.PENDING;
         long deadlineTick = -1;
         long startedTick = -1;
         long completedTick = -1;
         int attempts;
+        int tickMultiplier = 1;
+        String operation = "GENERAL";
+        String executionSide = "SERVER";
         AssertionError lastAssertion;
 
         SequenceStep(int index, long scheduledTick, int maxTicks, TestPhase phase, StepKind kind, String label,
-            SourceLocation source, Runnable action, boolean endsTest) {
+            SourceLocation source, Runnable action, boolean endsTest, ElapsedTimer elapsed) {
+            this.elapsed = elapsed;
             this.index = index;
             this.scheduledTick = scheduledTick;
             this.maxTicks = maxTicks;
@@ -546,17 +741,20 @@ public class GameTestSequence {
         boolean start(long currentTick) {
             if (state != StepState.PENDING) return false;
             state = StepState.RUNNING;
+            elapsed.start();
             startedTick = currentTick;
             if (maxTicks > 0) deadlineTick = currentTick + maxTicks - 1L;
             return true;
         }
 
         void complete(long currentTick) {
+            elapsed.finish(false);
             state = StepState.COMPLETED;
             completedTick = currentTick;
         }
 
         void fail(long currentTick) {
+            elapsed.finish(false);
             state = StepState.FAILED;
             completedTick = currentTick;
         }

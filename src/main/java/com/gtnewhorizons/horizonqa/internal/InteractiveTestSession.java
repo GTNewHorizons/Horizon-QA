@@ -48,7 +48,7 @@ public class InteractiveTestSession {
 
     public static void reset() {
         if (CURRENT != null) {
-            CURRENT.runner.abortIfActive("Interactive test session was reset before test completion");
+            CURRENT.runner.abortAndRelease("Interactive test session was reset before test completion", null);
         }
         CURRENT = null;
     }
