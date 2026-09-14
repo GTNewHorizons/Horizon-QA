@@ -17,6 +17,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.github.bsideup.jabel.Desugar;
+import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.annotation.AfterBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.BeforeBatch;
@@ -27,6 +28,7 @@ import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook.HookPhase;
 import com.gtnewhorizons.horizonqa.internal.MethodSourceResolver.MethodSourceException;
 import com.gtnewhorizons.horizonqa.internal.MethodSourceResolver.ResolvedArguments;
 
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.discovery.ASMDataTable;
 
@@ -52,6 +54,15 @@ public final class GameTestRegistry {
     }
 
     static GameTestCatalog discoverTests(ASMDataTable asmData, Predicate<String> modLoaded) {
+        return discoverTests(
+            asmData,
+            modLoaded,
+            HorizonQAProperties.clientTestsEnabled() && FMLCommonHandler.instance()
+                .getSide()
+                .isClient());
+    }
+
+    static GameTestCatalog discoverTests(ASMDataTable asmData, Predicate<String> modLoaded, boolean clientTests) {
         DiscoveryCollector collector = new DiscoveryCollector();
 
         if (asmData == null) {
@@ -74,6 +85,10 @@ public final class GameTestRegistry {
         Set<ASMDataTable.ASMData> methodSourceAnnotations = asmData.getAll(MethodSource.class.getName());
         List<PendingHolder> pendingHolders = new ArrayList<>();
         for (ASMDataTable.ASMData holderData : holderAnnotations) {
+            if (Boolean.TRUE.equals(
+                holderData.getAnnotationInfo()
+                    .get("clientOnly"))
+                != clientTests) continue;
             String className = holderData.getClassName();
             List<String> missingMods = missingRequiredMods(holderData.getAnnotationInfo(), modLoaded);
             if (!missingMods.isEmpty()) {

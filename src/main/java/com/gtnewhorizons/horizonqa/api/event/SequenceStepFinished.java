@@ -3,14 +3,14 @@ package com.gtnewhorizons.horizonqa.api.event;
 import com.github.bsideup.jabel.Desugar;
 
 /**
- * A sequence step completed or failed. The human-readable summary omits timing for an immediate step,
+ * A sequence step completed, failed or was interrupted. The human-readable summary omits timing for an immediate step,
  * reports only elapsed ticks when attempts and ticks match, and otherwise reports both values.
  *
  * @param tick         logical event-log tick
  * @param index        one-based step index
  * @param totalSteps   number of declared sequence steps
  * @param label        author label, or declaration source when unlabeled
- * @param outcome      {@code completed} or {@code failed}
+ * @param outcome      {@code completed}, {@code failed} or {@code interrupted}
  * @param attempts     number of action or condition attempts
  * @param elapsedTicks inclusive outer-test tick count from first attempt to completion
  */

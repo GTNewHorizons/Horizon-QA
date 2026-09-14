@@ -16,9 +16,17 @@ import cpw.mods.fml.common.event.FMLInitializationEvent;
 
 public class ClientProxy extends CommonProxy {
 
+    private com.gtnewhorizons.horizonqa.client.ClientTestRuntime clientTests;
+
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+        if (HorizonQAProperties.clientTestsEnabled()) {
+            clientTests = new com.gtnewhorizons.horizonqa.client.ClientTestRuntime(() -> startTests(null));
+            FMLCommonHandler.instance()
+                .bus()
+                .register(clientTests);
+        }
         if (!HorizonQAProperties.interactiveFeaturesEnabled()) return;
         WandLabelInput.registerKeyBinding();
         WandFreecamController.registerKeyBinding();
@@ -34,5 +42,11 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(new WandHudOverlay());
         MinecraftForge.EVENT_BUS.register(new WandLabelRenderer());
         InteractiveTestSession.onClearAllCallback = VisualManager::clearAll;
+    }
+
+    @Override
+    public void finishRun(com.gtnewhorizons.horizonqa.report.RunResult result) {
+        if (clientTests != null) clientTests.finish(result);
+        else super.finishRun(result);
     }
 }

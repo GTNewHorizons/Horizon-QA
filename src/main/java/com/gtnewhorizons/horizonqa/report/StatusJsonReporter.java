@@ -4,12 +4,25 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Locale;
 
+import org.apache.commons.lang3.text.translate.JavaUnicodeEscaper;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 
 public final class StatusJsonReporter {
 
-    private static final int SCHEMA_VERSION = 3;
+    private static final int SCHEMA_VERSION = 5;
+    private static final Gson GSON = new GsonBuilder().serializeNulls()
+        .disableHtmlEscaping()
+        .setPrettyPrinting()
+        .create();
+    private static final JavaUnicodeEscaper ASCII = JavaUnicodeEscaper.outsideOf(0, 0x7e);
 
     private StatusJsonReporter() {}
 
@@ -20,227 +33,175 @@ public final class StatusJsonReporter {
     }
 
     static String toJson(RunResult result, File outputFile) {
-        StringBuilder out = new StringBuilder(4096);
-        boolean first = true;
-
-        out.append("{\n");
-        first = appendNumberField(out, 1, "schemaVersion", SCHEMA_VERSION, first);
-        first = appendStringField(out, 1, "status", result.status(), first);
-        first = appendNumberField(out, 1, "exitCode", result.exitCode(), first);
-        first = appendConfiguration(out, first);
-        first = appendCounts(out, result, first);
-        first = appendReports(out, result, outputFile, first);
-        first = appendIssues(out, result, first);
-        appendTests(out, result, first);
-        out.append("\n}\n");
-
-        return out.toString();
+        JsonObject out = new JsonObject();
+        out.addProperty("schemaVersion", SCHEMA_VERSION);
+        out.addProperty("status", result.status());
+        out.addProperty("exitCode", result.exitCode());
+        out.add("configuration", configuration());
+        out.add("counts", counts(result));
+        out.addProperty("wallTimeSeconds", wallTimeSeconds(result.elapsed()));
+        out.add("timing", elapsed(result.elapsed()));
+        out.add("reports", reports(result, outputFile));
+        JsonArray issues = new JsonArray();
+        for (IssueResult issue : result.issues()) issues.add(issue(issue));
+        out.add("issues", issues);
+        JsonArray tests = new JsonArray();
+        for (CaseResult resultCase : result.cases()) tests.add(test(resultCase));
+        out.add("tests", tests);
+        return ASCII.translate(GSON.toJson(out)) + "\n";
     }
 
-    private static boolean appendConfiguration(StringBuilder out, boolean first) {
-        appendFieldPrefix(out, 1, first);
-        appendQuoted(out, "configuration");
-        out.append(": {\n");
-
-        boolean configFirst = true;
-        configFirst = appendStringField(out, 2, "mode", HorizonQAProperties.modeName(), configFirst);
-        configFirst = appendStringField(out, 2, "rawMode", HorizonQAProperties.rawMode(), configFirst);
-        configFirst = appendStringField(out, 2, "world", HorizonQAProperties.worldPolicyName(), configFirst);
-        configFirst = appendStringField(out, 2, "rawWorld", HorizonQAProperties.rawWorld(), configFirst);
-        configFirst = appendBooleanField(out, 2, "autoRun", HorizonQAProperties.autoRunTests(), configFirst);
-        configFirst = appendStringField(out, 2, "rawAutoRun", HorizonQAProperties.rawAutoRun(), configFirst);
-        configFirst = appendBooleanField(out, 2, "stopServer", HorizonQAProperties.stopServerAfterRun(), configFirst);
-        configFirst = appendStringField(out, 2, "rawStopServer", HorizonQAProperties.rawStopServer(), configFirst);
-        configFirst = appendNumberField(out, 2, "turbo", HorizonQAProperties.turboMultiplier(), configFirst);
-        configFirst = appendStringField(out, 2, "rawTurbo", HorizonQAProperties.rawTurbo(), configFirst);
-        configFirst = appendStringField(out, 2, "gridOrigin", HorizonQAProperties.gridOriginName(), configFirst);
-        configFirst = appendStringField(out, 2, "rawGridOrigin", HorizonQAProperties.rawGridOrigin(), configFirst);
-        configFirst = appendStringField(out, 2, "tests", HorizonQAProperties.rawTests(), configFirst);
-        configFirst = appendBooleanField(out, 2, "selectsAllTests", HorizonQAProperties.selectsAllTests(), configFirst);
-        configFirst = appendBooleanField(out, 2, "allowNoTests", HorizonQAProperties.allowNoTests(), configFirst);
-        configFirst = appendBooleanField(out, 2, "eventsEnabled", HorizonQAProperties.eventsEnabled(), configFirst);
-        configFirst = appendStringField(out, 2, "reportFile", HorizonQAProperties.reportFile(), configFirst);
-        configFirst = appendStringField(out, 2, "reportDir", HorizonQAProperties.reportDir(), configFirst);
-        appendStringField(out, 2, "statusFile", HorizonQAProperties.statusFile(), configFirst);
-
-        out.append('\n');
-        indent(out, 1);
-        out.append('}');
-        return false;
+    private static JsonObject configuration() {
+        JsonObject out = new JsonObject();
+        out.addProperty("mode", HorizonQAProperties.modeName());
+        out.addProperty("rawMode", HorizonQAProperties.rawMode());
+        out.addProperty("world", HorizonQAProperties.worldPolicyName());
+        out.addProperty("rawWorld", HorizonQAProperties.rawWorld());
+        out.addProperty("autoRun", HorizonQAProperties.autoRunTests());
+        out.addProperty("rawAutoRun", HorizonQAProperties.rawAutoRun());
+        out.addProperty("stopServer", HorizonQAProperties.stopServerAfterRun());
+        out.addProperty("rawStopServer", HorizonQAProperties.rawStopServer());
+        out.addProperty("turbo", HorizonQAProperties.turboMultiplier());
+        out.addProperty("rawTurbo", HorizonQAProperties.rawTurbo());
+        out.addProperty("gridOrigin", HorizonQAProperties.gridOriginName());
+        out.addProperty("rawGridOrigin", HorizonQAProperties.rawGridOrigin());
+        out.addProperty("tests", HorizonQAProperties.rawTests());
+        out.addProperty("selectsAllTests", HorizonQAProperties.selectsAllTests());
+        out.addProperty("allowNoTests", HorizonQAProperties.allowNoTests());
+        out.addProperty("eventsEnabled", HorizonQAProperties.eventsEnabled());
+        out.addProperty("reportFile", HorizonQAProperties.reportFile());
+        out.addProperty("reportDir", HorizonQAProperties.reportDir());
+        out.addProperty("statusFile", HorizonQAProperties.statusFile());
+        return out;
     }
 
-    private static boolean appendCounts(StringBuilder out, RunResult result, boolean first) {
-        appendFieldPrefix(out, 1, first);
-        appendQuoted(out, "counts");
-        out.append(": {\n");
-
-        boolean countFirst = true;
-        countFirst = appendNumberField(out, 2, "selectedTests", result.selectedTests(), countFirst);
-        countFirst = appendNumberField(out, 2, "passed", result.passed(), countFirst);
-        countFirst = appendNumberField(out, 2, "failed", result.failed(), countFirst);
-        countFirst = appendNumberField(out, 2, "timedOut", result.timedOut(), countFirst);
-        countFirst = appendNumberField(out, 2, "skipped", result.skipped(), countFirst);
-        countFirst = appendNumberField(out, 2, "incomplete", result.incomplete(), countFirst);
-        countFirst = appendNumberField(out, 2, "requiredFailures", result.requiredFailures(), countFirst);
-        countFirst = appendNumberField(out, 2, "optionalFailures", result.optionalFailures(), countFirst);
-        countFirst = appendNumberField(
-            out,
-            2,
+    private static JsonObject counts(RunResult result) {
+        JsonObject out = new JsonObject();
+        out.addProperty("selectedTests", result.selectedTests());
+        out.addProperty("passed", result.passed());
+        out.addProperty("failed", result.failed());
+        out.addProperty("timedOut", result.timedOut());
+        out.addProperty("skipped", result.skipped());
+        out.addProperty("incomplete", result.incomplete());
+        out.addProperty("requiredFailures", result.requiredFailures());
+        out.addProperty("optionalFailures", result.optionalFailures());
+        out.addProperty(
             "issues",
             result.issues()
-                .size(),
-            countFirst);
-        countFirst = appendNumberField(out, 2, "diagnosticErrors", result.diagnosticErrors(), countFirst);
-        countFirst = appendNumberField(out, 2, "junitFailures", result.junitFailures(), countFirst);
-        countFirst = appendNumberField(out, 2, "junitErrors", result.junitErrors(), countFirst);
-        appendNumberField(out, 2, "junitSkipped", result.junitSkipped(), countFirst);
-
-        out.append('\n');
-        indent(out, 1);
-        out.append('}');
-        return false;
+                .size());
+        out.addProperty("diagnosticErrors", result.diagnosticErrors());
+        out.addProperty("junitFailures", result.junitFailures());
+        out.addProperty("junitErrors", result.junitErrors());
+        out.addProperty("junitSkipped", result.junitSkipped());
+        return out;
     }
 
-    private static boolean appendReports(StringBuilder out, RunResult result, File outputFile, boolean first) {
-        appendFieldPrefix(out, 1, first);
-        appendQuoted(out, "reports");
-        out.append(": {\n");
-
-        boolean reportFirst = true;
-        reportFirst = appendStringField(out, 2, "junit", result.junitReport(), reportFirst);
-        appendStringField(out, 2, "status", outputFile == null ? null : outputFile.getPath(), reportFirst);
-
-        out.append('\n');
-        indent(out, 1);
-        out.append('}');
-        return false;
+    private static JsonObject reports(RunResult result, File outputFile) {
+        JsonObject out = new JsonObject();
+        out.addProperty("junit", result.junitReport());
+        out.addProperty("status", outputFile == null ? null : outputFile.getPath());
+        return out;
     }
 
-    private static boolean appendIssues(StringBuilder out, RunResult result, boolean first) {
-        appendFieldPrefix(out, 1, first);
-        appendQuoted(out, "issues");
-        out.append(": [");
-        if (!result.issues()
-            .isEmpty()) {
-            out.append('\n');
-            for (int i = 0; i < result.issues()
-                .size(); i++) {
-                if (i > 0) {
-                    out.append(",\n");
-                }
-                appendIssue(
-                    out,
-                    result.issues()
-                        .get(i));
-            }
-            out.append('\n');
-            indent(out, 1);
-        }
-        out.append(']');
-        return false;
+    private static JsonObject issue(IssueResult issue) {
+        JsonObject out = new JsonObject();
+        out.addProperty("id", issue.id());
+        out.addProperty("kind", issue.kind());
+        out.addProperty("source", issue.classname());
+        out.addProperty("name", issue.name());
+        out.addProperty("message", issue.message());
+        out.addProperty("fatalInCi", issue.fatalInCi());
+        addText(out, "details", issue.details());
+        addText(out, "stackTrace", issue.stackTrace());
+        return out;
     }
 
-    private static void appendIssue(StringBuilder out, IssueResult issue) {
-        indent(out, 2);
-        out.append("{\n");
-
-        boolean first = true;
-        first = appendStringField(out, 3, "id", issue.id(), first);
-        first = appendStringField(out, 3, "kind", issue.kind(), first);
-        first = appendStringField(out, 3, "source", issue.classname(), first);
-        first = appendStringField(out, 3, "name", issue.name(), first);
-        first = appendStringField(out, 3, "message", issue.message(), first);
-        first = appendBooleanField(out, 3, "fatalInCi", issue.fatalInCi(), first);
-        if (hasText(issue.details())) {
-            first = appendStringField(out, 3, "details", issue.details(), first);
-        }
-        if (hasText(issue.stackTrace())) {
-            appendStringField(out, 3, "stackTrace", issue.stackTrace(), first);
-        }
-
-        out.append('\n');
-        indent(out, 2);
-        out.append('}');
-    }
-
-    private static void appendTests(StringBuilder out, RunResult result, boolean first) {
-        appendFieldPrefix(out, 1, first);
-        appendQuoted(out, "tests");
-        out.append(": [");
-        if (!result.cases()
-            .isEmpty()) {
-            out.append('\n');
-            for (int i = 0; i < result.cases()
-                .size(); i++) {
-                if (i > 0) {
-                    out.append(",\n");
-                }
-                appendTest(
-                    out,
-                    result.cases()
-                        .get(i));
-            }
-            out.append('\n');
-            indent(out, 1);
-        }
-        out.append(']');
-    }
-
-    private static void appendTest(StringBuilder out, CaseResult resultCase) {
-        indent(out, 2);
-        out.append("{\n");
-
-        boolean first = true;
-        first = appendStringField(out, 3, "id", resultCase.id(), first);
-        first = appendStringField(out, 3, "classname", resultCase.classname(), first);
-        first = appendStringField(out, 3, "name", resultCase.name(), first);
-        first = appendStringField(out, 3, "status", statusName(resultCase.status()), first);
-        first = appendBooleanField(out, 3, "required", resultCase.required(), first);
-        first = appendNumberField(out, 3, "ticks", resultCase.tickCount(), first);
-        first = appendNumberField(out, 3, "timeSeconds", resultCase.timeSeconds(), first);
-        if (hasText(resultCase.parameterSummary())) {
-            first = appendStringField(out, 3, "parameters", resultCase.parameterSummary(), first);
-        }
+    private static JsonObject test(CaseResult resultCase) {
+        JsonObject out = new JsonObject();
+        out.addProperty("id", resultCase.id());
+        out.addProperty("classname", resultCase.classname());
+        out.addProperty("name", resultCase.name());
+        out.addProperty("status", statusName(resultCase.status()));
+        out.addProperty("required", resultCase.required());
+        out.addProperty("ticks", resultCase.tickCount());
+        out.addProperty("timeSeconds", resultCase.timeSeconds());
+        out.addProperty(
+            "wallTimeSeconds",
+            wallTimeSeconds(
+                resultCase.timing()
+                    .total()));
+        out.add("timing", caseTiming(resultCase.timing()));
+        JsonArray steps = new JsonArray();
+        for (StepResult step : resultCase.steps()) steps.add(step(step));
+        out.add("steps", steps);
+        addText(out, "parameters", resultCase.parameterSummary());
         if (!resultCase.outputLines()
             .isEmpty()) {
-            first = appendStringArrayField(out, 3, "output", resultCase.outputLines(), first);
+            JsonArray lines = new JsonArray();
+            for (String line : resultCase.outputLines()) lines.add(new JsonPrimitive(line == null ? "" : line));
+            out.add("output", lines);
         }
-        if (hasText(resultCase.blockedByIssueId())) {
-            first = appendStringField(out, 3, "blockedByIssueId", resultCase.blockedByIssueId(), first);
-        }
+        addText(out, "blockedByIssueId", resultCase.blockedByIssueId());
         if (resultCase.skipped()) {
-            first = appendStringField(out, 3, "skipReason", resultCase.skipReason(), first);
-            appendStringField(out, 3, "skipType", resultCase.failureType(), first);
+            out.addProperty("skipReason", resultCase.skipReason());
+            out.addProperty("skipType", resultCase.failureType());
         } else if (!resultCase.passed()) {
-            appendFailure(out, resultCase, first);
+            out.add("failure", failure(resultCase));
         }
-
-        out.append('\n');
-        indent(out, 2);
-        out.append('}');
+        return out;
     }
 
-    private static void appendFailure(StringBuilder out, CaseResult resultCase, boolean first) {
-        appendFieldPrefix(out, 3, first);
-        appendQuoted(out, "failure");
-        out.append(": {\n");
+    private static Double wallTimeSeconds(ElapsedTime elapsed) {
+        return elapsed.state() == ElapsedTime.State.UNAVAILABLE ? null : elapsed.seconds();
+    }
 
-        boolean failureFirst = true;
-        failureFirst = appendStringField(out, 4, "message", resultCase.failureMessage(), failureFirst);
-        failureFirst = appendStringField(out, 4, "type", resultCase.failureType(), failureFirst);
-        if (hasText(resultCase.failureTrace())) {
-            appendStringField(out, 4, "stackTrace", resultCase.failureTrace(), failureFirst);
-        }
+    private static JsonObject elapsed(ElapsedTime elapsed) {
+        JsonObject out = new JsonObject();
+        out.addProperty("wallTimeSeconds", wallTimeSeconds(elapsed));
+        out.addProperty(
+            "state",
+            elapsed.state()
+                .name()
+                .toLowerCase(Locale.ROOT));
+        return out;
+    }
 
-        out.append('\n');
-        indent(out, 3);
-        out.append('}');
+    private static JsonObject caseTiming(CaseTiming timing) {
+        JsonObject out = new JsonObject();
+        out.add("total", elapsed(timing.total()));
+        out.add("execution", elapsed(timing.execution()));
+        out.add("cleanup", elapsed(timing.cleanup()));
+        return out;
+    }
+
+    private static JsonObject step(StepResult step) {
+        JsonObject out = new JsonObject();
+        out.addProperty("index", step.index());
+        out.addProperty("label", step.label());
+        out.addProperty("kind", step.kind());
+        out.addProperty("phase", step.phase());
+        out.addProperty("operation", step.operation());
+        out.addProperty("executionSide", step.executionSide());
+        out.addProperty("status", step.status());
+        out.addProperty("attempts", step.attempts());
+        out.addProperty("simulationTicks", step.simulationTicks());
+        out.addProperty("requestedMultiplier", step.requestedMultiplier());
+        out.addProperty("wallTimeSeconds", wallTimeSeconds(step.elapsed()));
+        out.add("timing", elapsed(step.elapsed()));
+        out.addProperty("source", step.source());
+        return out;
+    }
+
+    private static JsonObject failure(CaseResult resultCase) {
+        JsonObject out = new JsonObject();
+        out.addProperty("message", resultCase.failureMessage());
+        out.addProperty("type", resultCase.failureType());
+        addText(out, "stackTrace", resultCase.failureTrace());
+        return out;
     }
 
     private static String statusName(CaseResult.Status status) {
-        if (status == null) {
-            return "";
-        }
+        if (status == null) return "";
         return switch (status) {
             case PASSED -> "passed";
             case SKIPPED -> "skipped";
@@ -250,157 +211,11 @@ public final class StatusJsonReporter {
             case NOT_STARTED -> "notStarted";
             case RUNNING -> "running";
             default -> status.name()
-                .toLowerCase();
+                .toLowerCase(Locale.ROOT);
         };
     }
 
-    private static boolean appendStringField(StringBuilder out, int indent, String name, String value, boolean first) {
-        appendFieldPrefix(out, indent, first);
-        appendQuoted(out, name);
-        out.append(": ");
-        appendStringOrNull(out, value);
-        return false;
-    }
-
-    private static boolean appendBooleanField(StringBuilder out, int indent, String name, boolean value,
-        boolean first) {
-        appendFieldPrefix(out, indent, first);
-        appendQuoted(out, name);
-        out.append(": ")
-            .append(value);
-        return false;
-    }
-
-    private static boolean appendNumberField(StringBuilder out, int indent, String name, long value, boolean first) {
-        appendFieldPrefix(out, indent, first);
-        appendQuoted(out, name);
-        out.append(": ")
-            .append(value);
-        return false;
-    }
-
-    private static boolean appendNumberField(StringBuilder out, int indent, String name, double value, boolean first) {
-        appendFieldPrefix(out, indent, first);
-        appendQuoted(out, name);
-        out.append(": ")
-            .append(value);
-        return false;
-    }
-
-    private static boolean appendStringArrayField(StringBuilder out, int indentation, String name,
-        Iterable<String> values, boolean first) {
-        appendFieldPrefix(out, indentation, first);
-        appendQuoted(out, name);
-        out.append(": [");
-        boolean valueFirst = true;
-        for (String value : values) {
-            if (valueFirst) {
-                out.append('\n');
-                valueFirst = false;
-            } else {
-                out.append(",\n");
-            }
-            indent(out, indentation + 1);
-            appendQuoted(out, value);
-        }
-        if (!valueFirst) {
-            out.append('\n');
-            indent(out, indentation);
-        }
-        out.append(']');
-        return false;
-    }
-
-    private static void appendFieldPrefix(StringBuilder out, int indent, boolean first) {
-        if (!first) {
-            out.append(",\n");
-        }
-        indent(out, indent);
-    }
-
-    private static void appendStringOrNull(StringBuilder out, String value) {
-        if (value == null) {
-            out.append("null");
-            return;
-        }
-        appendQuoted(out, value);
-    }
-
-    private static void appendQuoted(StringBuilder out, String value) {
-        out.append('"')
-            .append(escape(value))
-            .append('"');
-    }
-
-    private static boolean hasText(String value) {
-        return value != null && !value.isEmpty();
-    }
-
-    private static void indent(StringBuilder out, int indent) {
-        for (int i = 0; i < indent; i++) {
-            out.append("  ");
-        }
-    }
-
-    private static String escape(String value) {
-        if (value == null) {
-            return "";
-        }
-        StringBuilder out = new StringBuilder(value.length() + 16);
-        for (int offset = 0; offset < value.length();) {
-            int cp = value.codePointAt(offset);
-            switch (cp) {
-                case '"':
-                    out.append("\\\"");
-                    break;
-                case '\\':
-                    out.append("\\\\");
-                    break;
-                case '\b':
-                    out.append("\\b");
-                    break;
-                case '\f':
-                    out.append("\\f");
-                    break;
-                case '\n':
-                    out.append("\\n");
-                    break;
-                case '\r':
-                    out.append("\\r");
-                    break;
-                case '\t':
-                    out.append("\\t");
-                    break;
-                default:
-                    if (cp < 0x20 || cp > 0x7E) {
-                        appendUnicodeEscape(out, cp);
-                    } else {
-                        out.appendCodePoint(cp);
-                    }
-                    break;
-            }
-            offset += Character.charCount(cp);
-        }
-        return out.toString();
-    }
-
-    private static void appendUnicodeEscape(StringBuilder out, int cp) {
-        if (cp <= 0xFFFF) {
-            appendHexEscape(out, (char) cp);
-            return;
-        }
-        char[] chars = Character.toChars(cp);
-        for (char c : chars) {
-            appendHexEscape(out, c);
-        }
-    }
-
-    private static void appendHexEscape(StringBuilder out, char c) {
-        out.append("\\u");
-        String hex = Integer.toHexString(c);
-        for (int i = hex.length(); i < 4; i++) {
-            out.append('0');
-        }
-        out.append(hex);
+    private static void addText(JsonObject out, String name, String value) {
+        if (value != null && !value.isEmpty()) out.addProperty(name, value);
     }
 }
