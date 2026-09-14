@@ -1,0 +1,119 @@
+name: Client tests
+
+on:
+  pull_request:
+    branches: [ master, main ]
+  push:
+    branches: [ master, main ]
+
+permissions:
+  contents: read
+
+jobs:
+  client-tests:
+    name: Client ${{ matrix.scenario }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scenario: smoke
+            tests: horizonqaexamples:ClientSmokeTests.clickEscapeAndReopen
+            exit-code: 0
+          - scenario: late-render-failure
+            tests: horizonqaexamples:ClientLateRenderFailureTests.renderFailureAfterSuccessPreservesCauseAndCleansOnce
+            exit-code: 2
+          - scenario: cancellation
+            tests: horizonqaexamples:ClientCancellationTests.aCompleted,horizonqaexamples:ClientCancellationTests.bInterrupted,horizonqaexamples:ClientCancellationTests.cNotStarted
+            exit-code: 2
+          - scenario: parallel
+            tests: horizonqaexamples:ClientParallelTests.clickWhileAnotherClientIsRunning
+            exit-code: 0
+    env:
+      LIBGL_ALWAYS_SOFTWARE: "true"
+      JAVA_TOOL_OPTIONS: -Duser.language=en -Duser.country=US
+      REPORT_DIR: ${{ github.workspace }}/build/client-ci-${{ matrix.scenario }}
+      TEST_SELECTOR: ${{ matrix.tests }}
+      EXPECTED_EXIT: ${{ matrix.exit-code }}
+      SCENARIO: ${{ matrix.scenario }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDKs
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: |
+            8
+            17
+            21
+            25
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
+
+      - name: Install virtual display and OpenGL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb x11-xserver-utils mesa-utils libgl1-mesa-dri libxrandr2 libxcursor1 libxxf86vm1 libopenal1
+          xvfb-run -a sh -c 'xrandr --query && glxinfo -B'
+
+      - name: Run client and verify its result
+        if: matrix.scenario != 'parallel'
+        shell: bash
+        run: |
+          set +e
+          xvfb-run -a ./gradlew -p scripts/client-tests runClientTests \
+            -PhorizonQaTests="$TEST_SELECTOR" \
+            -PhorizonQaClientTask=:examples:runClient \
+            -PhorizonQaClientReportDir="$REPORT_DIR" \
+            -PhorizonQaTimeoutSeconds=600 --console=plain
+          gradle_exit=$?
+          set -e
+          python3 - "$gradle_exit" <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
+
+          directory = pathlib.Path(os.environ["REPORT_DIR"])
+          result = json.loads((directory / "horizonqa-result.json").read_text())
+          launch = json.loads((directory / "launch-result.json").read_text())
+          expected = int(os.environ["EXPECTED_EXIT"])
+          assert result["exitCode"] == launch["exitCode"] == expected, (result, launch)
+          assert not launch["timedOut"] and not launch["forcedTermination"], launch
+          assert (int(sys.argv[1]) == 0) == (expected == 0), sys.argv[1]
+          xml = (directory / "TEST-horizonqa.xml").read_text()
+          if os.environ["SCENARIO"] == "cancellation":
+              assert [case["status"] for case in result["tests"]] == ["passed", "error", "notStarted"], result
+              assert any("External wall-clock deadline" in issue["message"] for issue in result["issues"]), result
+              assert "cancellationServerCleanup=afterClientCleanup" in xml
+          elif os.environ["SCENARIO"] == "late-render-failure":
+              assert result["tests"][0]["status"] == "error", result
+              assert "Intentional render failure after success" in xml
+              assert "lateRenderCleanupCount=1" in xml
+          else:
+              assert all(case["status"] == "passed" for case in result["tests"]), result
+          print("Verified", os.environ["SCENARIO"], "with exit", expected)
+          PY
+
+      - name: Verify two overlapping clients
+        if: matrix.scenario == 'parallel'
+        run: xvfb-run -a python3 scripts/tests/parallel-clients.py --report-dir "$REPORT_DIR"
+
+      - name: Retain client reports and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-${{ matrix.scenario }}
+          path: |
+            build/client-ci-${{ matrix.scenario }}/**/horizonqa-result.json
+            build/client-ci-${{ matrix.scenario }}/**/TEST-horizonqa.xml
+            build/client-ci-${{ matrix.scenario }}/**/launch-result.json
+            build/client-ci-${{ matrix.scenario }}/**/*.log
+            build/client-ci-${{ matrix.scenario }}/**/threads*.txt
+            build/client-ci-${{ matrix.scenario }}/**/artifacts/**
+            build/client-ci-${{ matrix.scenario }}/**/crash-reports/**
+            build/client-ci-${{ matrix.scenario }}/both-clients-ready
+          if-no-files-found: warn

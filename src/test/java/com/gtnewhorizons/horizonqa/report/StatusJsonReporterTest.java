@@ -1,11 +1,16 @@
 package com.gtnewhorizons.horizonqa.report;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.util.Collections;
 
 import org.junit.Test;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class StatusJsonReporterTest {
 
@@ -37,7 +42,7 @@ public class StatusJsonReporterTest {
         assertContainsInOrder(
             json,
             "{\n",
-            "  \"schemaVersion\": 3",
+            "  \"schemaVersion\": 5",
             "  \"status\": \"failed\"",
             "  \"exitCode\": 1",
             "  \"configuration\": {",
@@ -59,6 +64,59 @@ public class StatusJsonReporterTest {
             "        \"type\": \"java.lang.AssertionError\"",
             "        \"stackTrace\": \"trace\\nline\"",
             "\n}\n");
+    }
+
+    @Test
+    public void statusJsonPreservesAsciiEncodingAndNullableFields() {
+        String message = "\"\\\n\t\u0000\u007f Zażółć \ud83d\ude80 \ud800 \udfff <>&";
+        RunResult result = RunResult.completedCases(
+            "ci",
+            Collections.singletonList(
+                new CaseResult(
+                    "mod:Suite.fails",
+                    "mod:Suite",
+                    "fails",
+                    CaseResult.Status.FAILED,
+                    true,
+                    1,
+                    0.05,
+                    message,
+                    "java.lang.AssertionError",
+                    null,
+                    Collections.singletonList(message))),
+            Collections.emptyList(),
+            "reports/TEST.xml");
+        String json = StatusJsonReporter.toJson(result, null);
+        assertTrue(
+            "The report must remain ASCII",
+            json.chars()
+                .allMatch(character -> character <= 0x7e));
+        JsonObject parsed = new JsonParser().parse(json)
+            .getAsJsonObject();
+        JsonObject test = parsed.getAsJsonArray("tests")
+            .get(0)
+            .getAsJsonObject();
+        assertEquals(
+            message,
+            test.getAsJsonObject("failure")
+                .get("message")
+                .getAsString());
+        assertEquals(
+            message,
+            test.getAsJsonArray("output")
+                .get(0)
+                .getAsString());
+        assertTrue(
+            parsed.get("wallTimeSeconds")
+                .isJsonNull());
+        assertTrue(
+            parsed.getAsJsonObject("reports")
+                .get("status")
+                .isJsonNull());
+        assertFalse(
+            test.getAsJsonObject("failure")
+                .has("stackTrace"));
+        assertFalse(test.has("blockedByIssueId"));
     }
 
     private static void assertContainsInOrder(String text, String... parts) {

@@ -7,6 +7,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
@@ -16,6 +18,40 @@ import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.RunResult;
 
 public class GameTestInstanceCleanupTest {
+
+    @Test
+    public void asynchronousTeardownCompletesBeforeServerCleanupAndResult() throws Exception {
+        GameTestInstance instance = instance("mod:CleanupTests.cleanupFails", "cleanupFails");
+        CompletableFuture<Void> clientTeardown = new CompletableFuture<>();
+        AtomicInteger cleaned = new AtomicInteger();
+        instance.addAsyncCleanup(3, () -> clientTeardown);
+        instance.addCleanup(cleaned::incrementAndGet);
+        instance.start(null);
+        assertFalse(instance.isDone());
+        assertEquals(0, cleaned.get());
+        clientTeardown.complete(null);
+        assertFalse(instance.isDone());
+        assertEquals(0, cleaned.get());
+        instance.tickEnd();
+        assertTrue(instance.isDone());
+        assertEquals(1, cleaned.get());
+    }
+
+    @Test
+    public void unresponsiveTeardownProducesInfrastructureFailure() throws Exception {
+        GameTestInstance instance = instance("mod:CleanupTests.cleanupFails", "cleanupFails");
+        instance.addAsyncCleanup(2, CompletableFuture::new);
+        instance.start(null);
+        instance.tickEnd();
+        assertFalse(instance.isDone());
+        instance.tickEnd();
+        assertTrue(instance.isDone());
+        assertEquals(GameTestStatus.ERROR, instance.getStatus());
+        assertTrue(
+            instance.getCleanupFailureCause()
+                .getMessage()
+                .contains("within 2 ticks"));
+    }
 
     @Test
     public void cleanupAssertionErrorBecomesInfrastructureErrorCase() throws Exception {
@@ -67,6 +103,9 @@ public class GameTestInstanceCleanupTest {
         assertEquals(CaseResult.Status.ERROR, resultCase.status());
         assertEquals(CaseResult.CLEANUP_ERROR, resultCase.failureType());
         assertEquals("cleanup broke after assertion", resultCase.failureMessage());
+        assertTrue(
+            resultCase.failureTrace()
+                .contains("assertion broke"));
         assertTrue(outputContains(resultCase, "Assertion failed"));
         assertTrue(outputContains(resultCase, "assertion broke"));
         assertFalse(resultCase.failedRequiredCase());

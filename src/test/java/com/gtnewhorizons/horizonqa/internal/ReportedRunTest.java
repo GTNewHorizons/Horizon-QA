@@ -3,6 +3,7 @@ package com.gtnewhorizons.horizonqa.internal;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -136,6 +137,73 @@ public class ReportedRunTest {
         assertTrue(new File(temporaryFolder.getRoot(), "TEST-horizonqa.xml").isFile());
         assertTrue(new File(temporaryFolder.getRoot(), "horizonqa-result.json").isFile());
         assertFalse(GameTestRunner.isBatchActive());
+    }
+
+    @Test
+    public void externalAbortOnlyPublishesAfterTheServerConsumesIt() throws Exception {
+        List<GameTestDefinition> tests = Collections.singletonList(definition("mod:Suite.pending", true));
+        ReportedRun run = new ReportedRun(
+            catalog(tests, Collections.emptyMap(), Collections.emptyMap()),
+            tests,
+            Collections.emptyList());
+        assertEquals(ReportedRun.StartStatus.STARTED, run.start());
+        Thread requester = new Thread(() -> ReportedRun.requestAbort("External wall-clock deadline exceeded"));
+        requester.start();
+        requester.join();
+
+        assertNull(ReportedRun.lastResult());
+        assertFalse(new File(temporaryFolder.getRoot(), "horizonqa-result.json").exists());
+        GameTestRunner.handleTickStart();
+
+        RunResult result = ReportedRun.lastResult();
+        assertNotNull(result);
+        assertEquals(2, result.exitCode());
+        assertEquals(
+            "External wall-clock deadline exceeded",
+            result.issues()
+                .get(0)
+                .message());
+        assertEquals(
+            CaseResult.Status.NOT_STARTED,
+            result.cases()
+                .get(0)
+                .status());
+        assertFalse(ReportedRun.requestAbort("A duplicate deadline"));
+        assertSame(result, ReportedRun.lastResult());
+    }
+
+    @Test
+    public void crashPublishesCauseAndUnstartedCasesBeforeServerShutdown() throws Exception {
+        List<GameTestDefinition> tests = Collections.singletonList(definition("mod:Suite.pending", true));
+        ReportedRun run = new ReportedRun(
+            catalog(tests, Collections.emptyMap(), Collections.emptyMap()),
+            tests,
+            Collections.emptyList());
+        assertEquals(ReportedRun.StartStatus.STARTED, run.start());
+        LinkageError crash = new NoClassDefFoundError("example/MissingRecipe");
+
+        ReportedRun.crashed(crash);
+
+        RunResult result = ReportedRun.lastResult();
+        assertNotNull(result);
+        assertEquals(2, result.exitCode());
+        assertEquals(
+            1,
+            result.cases()
+                .size());
+        assertEquals(
+            CaseResult.Status.NOT_STARTED,
+            result.cases()
+                .get(0)
+                .status());
+        assertTrue(
+            result.issues()
+                .get(0)
+                .stackTrace()
+                .contains("example/MissingRecipe"));
+        assertTrue(new File(temporaryFolder.getRoot(), "horizonqa-result.json").isFile());
+        assertFalse(ReportedRun.shutdown());
+        assertSame(result, ReportedRun.lastResult());
     }
 
     @Test
