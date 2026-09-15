@@ -11,6 +11,8 @@ Triage order matters: the report first, the game second. [Design principle 8](..
 
 Start with `TEST-horizonqa.xml`, or with the reported-batch console tail. Automatic and manually reported batches print each `[FAIL]` or `[ERROR]` line plus the last 20 event-log lines of the failing test.
 
+Each `[FAIL]`, `[TIME]`, or `[ERROR]` also prints a copyable server-JVM argument such as `--mcJvmArgs='-Dhorizonqa.tests=mymod:Suite.case'`. It uses the existing test-ID-prefix selector matching, so an ID that prefixes another ID can select both. Add the argument to the server task your consumer uses; Horizon-QA does not prescribe a Gradle task path.
+
 For each failed `<testcase>`:
 
 1. **The `<failure>` message** should say what was expected and what was observed. If it does not, improve the test output; see [step 4](#4-make-the-next-failure-cheaper).
@@ -65,11 +67,13 @@ Failed cells **stay placed** on the grid:
 - Block-level assertion failures place a **red ghost block** with a label at the offending position.
 - `/horizonqa tp <testId>` jumps to a placed cell after `/horizonqa runall`; `/horizonqa pos` then prints both world and test-local coordinates. The copied `helper.absolute(...)` form is for direct world APIs; standard Horizon-QA helpers expect the local values.
 
-Iterate without restarting:
+Iterate without restarting when the change is HotSwap-compatible:
 
-1. Edit the test, recompile (hotswap or `gradlew classes`).
-2. `/horizonqa tp <testId>` jumps to a specific placed cell; `/horizonqa runthis` re-runs the cell you are standing inside; `/horizonqa runthat` re-runs the cell in your line of sight (within 64 blocks).
-3. `/horizonqa clearall` when the grid gets crowded.
+1. Edit the test and recompile with `gradlew classes`.
+2. Apply the changed class through your debugger's supported HotSwap; compilation alone does not replace classes already loaded in the running JVM.
+3. Restart the server if HotSwap is unavailable or cannot apply the change. Adding tests or changing discovery metadata also requires a restart; Horizon-QA discovers tests at server start and does not rediscover them.
+4. `/horizonqa tp <testId>` jumps to a specific placed cell; `/horizonqa runthis` re-runs the cell you are standing inside; `/horizonqa runthat` re-runs the cell in your line of sight (within 64 blocks).
+5. `/horizonqa clearall` when the grid gets crowded.
 
 Full command details: [Commands](../reference/commands.md).
 

@@ -301,6 +301,10 @@ If your workflow uses a JUnit publishing action, run it after the upload step wi
 Work from the artifacts before relaunching anything: the `<failure>` message, the event trace in `<system-out>`, and `issues[]` in the status JSON usually identify the cause on their own. The triage workflow, including a failure-signature table and the in-game reproduction loop, is in [Debugging failed tests](debugging.md).
 
 ```text
-read TEST-horizonqa.xml → runServer (interactive) → /horizonqa runfailed
-                        → fix → /horizonqa runthis → push
+read TEST-horizonqa.xml → identify failed test ID → runServer (interactive)
+                        → /horizonqa run <testId> → fix → /horizonqa runthis → push
 ```
+
+`/horizonqa runfailed` repeats failures remembered in the current runtime; it does not
+read a downloaded CI report. If batch hooks matter, use the manual Reported Run
+instructions above instead.
