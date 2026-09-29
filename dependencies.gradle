@@ -34,8 +34,8 @@
  * For more details, see https://docs.gradle.org/8.0.1/userguide/java_library_plugin.html#sec:java_library_configurations_graph
  */
 dependencies {
-    compileOnly("com.github.GTNewHorizons:GT5-Unofficial:5.99.99-mu23:dev")
+    compileOnly("com.github.GTNewHorizons:GT5-Unofficial:5.99.99-mu24:dev")
 
-    testImplementation("com.github.GTNewHorizons:GT5-Unofficial:5.99.99-mu23:dev") { transitive = false }
+    testImplementation("com.github.GTNewHorizons:GT5-Unofficial:5.99.99-mu24:dev") { transitive = false }
     testImplementation("junit:junit:4.13.2")
 }
