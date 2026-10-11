@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import net.minecraft.server.MinecraftServer;
@@ -34,8 +35,6 @@ import com.gtnewhorizons.horizonqa.report.ReportPathPreflight;
 import com.gtnewhorizons.horizonqa.report.RunReportWriter;
 import com.gtnewhorizons.horizonqa.report.RunResult;
 
-import cpw.mods.fml.common.FMLCommonHandler;
-
 public final class ReportedRun {
 
     private static final Logger LOG = LogManager.getLogger("GameTest");
@@ -46,6 +45,7 @@ public final class ReportedRun {
 
     private static ReportedRun currentRun;
     private static RunResult lastResult;
+    private final AtomicReference<String> abortRequest = new AtomicReference<>();
 
     private final List<Batch> batches;
     private final List<GameTestDefinition> runnableTests;
@@ -58,6 +58,7 @@ public final class ReportedRun {
     private boolean afterHooksOwed;
     private boolean finishing;
     private boolean finished;
+    private IssueResult abortIssue;
     private File junitReportFile = new File("TEST-horizonqa.xml");
     private File statusReportFile = new File("horizonqa-result.json");
     private String mode = "";
@@ -120,10 +121,30 @@ public final class ReportedRun {
         return finished ? StartStatus.COMPLETED : StartStatus.STARTED;
     }
 
+    /** Records an integrated-server crash before its tick loop and lifecycle callbacks stop. */
+    public static void crashed(Throwable cause) {
+        ReportedRun run = current();
+        if (run != null) run.stopAndFinish("Integrated server crashed before reported run completion", cause, true);
+    }
+
+    public static boolean requestAbort(String message) {
+        ReportedRun run = current();
+        if (run == null) return false;
+        run.abortRequest.compareAndSet(null, Objects.requireNonNull(message, "message"));
+        return true;
+    }
+
+    static void pollAbortRequest() {
+        ReportedRun run = current();
+        if (run == null) return;
+        String message = run.abortRequest.getAndSet(null);
+        if (message != null) run.abortAndFinish(message, null, true);
+    }
+
     public static boolean shutdown() {
         ReportedRun run = current();
         if (run == null) return false;
-        run.abortAndFinish("Server stopped before reported run completion", null, false);
+        run.stopAndFinish("Server stopped before reported run completion", null, false);
         return true;
     }
 
@@ -253,6 +274,11 @@ public final class ReportedRun {
             batchInstances.add(inst);
         }
 
+        if (HorizonQAProperties.clientTestsEnabled()) {
+            runClientTest(batchInstances, 0, idx, world);
+            return;
+        }
+
         runner.run(batchInstances, () -> {
             invokeOwedAfterHooks();
             runNextBatchOrFinish(idx);
@@ -272,29 +298,68 @@ public final class ReportedRun {
         }
     }
 
+    private void runClientTest(List<GameTestInstance> instances, int index, int batchIndex, WorldServer world) {
+        if (index == instances.size()) {
+            invokeOwedAfterHooks();
+            runNextBatchOrFinish(batchIndex);
+            return;
+        }
+        GameTestInstance instance = instances.get(index);
+        runner.run(Collections.singletonList(instance), () -> {
+            if (instance.getCleanupFailureCause() != null) {
+                abortAndFinish("Client teardown failed", instance.getCleanupFailureCause(), true);
+                return;
+            }
+            runClientTest(instances, index + 1, batchIndex, world);
+        });
+        resultEntries.add(ResultEntry.instance(instance));
+        instance.start(world);
+    }
+
     private void abortAndFinish(String message, Throwable cause, boolean allowExit) {
-        if (finishing || finished) return;
-        IssueResult rootIssue = executionAbortedIssue(message, cause);
-        issues.add(rootIssue);
+        if (finishing || finished || abortIssue != null) return;
+        abortIssue = executionAbortedIssue(message, cause);
+        issues.add(abortIssue);
         try {
-            runner.abortIfActive(message, cause);
+            runner.abortIfActive(message, cause, () -> finishAbort(allowExit));
         } catch (Error e) {
             if (FatalErrors.isFatal(e)) {
                 cleanupAfterFatal(message, e);
                 throw e;
             }
             issues.add(cleanupIssue("Execution cleanup failed: " + errorMessage(e), e));
+            stopAndFinish(message, cause, allowExit);
         } catch (RuntimeException e) {
             issues.add(cleanupIssue("Execution cleanup failed: " + errorMessage(e), e));
+            stopAndFinish(message, cause, allowExit);
         }
+    }
+
+    private void stopAndFinish(String message, Throwable cause, boolean allowExit) {
+        if (finishing || finished) return;
+        try {
+            runner.abortAndRelease(message, cause);
+        } catch (RuntimeException | Error cleanupError) {
+            FatalErrors.rethrow(cleanupError);
+            issues.add(cleanupIssue("Execution cleanup failed: " + errorMessage(cleanupError), cleanupError));
+        }
+        if (abortIssue == null) {
+            abortAndFinish(message, cause, allowExit);
+        } else {
+            finishAbort(allowExit);
+        }
+    }
+
+    private void finishAbort(boolean allowExit) {
+        if (finishing || finished) return;
         invokeOwedAfterHooks();
-        addUnstartedCases(rootIssue);
+        addUnstartedCases(abortIssue);
         finish(reportOutputsReady, allowExit && exitWhenComplete);
     }
 
     private void cleanupAfterFatal(String message, Error cause) {
         try {
-            runner.abortIfActive(message, cause);
+            runner.abortAndRelease(message, cause);
         } catch (Throwable ignored) {}
         try {
             invokeOwedAfterHooks();
@@ -349,8 +414,7 @@ public final class ReportedRun {
                     result.requiredFailures(),
                     result.incomplete(),
                     result.infrastructureErrors());
-                FMLCommonHandler.instance()
-                    .exitJava(result.exitCode(), false);
+                HorizonQAMod.proxy.finishRun(result);
             }
         } finally {
             finishing = false;

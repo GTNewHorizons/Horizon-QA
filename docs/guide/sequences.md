@@ -5,6 +5,18 @@ description: GameTestSequence for ordered steps, delays, and bounded waits witho
 
 # Sequences and timing
 
+## Asynchronous END operations
+
+`thenExecuteAsync(label, maxTicks, supplier)` calls the supplier once at END and polls its
+`CompletionStage` without blocking. Following steps run only after successful completion. Its budget
+includes the time in flight. `thenWaitUntilAsync(label, maxTicks, supplier)` retries completed assertion
+failures with at most one operation in flight; other failures preserve their original cause and fail
+immediately. START callbacks still precede the world tick; these operations and timeout evaluation
+follow it. Termination cancels the current future before cleanup starts.
+
+Never call a blocking `get` or `join` on a game thread. Use these operations for
+[client callbacks](client-tests.md), then use ordinary END steps to assert authoritative server state.
+
 `GameTestSequence` schedules actions on future test ticks. Use it when a test needs to do something, wait a bit, then check the result.
 
 ## Basic usage

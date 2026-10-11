@@ -59,6 +59,7 @@ public final class GameTestRunner {
     }
 
     public static void handleTickStart() {
+        ReportedRun.pollAbortRequest();
         GameTestRunner runner = activeRunner();
         if (runner == null) return;
         try {
@@ -71,6 +72,7 @@ public final class GameTestRunner {
     }
 
     public static void handleTickEnd() {
+        ReportedRun.pollAbortRequest();
         GameTestRunner runner = activeRunner();
         if (runner == null) return;
         try {
@@ -98,12 +100,24 @@ public final class GameTestRunner {
         }
     }
 
-    void abortIfActive(String message) {
-        abortAndRelease(message, null);
-    }
-
-    void abortIfActive(String message, Throwable cause) {
-        abortAndRelease(message, cause);
+    /** Keeps execution owned while asynchronous cleanup is polled by normal END ticks. */
+    void abortIfActive(String message, Throwable cause, Runnable afterCleanup) {
+        if (activeRunner != this) {
+            afterCleanup.run();
+            return;
+        }
+        if (aborting) return;
+        aborting = true;
+        onFirstTick = null;
+        onAllDone = afterCleanup;
+        running = true;
+        for (GameTestInstance instance : instances) {
+            instance.abortExecution(message, cause);
+        }
+        if (instances.isEmpty()) {
+            doTickEnd();
+            releaseIfIdle();
+        }
     }
 
     private void doTickStart() {
@@ -168,8 +182,8 @@ public final class GameTestRunner {
         }
     }
 
-    private void abortAndRelease(String message, Throwable cause) {
-        if (activeRunner != this || aborting) return;
+    void abortAndRelease(String message, Throwable cause) {
+        if (activeRunner != this || (aborting && instances.isEmpty())) return;
         aborting = true;
         List<GameTestInstance> aborted = new ArrayList<>(instances);
         instances.clear();
@@ -181,6 +195,7 @@ public final class GameTestRunner {
             for (GameTestInstance instance : aborted) {
                 try {
                     instance.abortExecution(message, cause);
+                    instance.interruptCleanup(message);
                 } catch (Throwable failure) {
                     if (abortFailure == null) {
                         abortFailure = failure;

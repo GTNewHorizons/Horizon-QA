@@ -21,6 +21,20 @@ import com.gtnewhorizons.horizonqa.HorizonQAProperties.TestSelector;
 
 public class HorizonQAPropertiesTest {
 
+    @Test
+    public void clientModeIsOptInAndStrictlyParsed() {
+        Properties properties = new Properties();
+        assertFalse(
+            HorizonQAProperties.parse(properties)
+                .clientTests());
+        properties.setProperty(HorizonQAProperties.CLIENT_PROPERTY, "true");
+        assertTrue(
+            HorizonQAProperties.parse(properties)
+                .clientTests());
+        properties.setProperty(HorizonQAProperties.CLIENT_PROPERTY, "TRUE");
+        assertConfigIssue(HorizonQAProperties.parse(properties), HorizonQAProperties.CLIENT_PROPERTY);
+    }
+
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 

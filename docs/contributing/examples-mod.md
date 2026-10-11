@@ -21,6 +21,8 @@ examples/
   dependencies.gradle          # GT5-Unofficial, CoreMod, AE2, etc.
   src/main/java/.../examples/tests/
     BasicTests.java
+    ClientInteractionTests.java
+    ClientFailureTests.java
     HelperApiTests.java
     MissingModGatedTests.java
     ParameterizedTests.java
@@ -48,11 +50,17 @@ Start with one passing smoke test:
 
 `/horizonqa runall horizonqaexamples` also runs optional examples that fail or time out intentionally to exercise reporting and visual diagnostics. Those cases are expected and do not make the overall run fail by themselves.
 
+Client holders run in reported CI mode in a physical client. See [Real client scenarios](../guide/client-tests.md)
+for the private-display launcher and focused selectors. `ClientFailureTests` contains required and infrastructure
+failures intentionally; select its individual cases explicitly.
+
 ## What each test class covers
 
 | Class                | Focus                                                              |
 |----------------------|--------------------------------------------------------------------|
 | `BasicTests`         | Pass / fail / timeout, runtime assumptions, optional `required = false`, batch hooks |
+| `ClientInteractionTests` | Native Shift-click/Escape, live hover targets, real chest packets/gameplay, successive cleanup and batch hooks |
+| `ClientFailureTests` | Required/optional failures, held input on timeout, cancellation, world loss, real client/server crashes and cleanup |
 | `HelperApiTests`     | Blocks, inventories, NBT, entities, redstone, world controls, fake players |
 | `MissingModGatedTests` | Discovery-time `requiredMods` skip without loading or executing the holder |
 | `ParameterizedTests`  | Named parameterized-test rows and argument injection                 |

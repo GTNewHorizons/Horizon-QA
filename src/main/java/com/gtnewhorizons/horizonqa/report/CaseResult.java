@@ -68,6 +68,8 @@ public record CaseResult(String id, String classname, String name, Status status
             output.add("WARNING: " + warning);
         }
 
+        output.addAll(inst.getDiagnostics());
+
         return new CaseResult(
             testId,
             definition.getReportClassName(),
@@ -338,15 +340,14 @@ public record CaseResult(String id, String classname, String name, Status status
     }
 
     private static List<String> parameterOutput(GameTestDefinition definition) {
-        if (!definition.isParameterized()) {
-            return Collections.emptyList();
-        }
-        List<String> output = new ArrayList<>(1);
+        List<String> output = new ArrayList<>();
         addParameterSummary(definition, output);
         return output;
     }
 
     private static void addParameterSummary(GameTestDefinition definition, List<String> output) {
+        if (!definition.getHolderClassName()
+            .isEmpty()) output.add("holderClass=" + definition.getHolderClassName());
         if (definition.isParameterized()) {
             output.add(PARAMETERS_PREFIX + definition.getArgumentSummary());
         }

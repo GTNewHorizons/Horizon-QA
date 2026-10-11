@@ -38,3 +38,4 @@ layout.json
 .claude/
 /site/
 .codegraph/*
+__pycache__/

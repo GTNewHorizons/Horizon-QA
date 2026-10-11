@@ -5,6 +5,13 @@ description: Headless CI mode, JUnit XML, status JSON, selectors, exit codes, an
 
 # CI and JUnit reports
 
+Client scenarios use the same result protocol and exit policy. See [Real client scenarios](client-tests.md)
+for the launcher, packaged launches, and local downstream integration instructions. The repository's
+`scripts/verify-horizonqa.py` checks both schema-3 JSON and JUnit, selected cases, counts, and exit policy.
+Use a new report directory for each invocation, and retain it even when launch or verification fails.
+Its `--earliest` argument rejects reports older than the current invocation. Empty or incomplete
+execution cannot establish success through this verifier, including `allowNoTests` runs.
+
 Horizon-QA CI runs are normal dedicated-server runs with the Horizon-QA mode set on the **Minecraft server JVM**:
 
 ```text
@@ -175,7 +182,7 @@ Each `issues[]` entry contains `id`, `kind`, `source`, `name`, `message`, `fatal
 optional `parameters` for a parameterized case, optional `output` lines, optional `blockedByIssueId`, optional
 `failure` details, or `skipReason` / `skipType` for an intentional skip.
 
-Schema version `3` adds the per-test `output` array. It contains the same parameter, warning, and ordered event
+Schema version `3` adds the per-test `output` array. It contains the same holder class, parameter, warning, diagnostic, and ordered event
 lines used for JUnit `<system-out>`; the field is omitted when there is no output. Schema version `2` added the
 `skipped` count, the per-test `skipped` status, and `skipReason` / `skipType`.
 

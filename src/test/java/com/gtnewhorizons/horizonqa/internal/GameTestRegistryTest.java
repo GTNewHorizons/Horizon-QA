@@ -28,6 +28,28 @@ import cpw.mods.fml.common.discovery.ASMDataTable;
 public class GameTestRegistryTest {
 
     @Test
+    public void sideFilterRunsBeforeAttemptingToLoadClientHolderOrItsDependencies() {
+        ASMDataTable table = new ASMDataTable();
+        Map<String, Object> annotation = new HashMap<>();
+        annotation.put("value", "clientmod");
+        annotation.put("clientOnly", true);
+        table.addASMData(null, GameTestHolder.class.getName(), "unavailable.client.Holder", "Holder", annotation);
+        GameTestCatalog server = GameTestRegistry.discoverTests(table, modId -> true, false);
+        assertTrue(
+            server.tests()
+                .isEmpty());
+        assertTrue(
+            server.diagnostics()
+                .issues()
+                .isEmpty());
+        GameTestCatalog client = GameTestRegistry.discoverTests(table, modId -> true, true);
+        assertFalse(
+            client.diagnostics()
+                .issues()
+                .isEmpty());
+    }
+
+    @Test
     public void beforeBatchHooksMustReturnVoid() {
         GameTestCatalog catalog = GameTestRegistry.discoverTests(holderAsmData(Hooks.class), modId -> true);
         DiscoveryIssue issue = findIssue(

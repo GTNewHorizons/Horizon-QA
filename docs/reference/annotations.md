@@ -48,6 +48,11 @@ Marks a class containing one or more `@GameTest` methods.
 | `value`           | `String`   | *(required)* | Namespace for test ids and template lookups (typically the mod id) |
 | `templatePrefix`  | `String`   | `""`         | Prepended to relative template paths declared on `@GameTest`       |
 | `requiredMods`    | `String[]` | `{}`         | Mod ids that must be loaded before this holder is inspected        |
+| `clientOnly`      | `boolean`  | `false`      | Discover only in an opted-in physical client; see [Client scenarios](../guide/client-tests.md) |
+
+Keep client tests in separate `clientOnly = true` holders. Discovery filters ASM metadata before loading
+these classes, so their client/LWJGL dependencies remain safe on a dedicated server. Client runs select
+only these holders; existing server holders keep their existing discovery and batch behavior.
 
 Holder `value` must match `[a-z0-9_.-]+`. `templatePrefix` cannot begin or end with `/`, contain `//`, or contain the substring `..`.
 

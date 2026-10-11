@@ -34,8 +34,17 @@ Use `pos("label")` when a position must be stored or passed to another API. Use 
 | `TickCallbackHandle onEachTickDisabled(String, Runnable)` | Register a named callback for a later sequence window |
 | `startSequence()` | Build one ordered sequence of START/END actions and waits |
 | `afterTest(Runnable)` | Register cleanup that runs on pass, skip, failure, timeout, or error |
+| `afterTestAsync(int, Supplier<? extends CompletionStage<?>>)` | Register one bounded asynchronous teardown, polled at END before ordinary cleanup |
+| `recordDiagnostic(String)` | Append diagnostic text to existing JUnit system-out and JSON output |
+| `getTestId()` | Get the registered ID, including a parameterized case suffix |
 
 See [Sequences and timing](../guide/sequences.md) for phase ordering and bounded waits.
+
+Asynchronous cleanup starts on the server test thread. It must return immediately; it cannot block
+on the other game thread. The integer is an END-tick budget. Failed or unfinished cleanup becomes an
+infrastructure error, even for an optional case. `ClientTest.attach` owns this registration for client
+scenarios; register client restoration through `ClientTest.afterTest` and server restoration through
+`GameTestHelper.afterTest`. Client restoration finishes before server restoration and the next case.
 
 A failed assumption aborts the current method or callback and records its message as the skip reason. Cleanup registered with `afterTest` still runs. Use holder-level `requiredMods` for optional class dependencies that must be checked before class loading; use assumptions for runtime state such as configuration, registrations, or capabilities that discovery cannot know.
 

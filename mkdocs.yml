@@ -137,6 +137,7 @@ nav:
       - GTNH multiblock testing: guide/gtnh-api.md
       - Negative assertions: guide/negative-tests.md
       - Sequences and timing: guide/sequences.md
+      - Real client scenarios: guide/client-tests.md
     - Run and diagnose:
       - CI and JUnit reports: guide/ci.md
       - Setup troubleshooting: guide/troubleshooting.md
@@ -156,6 +157,9 @@ nav:
   - Project:
     - Contributing: contributing/index.md
     - Clean-room policy: contributing/legal.md
+    - Client testing decision: contributing/client-testing-decision.md
+    - Client CI integration: contributing/client-ci-integration.md
+    - Client testing validation: contributing/client-testing-validation.md
   - Javadoc API: https://www.gtnewhorizons.com/Horizon-QA/javadoc/index.html
 
 strict: true

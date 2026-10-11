@@ -1,0 +1,13 @@
+// RFG derives --gameDir from workingDir. Never run automation in a developer's saves directory.
+gradle.projectsEvaluated {
+    def taskPath = gradle.startParameter.projectProperties['horizonQaClientTask']
+    def reportPath = gradle.startParameter.projectProperties['horizonQaClientReportDir']
+    if (!taskPath && !reportPath) return
+    if (!taskPath || !reportPath) throw new GradleException('Client isolation requires task and report directory')
+    def task = gradle.rootProject.tasks.getByPath(taskPath.startsWith(':') ? taskPath : ':' + taskPath)
+    task.doFirst {
+        task.workingDir = new File(reportPath, 'game')
+        java.nio.file.Files.createDirectory(task.workingDir.toPath())
+        new File(task.workingDir, 'options.txt').setText('guiScale:2\nmaxFps:30\nsoundCategory_master:0.0\n', 'UTF-8')
+    }
+}

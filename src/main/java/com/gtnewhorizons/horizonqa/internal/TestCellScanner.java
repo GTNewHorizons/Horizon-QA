@@ -6,6 +6,7 @@ import java.util.List;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.WorldServer;
 
+import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.TestIsolationViolation;
 
 import cpw.mods.fml.common.Loader;
@@ -19,7 +20,11 @@ final class TestCellScanner {
     private TestCellScanner() {}
 
     static void preClear(WorldServer world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
-        GridSweeper.clear(world, minX, minY, minZ, maxX, maxY, maxZ);
+        if (HorizonQAProperties.clientTestsEnabled()) {
+            GridSweeper.clearAndNotify(world, minX, minY, minZ, maxX, maxY, maxZ);
+        } else {
+            GridSweeper.clear(world, minX, minY, minZ, maxX, maxY, maxZ);
+        }
     }
 
     static void preClearWithMargin(WorldServer world, int cellMinX, int cellMinY, int cellMinZ, int cellMaxX,
@@ -30,7 +35,7 @@ final class TestCellScanner {
         int maxX = cellMaxX + OUTER_MARGIN;
         int maxY = cellMaxY + OUTER_MARGIN;
         int maxZ = cellMaxZ + OUTER_MARGIN;
-        GridSweeper.clear(world, minX, minY, minZ, maxX, maxY, maxZ);
+        preClear(world, minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     static void registerIsolationCheck(GameTestInstance inst, WorldServer world, int cellMinX, int cellMinY,

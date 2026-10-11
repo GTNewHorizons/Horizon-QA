@@ -5,7 +5,8 @@ description: Horizon-QA server JVM properties for interactive authoring, CI exec
 
 # JVM properties
 
-Horizon-QA reads Java system properties from the Minecraft **server** JVM. With RetroFuturaGradle `runServer`, pass them through RFG's `--mcJvmArgs` option:
+Horizon-QA reads Java system properties from the Minecraft JVM. With RetroFuturaGradle `runServer` or
+`runClient`, pass them through RFG's `--mcJvmArgs` option:
 
 ```text
 ./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
@@ -89,6 +90,17 @@ Useful combinations:
 # Ten times the normal tick target during the Reported Run
 ./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.turbo=10 --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
+
+## `horizonqa.client`
+
+Defaults to `false`; accepts lowercase `true` or `false`. `true` discovers only `clientOnly` holders
+and waits for a rendered integrated world and player before starting the existing reported lifecycle.
+It requires `mode=ci`, `world=normal`, `autoRun=true`, `stopServer=true`, and `turbo=1`. A dedicated server
+cannot run this mode and reports `CLIENT_UNAVAILABLE` with exit `2`.
+
+The launcher creates/joins the world. Client automation keeps the integrated world ticking while a GUI
+is open and temporarily disables pause on focus loss; it does not test pause semantics. See
+[Real client scenarios](../guide/client-tests.md) for native input and packaged launch commands.
 
 ## `horizonqa.tests`
 
@@ -222,7 +234,7 @@ The status JSON is a concise machine-readable summary. Schema version `3` contai
 
 Issue entries contain `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` / `stackTrace`.
 Test entries contain `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`, optional `parameters`
-for a parameterized case, optional `output` for parameter, warning, and event-log lines, optional
+for a parameterized case, optional `output` for holder class, parameter, warning, diagnostic, and event-log lines, optional
 `blockedByIssueId`, optional `failure`, or `skipReason` / `skipType` when `status` is `skipped`. The `output` field
 is omitted when empty.
 

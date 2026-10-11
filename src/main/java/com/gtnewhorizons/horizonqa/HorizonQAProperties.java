@@ -23,6 +23,7 @@ public final class HorizonQAProperties {
     public static final String REPORT_DIR_PROPERTY = "horizonqa.reportDir";
     public static final String STATUS_FILE_PROPERTY = "horizonqa.statusFile";
     public static final String EVENTS_PROPERTY = "horizonqa.events";
+    public static final String CLIENT_PROPERTY = "horizonqa.client";
 
     private static final String DEFAULT_JUNIT_REPORT = "TEST-horizonqa.xml";
     private static final String DEFAULT_STATUS_REPORT = "horizonqa-result.json";
@@ -64,6 +65,11 @@ public final class HorizonQAProperties {
 
     public static boolean isCi() {
         return PARSED.mode() == Mode.CI;
+    }
+
+    /** Enables integrated-world client scenarios; world navigation remains the launcher's responsibility. */
+    public static boolean clientTestsEnabled() {
+        return PARSED.clientTests();
     }
 
     public static boolean usesCiServerBehavior() {
@@ -368,6 +374,9 @@ public final class HorizonQAProperties {
             issues.add(events.issue());
         }
 
+        BooleanParseResult client = parseStrictBoolean(CLIENT_PROPERTY, properties.getProperty(CLIENT_PROPERTY), false);
+        if (client.issue() != null) issues.add(client.issue());
+
         return new ParsedProperties(
             rawMode,
             mode.mode(),
@@ -394,6 +403,7 @@ public final class HorizonQAProperties {
             statusFile,
             rawEvents,
             events.enabled(),
+            client.value(),
             Collections.unmodifiableList(new ArrayList<>(issues)));
     }
 
@@ -711,7 +721,8 @@ public final class HorizonQAProperties {
         boolean stopServerAfterRun, String rawTurbo, int turboMultiplier, String rawGridOrigin, GridOrigin gridOrigin,
         String rawTests, boolean selectsAllTests, List<TestSelector> testSelectors, String rawAllowNoTests,
         boolean allowNoTests, String rawAllowLegacyNumericItemIds, boolean allowLegacyNumericItemIds, String reportFile,
-        String reportDir, String statusFile, String rawEvents, boolean eventsEnabled, List<PropertyIssue> issues) {
+        String reportDir, String statusFile, String rawEvents, boolean eventsEnabled, boolean clientTests,
+        List<PropertyIssue> issues) {
 
     }
 
