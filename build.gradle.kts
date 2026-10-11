@@ -1,8 +1,85 @@
+import java.util.UUID
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.tasks.bundling.Zip
 
 plugins {
     id("com.gtnewhorizons.gtnhconvention")
     jacoco
     id("org.sonarqube") version "7.3.1.8318"
+}
+
+val toolsVersion = providers.environmentVariable("RELEASE_VERSION").orElse(provider { project.version.toString() })
+val toolsVersionFile = layout.buildDirectory.file("generated/hqaTools/hqa_tools/version.txt")
+val generateHqaToolsVersion = tasks.register("generateHqaToolsVersion") {
+    inputs.property("version", toolsVersion)
+    outputs.file(toolsVersionFile)
+    doLast {
+        toolsVersionFile.get().asFile.apply {
+            parentFile.mkdirs()
+            writeText("${toolsVersion.get()}\n", Charsets.UTF_8)
+        }
+    }
+}
+
+val hqaTools = tasks.register<Zip>("hqaTools") {
+    group = "build"
+    description = "Build the standalone, versioned Horizon-QA CI tools archive."
+    dependsOn(generateHqaToolsVersion)
+    archiveBaseName.set("horizonqa")
+    archiveVersion.set(toolsVersion)
+    archiveClassifier.set("tools")
+    archiveExtension.set("pyz")
+    destinationDirectory.set(layout.buildDirectory.dir("libs"))
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+    from("tools") {
+        include("hqa_tools/**")
+        exclude("**/__pycache__/**")
+    }
+    from("tools/hqa_tools/__main__.py")
+    from(toolsVersionFile) { into("hqa_tools") }
+    from("LICENSE")
+}
+
+tasks.named("assemble") { dependsOn(hqaTools) }
+plugins.withId("maven-publish") {
+    extensions.configure<PublishingExtension> {
+        publications.withType<MavenPublication>().configureEach {
+            artifact(hqaTools) {
+                classifier = "tools"
+                extension = "pyz"
+            }
+        }
+    }
+}
+
+val hqaToolsTest = tasks.register<Exec>("hqaToolsTest") {
+    group = "verification"
+    description = "Check the standalone tools and report protocol. Requires Python 3.9+."
+    dependsOn(hqaTools)
+    workingDir("tools")
+    commandLine("python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py", "-v")
+    doFirst { environment("HQA_TOOLS_ARCHIVE", hqaTools.get().archiveFile.get().asFile.absolutePath) }
+}
+tasks.named("check") { dependsOn(hqaToolsTest) }
+
+tasks.register<Exec>("hqaClientTest") {
+    group = "verification"
+    description = "Run real client examples with isolated, bounded supervision."
+    dependsOn(hqaTools)
+    doFirst {
+        val reportDir = providers.gradleProperty("hqaReportDir").orNull?.let { file(it) }
+            ?: layout.buildDirectory.dir("horizonqa/client-${UUID.randomUUID()}").get().asFile
+        commandLine(
+            "python3", hqaTools.get().archiveFile.get().asFile.absolutePath, "run-client",
+            "--cwd", rootDir.absolutePath,
+            "--gradle-task", providers.gradleProperty("hqaClientTask").getOrElse(":examples:runClient"),
+            "--tests", providers.gradleProperty("hqaTests").getOrElse("horizonqaexamples:ClientInteractionTests"),
+            "--report-dir", reportDir.absolutePath,
+            "--timeout", providers.gradleProperty("hqaTimeout").getOrElse("900")
+        )
+    }
 }
 
 tasks.jacocoTestReport {

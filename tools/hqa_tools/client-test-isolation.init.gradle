@@ -1,4 +1,4 @@
-// RFG derives --gameDir from workingDir. Never run automation in a developer's saves directory.
+// RFG derives --gameDir from workingDir. Automation always uses its own game directory.
 gradle.projectsEvaluated {
     def taskPath = gradle.startParameter.projectProperties['horizonQaClientTask']
     def reportPath = gradle.startParameter.projectProperties['horizonQaClientReportDir']

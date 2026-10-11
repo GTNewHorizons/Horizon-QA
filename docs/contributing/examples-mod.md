@@ -50,8 +50,9 @@ Start with one passing smoke test:
 
 `/horizonqa runall horizonqaexamples` also runs optional examples that fail or time out intentionally to exercise reporting and visual diagnostics. Those cases are expected and do not make the overall run fail by themselves.
 
-Client holders run in reported CI mode in a physical client. See [Real client scenarios](../guide/client-tests.md)
-for the private-display launcher and focused selectors. `ClientFailureTests` contains required and infrastructure
+Client holders run in reported CI mode in a physical client. `./gradlew hqaClientTest` runs the focused
+interaction suite through the bundled CI tool. See [Real client scenarios](../guide/client-tests.md)
+for selectors and runtime requirements. `ClientFailureTests` contains required and infrastructure
 failures intentionally; select its individual cases explicitly.
 
 ## What each test class covers

@@ -6,8 +6,9 @@ description: Headless CI mode, JUnit XML, status JSON, selectors, exit codes, an
 # CI and JUnit reports
 
 Client scenarios use the same result protocol and exit policy. See [Real client scenarios](client-tests.md)
-for the launcher, packaged launches, and local downstream integration instructions. The repository's
-`scripts/verify-horizonqa.py` checks both schema-3 JSON and JUnit, selected cases, counts, and exit policy.
+for packaged launches and local downstream integration instructions. The versioned
+[CI tools archive](ci-tools.md) provides `python3 hqa-tools.pyz verify`, which checks both schema-3 JSON
+and JUnit, selected cases, counts, and exit policy.
 Use a new report directory for each invocation, and retain it even when launch or verification fails.
 Its `--earliest` argument rejects reports older than the current invocation. Empty or incomplete
 execution cannot establish success through this verifier, including `allowNoTests` runs.

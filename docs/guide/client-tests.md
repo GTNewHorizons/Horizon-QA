@@ -10,6 +10,11 @@ or rendering. HQA runs them in an integrated world and reuses server fixtures, s
 batch hooks, selectors, and reports. Continue using the dedicated-server suite for server-only and
 dedicated-network behavior. Connected-dedicated-server GUI execution is not implemented.
 
+Install HQA and the consumer's test JARs in the normal client and use its existing launcher. Enable
+client-test mode with the [documented JVM settings](../reference/jvm-flags.md#horizonqaclient); HQA waits for an
+integrated world before running. HeadlessNH and the optional [CI tools](ci-tools.md) automate world
+creation and process supervision. Mod authors do not copy launcher scripts into their repositories.
+
 ## Author a scenario
 
 Separate client dependencies into a `@GameTestHolder(value = "mymod", clientOnly = true)` class. Tests
@@ -87,7 +92,7 @@ is unchanged. Client state, pending target, and screenshot paths appear in exist
 and JSON output. Retain the complete report directory, including `launch.log`, `xvfb.log`,
 `launch-result.json`, `artifacts/`, and game logs/crash reports.
 
-## Development launch
+## Automated development runs
 
 Linux needs Python 3.9+, Xvfb, xdotool, and an AWT-capable Java runtime. Automation creates a private
 display and a new game directory; native input is never sent to the developer's desktop. HeadlessNH
@@ -97,20 +102,28 @@ owns menu navigation and world creation. The examples include its development ru
 runtimeOnlyNonPublishable('net.sxmaa.headlessnh:HeadlessNH:1.1.1:dev')
 ```
 
-From the repository root:
+From the Horizon-QA repository root, the shortcut builds the tools archive and runs the focused suite:
 
 ```bash
-python3 scripts/run-client-tests.py \
-  --gradle-task :examples:runClient \
-  --tests horizonqaexamples:ClientInteractionTests \
-  --report-dir "$PWD/build/client-success"
+./gradlew hqaClientTest
 ```
 
-The launcher forwards every `horizonqa.*` property through its own `--mcJvmArgs`, creates a private
-959×541 display, positions the real native window at `(0, 0)`, focuses it, and requires fresh matching JSON/JUnit. Delete/archive
-the previous result or use a different path: an existing report directory is rejected. Consumer
-repositories can copy the three files under `scripts/` and use their own `runClient` task/selector.
-The isolation init script redirects RFG's working directory; it does not alter a developer's saves.
+The supervisor forwards every `horizonqa.*` property through its own `--mcJvmArgs`, creates a private
+959×541 display, positions the real native window at `(0, 0)`, focuses it, and requires fresh matching
+JSON/JUnit. The shortcut chooses a new report directory under `build/horizonqa/` each time. Set
+`-PhqaTests=<selector>` for a focused case or `-PhqaClientTask=:examples:runClient25` for a supported
+modern runtime. An explicit `-PhqaReportDir=<path>` must be new.
+
+For consumer repositories, CI maintainers acquire the single versioned archive centrally; local
+developers can run that same artifact against their existing Gradle task:
+
+```bash
+python3 hqa-tools.pyz run-client --gradle-task runClient \
+  --tests mymod:ClientTests --report-dir "$PWD/build/client-run"
+```
+
+The archive contains and extracts its isolation adapter automatically. No adjacent helper files are
+required. See [CI tooling](ci-tools.md) for artifact coordinates, task options, and verification.
 
 `ClientInteractionTests` verifies a one-pixel live target through a GUI scale change at odd display dimensions, Escape through
 normal keyboard handling, a real chest GUI with server inventory/cursor assertions, and successive
@@ -126,7 +139,7 @@ line, starting with an absolute Java executable. No source checkout or Gradle wr
 The game directory must contain no `saves` directory. For example, after Prism bootstrap:
 
 ```bash
-python3 /path/to/hqa/scripts/run-client-tests.py \
+python3 /path/to/hqa-tools.pyz run-client \
   --cwd /path/to/isolated-pack/.minecraft \
   --argv-file /path/to/isolated-pack/launch.argv \
   --env-file /path/to/isolated-pack/launch.env \

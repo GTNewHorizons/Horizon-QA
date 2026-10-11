@@ -35,6 +35,12 @@ public static void doesNotFormWithoutCoils(GameTestHelper helper) {
 3. Write a Java test class using `@GameTest` to define the logic and assertions ([first test](https://www.gtnewhorizons.com/Horizon-QA/getting-started/first-test/)).
 4. Run tests using the `/qa runall` command and view results in-game or in the build logs. For report files from a manually-started batch, pass `-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false`; for headless autoruns, pass `-Dhorizonqa.mode=ci` to the server JVM. Override specific behavior with flags such as `-Dhorizonqa.world=normal`, `-Dhorizonqa.stopServer=false`, or `-Dhorizonqa.gridOrigin=0,128,0` ([CI guide](https://www.gtnewhorizons.com/Horizon-QA/guide/ci/)).
 
+Real client scenarios reuse HQA's fixtures and reports and run in an integrated world. In this
+repository, `./gradlew hqaClientTest` runs the focused client examples. Automated CI uses one versioned
+tools archive; consumer mods keep their existing launchers and do not copy helper scripts.
+See [client scenarios](https://www.gtnewhorizons.com/Horizon-QA/guide/client-tests/) and
+[CI tooling](https://www.gtnewhorizons.com/Horizon-QA/guide/ci-tools/).
+
 ## Legal Disclaimer & Clean-Room Implementation
 
 **Horizon-QA** is an independent, clean-room implementation of a testing framework for Minecraft 1.7.10. While the API structure, class names, and annotations are heavily inspired by modern Minecraft's GameTest framework to ensure developer familiarity and ease of use, the underlying codebase is entirely original.

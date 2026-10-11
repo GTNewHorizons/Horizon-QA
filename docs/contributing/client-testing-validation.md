@@ -5,7 +5,14 @@ description: Local runtime proof, commands, artifact locations, and external lim
 
 # Client testing validation
 
-Executed on Linux on 2026-10-11 from local branch `feat/client-runtime-tests`, worktree
+The initial runtime evidence below was collected before tooling was bundled, at implementation
+commit `074f7525d49aca6360a43bf1d52e831cd3615110`. The implementation was subsequently moved into
+`/home/eliott/.t3/worktrees/Horizon-QA/t3-dc388de4` on `feat/client-testing-support`. Commands below
+show the current tools interface; the original exact invocations remain in the retained logs.
+The additional [tools distribution checks](#tools-distribution-and-development-shortcut) exercise
+the archive and shortcut from that active worktree.
+
+The initial runtime run was executed on Linux on 2026-10-11 from local branch `feat/client-runtime-tests`, worktree
 `/tmp/horizonqa-client-tests`, based on upstream master `e05abc05be88e9072c7ed298e4ae81c158213515`.
 Upstream and PR #259 were rechecked read-only: master/base and PR head remained the commits in
 [the decision](client-testing-decision.md); PR metadata remained unchanged. The original checkout
@@ -17,7 +24,7 @@ and installed client/server packs were preserved. No push, publication, PR mutat
 ./gradlew build
 ./gradlew javadoc
 mkdocs build --strict
-python3 -m unittest discover -s scripts -p 'test_*.py' -v
+./gradlew hqaToolsTest
 git diff --check
 ```
 
@@ -34,7 +41,7 @@ HeadlessNH `1.1.1`, a fresh game directory, and a private Xvfb display were used
 The launcher forwards every HQA JVM flag through a separate `--mcJvmArgs`.
 
 ```bash
-python3 scripts/run-client-tests.py --gradle-task :examples:runClient \
+python3 hqa-tools.pyz run-client --gradle-task :examples:runClient \
   --tests horizonqaexamples:ClientInteractionTests \
   --report-dir /tmp/hqa-client-evidence/dev-success-notify-final --timeout 300
 ```
@@ -121,7 +128,7 @@ The exact packaged supervisor command is recorded in `packaged-final/summary.md`
 the recorded private-display binaries and environment:
 
 ```bash
-python3 scripts/run-client-tests.py --headless singleplayer \
+python3 hqa-tools.pyz run-client --headless singleplayer \
   --argv-file /tmp/hqa-client-evidence/packaged-final/launch.argv \
   --cwd /tmp/hqa-client-evidence/packaged-final/client/.minecraft \
   --env-file /tmp/hqa-client-evidence/packaged-final/launch.env \
@@ -138,3 +145,37 @@ The opt-in package and daily workflow changes in [Downstream integration](client
 were validated locally, and remain undeployed. Production client holders/toolkit adapters require
 consumer adoption. Connected dedicated-server GUI execution, pause-menu behavior with HeadlessNH 1.1.1,
 and hardware/shader pixel assertions remain outside the selected implementation.
+
+## Tools distribution and development shortcut
+
+The follow-up retains the same Java runtime, input behavior, schema-3 reports, and exit policy. It
+packages supervision, verification, and the isolation adapter into one `.pyz` artifact and adds the
+thin `hqaClientTest` task. Consumer mods do not copy source files. Publication coordinates are stable
+across checkout/worktree names because the root project is explicitly named `Horizon-QA`.
+
+Local commands and evidence under `/tmp/hqa-tooling-evidence/`:
+
+| Check | Result | Evidence |
+|---|---|---|
+| `./gradlew build javadoc generatePomFileForMavenPublication` | Passed; Java checks and 10 tools tests | `build-javadoc.log` |
+| `mkdocs build --strict` | Passed | `mkdocs.log` |
+| `./gradlew hqaClientTest -PhqaReportDir=/tmp/hqa-tooling-evidence/dev-success -PhqaTimeout=300` | Real Java 8 client: all three interaction cases passed; clean exit 0 | `dev-success/`, `dev-success-command.json`, `dev-success-gradle.log` |
+| `hqaClientTest` with optional failure, required timeout, and following cleanup; no report path supplied | Fresh default directory; JUnit-skipped optional failure, required timeout/exit 1, cleanup passed | `dev-failure-command.json`, `dev-failure-validation.json`, `dev-failure-gradle.log` |
+| Single `.pyz` outside a source checkout against the representative Java 26 fullpack | All three interaction cases passed; clean exit 0 | `packaged-command.json`, `packaged/success/`, `packaged-console.log` |
+| Owned stalled JVM, five-second deadline and one-second grace | Exit 2; thread dump retained; owned group terminated | `probe-hang/`, `supervision-and-compatibility.json` |
+| Owned JVM exits 0 without game reports | Rejected with exit 2 | `probe-empty/`, `supervision-and-compatibility.json` |
+| New verifier against prior dedicated sequence/basic/lifecycle reports | Expected exits 0/0/2; these are compatibility checks, not fresh server boots | `supervision-and-compatibility.json` |
+| Central package workflow patch | Applies to the pinned shared-workflow commit; YAML and opt-in selector parsed | `shared-build-and-test.yml` |
+| `./gradlew hqaTools --rerun-tasks` | Identical archive SHA256 for unchanged inputs | `archive-reproducibility.txt` |
+| Existing `RELEASE_VERSION` override | Archive tests passed; actual Maven classifier and embedded version agree | `release-version-check.log`, `publication-check.log` |
+
+The modern packaged copy preserves the previously documented Spark mitigation. The tools archive is
+the only file in `standalone/`; its launch uses the pack's prepared argv, libraries, and natives without
+Gradle or repository sources. Ten tools tests also exercise the shipped command outside the checkout,
+verify optional/required/invalid-report exits, and confirm internal Gradle resource extraction and
+separate `--mcJvmArgs` forwarding. Fake launcher probes establish only that resource/command contract;
+the Java 8 and Java 26 interaction runs establish real Minecraft behavior.
+
+The Maven classifier is configured locally and its coordinates are checked through generated metadata.
+No artifact was published. Network acquisition of a released archive and deployment of the central
+package/daily changes remain unverified until the reviewed artifact is released and workflows adopt it.

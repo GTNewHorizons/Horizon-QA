@@ -98,12 +98,12 @@ def matches(test, selector):
         selector == name or selector == name.replace("$", ".") for name in holders)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="hqa verify", description=__doc__)
     parser.add_argument("directory", type=Path)
     parser.add_argument("--tests", default="")
     parser.add_argument("--earliest", type=float, default=0)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         result = verify(args.directory, args.tests, args.earliest)
         print(f"Horizon-QA {result['status']} exit={result['exitCode']} counts={result['counts']}")

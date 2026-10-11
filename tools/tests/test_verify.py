@@ -1,6 +1,5 @@
-"""Protocol rejection tests. Run: python3 -m unittest discover -s scripts -p 'test_*.py'."""
+"""Protocol rejection tests, included in ./gradlew check via hqaToolsTest."""
 import copy
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -10,13 +9,10 @@ import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
-VERIFIER = Path(__file__).with_name("verify-horizonqa.py")
-spec = importlib.util.spec_from_file_location("verifier", VERIFIER)
-verifier = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(verifier)
+from hqa_tools import verify as verifier
 
 
-class ReportVerificationTest(unittest.TestCase):
+class ReportFixture(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
@@ -47,6 +43,8 @@ class ReportVerificationTest(unittest.TestCase):
                 ET.SubElement(case, outcome)
         ET.ElementTree(root).write(self.directory / "TEST-horizonqa.xml")
 
+
+class ReportVerificationTest(ReportFixture):
     def test_success_and_optional_failure_keep_exit_zero(self):
         self.write()
         self.assertEqual(0, verifier.verify(self.directory, "mod:Holder.test")["exitCode"])
@@ -102,7 +100,7 @@ class ReportVerificationTest(unittest.TestCase):
                 else:
                     malformed[field] = None
                 self.write(malformed)
-                completed = subprocess.run([sys.executable, str(VERIFIER), str(self.directory)], capture_output=True)
+                completed = subprocess.run([sys.executable, "-m", "hqa_tools", "verify", str(self.directory)], capture_output=True)
                 self.assertEqual(2, completed.returncode, completed.stderr)
 
     def test_selector_identity_and_trimmed_multiple_selectors(self):

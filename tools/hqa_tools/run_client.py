@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Supervise a Gradle or packaged client in a fresh directory and private Linux display."""
 import argparse
-import importlib.util
+from importlib.resources import files
 import json
 import os
 from pathlib import Path
@@ -14,10 +14,8 @@ import subprocess
 import sys
 import time
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-spec = importlib.util.spec_from_file_location("hqa_verify", SCRIPT_DIR / "verify-horizonqa.py")
-verifier = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(verifier)
+from . import version
+from . import verify as verifier
 
 
 def terminate(process):
@@ -54,8 +52,8 @@ def dump_threads(process):
             pass
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="hqa run-client", description=__doc__)
     parser.add_argument("--report-dir", required=True, type=Path, help="Must not already exist")
     parser.add_argument("--tests", required=True)
     parser.add_argument("--cwd", type=Path, default=Path.cwd())
@@ -68,10 +66,11 @@ def main():
     parser.add_argument("--xvfb", default=shutil.which("Xvfb"))
     parser.add_argument("--xdotool", default=shutil.which("xdotool"))
     parser.add_argument("extra", nargs=argparse.REMAINDER)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     report = args.report_dir.resolve()
     process = display = None
-    summary = {"exitCode": 2, "timedOut": False, "forcedTermination": False, "reportDir": str(report)}
+    summary = {"exitCode": 2, "timedOut": False, "forcedTermination": False,
+        "reportDir": str(report), "toolsVersion": version()}
     created = False
     try:
         if not (0 < args.timeout <= 86400 and 0 < args.grace <= 60):
@@ -129,8 +128,10 @@ def main():
                 if value.split("=", 1)[0] in managed:
                     raise ValueError("extra arguments cannot override managed launch properties")
             if args.gradle_task:
+                isolation = report / "client-test-isolation.init.gradle"
+                isolation.write_text(files("hqa_tools").joinpath("client-test-isolation.init.gradle").read_text(encoding="utf-8"))
                 command = [str(args.cwd.resolve() / "gradlew"), args.gradle_task, "--no-daemon", "--console=plain",
-                    "--init-script", str(SCRIPT_DIR / "client-test-isolation.init.gradle"),
+                    "--project-cache-dir", str(report / "gradle-cache"), "--init-script", str(isolation),
                     "-PhorizonQaClientTask=" + args.gradle_task, "-PhorizonQaClientReportDir=" + str(report)]
                 command += ["--mcJvmArgs=" + value for value in jvm]
                 command += ["--mcArgs=--width", "--mcArgs=959", "--mcArgs=--height", "--mcArgs=541"] + extra

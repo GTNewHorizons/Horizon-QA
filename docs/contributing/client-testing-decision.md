@@ -33,7 +33,12 @@ Retain the PR's annotation-metadata side filter, serial client work queue, async
 
 Discard private LWJGL input/window reflection: the packaged lwjgl3ify `Keyboard` has an event queue and no `readBuffer` or `keyDownBuffer`, and `Display.getImplementation()` returns null. The PR's input release and native resize therefore fail on the daily backend. Discard its scratch-world launcher, audio overrides, accelerated client/server timing, broad fluent facade, and new timing records. These do not establish a required consumer contract and increase the maintenance surface. Keep deferred, toolkit-independent target bounds and readiness predicates.
 
-Use a small Python launcher/verifier for development and packaged commands. It creates a new report directory, supervises only its invocation's process group, requests bounded cancellation, and rejects missing, stale, malformed, incomplete, inconsistent JSON/XML, wrong selectors, forced termination, and crashes. The existing external exit semantics remain 0/1/2.
+Use one versioned Python tools archive for development and packaged commands. It bundles the Gradle
+adapter internally; consumers do not copy helper scripts. The `hqaClientTest` shortcut delegates to it,
+and the existing Maven publication carries its `tools` classifier. It creates a new report directory,
+supervises only its invocation's process group, requests bounded cancellation, and rejects missing,
+stale, malformed, incomplete, inconsistent JSON/XML, wrong selectors, forced termination, and crashes.
+The existing external exit semantics remain 0/1/2.
 
 Position and focus the private native window explicitly. After geometry changes, correct the OS pointer from publicly observed coordinates and wait for rendered consumer hover again. This supports both LWJGL backends, including a one-pixel target at GUI scale 1, without backend-specific private fields. Fullpack examples allow bounded cold-frame rendering time; input completion still waits on state.
 
