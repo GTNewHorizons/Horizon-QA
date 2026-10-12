@@ -2,21 +2,15 @@
 import copy
 import json
 import os
-from pathlib import Path
-import subprocess
-import sys
-import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
-from hqa_tools import verify as verifier
+from tool_test_case import ToolTestCase
 
 
-class ReportFixture(unittest.TestCase):
+class ReportVerificationTest(ToolTestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temporary.cleanup)
-        self.directory = Path(self.temporary.name)
+        super().setUp()
         self.result = {
             "schemaVersion": 3, "status": "passed", "exitCode": 0,
             "configuration": {"mode": "ci", "tests": "mod:Holder.test"},
@@ -30,8 +24,8 @@ class ReportFixture(unittest.TestCase):
                 "skipped": 0, "incomplete": 0, "requiredFailures": 0, "optionalFailures": 0,
                 "issues": 0, "diagnosticErrors": 0, "junitFailures": 0, "junitErrors": 0, "junitSkipped": 0}}
 
-    def write(self, result=None, outcome=None):
-        result = result or self.result
+    def write_report(self, result=None, outcome=None):
+        result = self.result if result is None else result
         (self.directory / "horizonqa-result.json").write_text(json.dumps(result))
         counts = result["counts"]
         root = ET.Element("testsuite", tests=str(len(result["tests"])),
@@ -43,53 +37,64 @@ class ReportFixture(unittest.TestCase):
                 ET.SubElement(case, outcome)
         ET.ElementTree(root).write(self.directory / "TEST-horizonqa.xml")
 
+    def verify(self, selectors="mod:Holder.test", earliest=0):
+        return self.call("verify", self.directory, "--tests", selectors, "--earliest", earliest)
 
-class ReportVerificationTest(ReportFixture):
-    def test_success_and_optional_failure_keep_exit_zero(self):
-        self.write()
-        self.assertEqual(0, verifier.verify(self.directory, "mod:Holder.test")["exitCode"])
-        self.result["tests"][0].update(status="failed", required=False)
-        self.result["counts"].update(passed=0, failed=1, optionalFailures=1, junitSkipped=1)
-        self.write(outcome="skipped")
-        self.assertEqual(0, verifier.verify(self.directory, "mod:Holder.test")["exitCode"])
+    def assert_rejected(self, message, **arguments):
+        completed = self.verify(**arguments)
+        self.assertEqual(2, completed.returncode, completed.stderr)
+        self.assertIn(message, completed.stderr)
 
-    def test_required_timeout_is_exit_one(self):
-        self.result.update(status="failed", exitCode=1)
-        self.result["tests"][0]["status"] = "timedOut"
-        self.result["counts"].update(passed=0, timedOut=1, requiredFailures=1, junitFailures=1)
-        self.write(outcome="failure")
-        self.assertEqual(1, verifier.verify(self.directory, "mod:Holder.test")["exitCode"])
+    def test_outcomes_preserve_exit_policy(self):
+        outcomes = (
+            ("passed", True, 0, "passed", None, {"passed": 1}),
+            ("failed", False, 0, "passed", "skipped", {"failed": 1, "optionalFailures": 1, "junitSkipped": 1}),
+            ("failed", True, 1, "failed", "failure", {"failed": 1, "requiredFailures": 1, "junitFailures": 1}),
+            ("timedOut", True, 1, "failed", "failure", {"timedOut": 1, "requiredFailures": 1, "junitFailures": 1}),
+            ("error", False, 2, "error", "error", {"junitErrors": 1}),
+            ("running", True, 2, "error", "error", {"incomplete": 1, "junitErrors": 1}),
+            ("notStarted", True, 2, "error", "skipped", {"incomplete": 1, "junitSkipped": 1}),
+        )
+        for status, required, exit_code, run_status, junit, counts in outcomes:
+            with self.subTest(status=status, required=required):
+                result = copy.deepcopy(self.result)
+                result.update(status=run_status, exitCode=exit_code)
+                result["tests"][0].update(status=status, required=required)
+                result["counts"].update({"passed": 0, **counts})
+                self.write_report(result, junit)
+                completed = self.verify()
+                self.assertEqual(exit_code, completed.returncode, completed.stderr)
+                self.assertEqual("", completed.stderr)
+                self.assertIn(f"{run_status} exit={exit_code}", completed.stdout)
 
     def test_missing_stale_malformed_and_incomplete_evidence_is_rejected(self):
-        with self.assertRaises(ValueError):
-            verifier.verify(self.directory, "mod:Holder.test")
-        self.write()
-        os.utime(self.directory / "TEST-horizonqa.xml", (1, 1))
-        with self.assertRaisesRegex(ValueError, "stale"):
-            verifier.verify(self.directory, "mod:Holder.test", 2)
-        self.write()
-        (self.directory / "horizonqa-result.json").write_text("{")
-        with self.assertRaises(ValueError):
-            verifier.verify(self.directory, "mod:Holder.test")
+        for filename in ("horizonqa-result.json", "TEST-horizonqa.xml"):
+            with self.subTest(filename=filename):
+                self.write_report()
+                (self.directory / filename).unlink()
+                self.assert_rejected("missing/unsafe report")
+                self.write_report()
+                os.utime(self.directory / filename, (1, 1))
+                self.assert_rejected("stale", earliest=2)
+                self.write_report()
+                (self.directory / filename).write_text("{")
+                self.assert_rejected("evidence rejected")
         self.result["tests"][0]["status"] = "running"
-        self.write()
-        with self.assertRaises(ValueError):
-            verifier.verify(self.directory, "mod:Holder.test")
+        self.write_report()
+        self.assert_rejected("inconsistent status counts")
 
     def test_empty_pass_and_missing_case_metadata_are_rejected(self):
         empty = copy.deepcopy(self.result)
         empty["tests"] = []
         empty["counts"].update(passed=0, selectedTests=0)
-        self.write(empty)
-        with self.assertRaisesRegex(ValueError, "empty"):
-            verifier.verify(self.directory, "mod:Holder.test")
+        self.write_report(empty)
+        self.assert_rejected("empty")
         for field in ("classname", "name", "ticks", "timeSeconds"):
             with self.subTest(field=field):
                 malformed = copy.deepcopy(self.result)
                 del malformed["tests"][0][field]
-                self.write(malformed)
-                with self.assertRaises(ValueError):
-                    verifier.verify(self.directory, "mod:Holder.test")
+                self.write_report(malformed)
+                self.assert_rejected("missing/invalid case metadata")
 
     def test_null_objects_and_huge_durations_are_cli_infrastructure_failures(self):
         for field in ("configuration", "reports", "timeSeconds"):
@@ -99,26 +104,30 @@ class ReportVerificationTest(ReportFixture):
                     malformed["tests"][0][field] = 10 ** 309
                 else:
                     malformed[field] = None
-                self.write(malformed)
-                completed = subprocess.run([sys.executable, "-m", "hqa_tools", "verify", str(self.directory)], capture_output=True)
-                self.assertEqual(2, completed.returncode, completed.stderr)
+                self.write_report(malformed)
+                self.assert_rejected("evidence rejected")
 
     def test_selector_identity_and_trimmed_multiple_selectors(self):
-        self.result["configuration"]["tests"] = "com.expected.Holder"
-        self.write()
-        self.assertEqual(0, verifier.verify(self.directory, "com.expected.Holder")["exitCode"])
-        self.result["tests"][0]["output"] = ["holderClass=com.other.Holder"]
-        self.write()
-        with self.assertRaisesRegex(ValueError, "unexecuted selector"):
-            verifier.verify(self.directory, "com.expected.Holder")
-        self.result["configuration"]["tests"] = "mod:Holder.test, Holder"
-        self.write()
-        self.assertEqual(0, verifier.verify(self.directory, "mod:Holder.test, Holder")["exitCode"])
+        selectors = (
+            ("com.expected.Holder", "com.expected.Holder", None),
+            ("com.expected.Holder", "com.other.Holder", "unexecuted selector"),
+            ("mod:Holder.test, Holder", "com.expected.Holder", None),
+        )
+        for selector, holder, rejection in selectors:
+            with self.subTest(selector=selector, holder=holder):
+                result = copy.deepcopy(self.result)
+                result["configuration"]["tests"] = selector
+                result["tests"][0]["output"] = ["holderClass=" + holder]
+                self.write_report(result)
+                if rejection:
+                    self.assert_rejected(rejection, selectors=selector)
+                else:
+                    completed = self.verify(selector)
+                    self.assertEqual(0, completed.returncode, completed.stderr)
 
     def test_junit_must_match_case_outcome(self):
-        self.write(outcome="skipped")
-        with self.assertRaisesRegex(ValueError, "differ"):
-            verifier.verify(self.directory, "mod:Holder.test")
+        self.write_report(outcome="skipped")
+        self.assert_rejected("differ")
 
 
 if __name__ == "__main__":

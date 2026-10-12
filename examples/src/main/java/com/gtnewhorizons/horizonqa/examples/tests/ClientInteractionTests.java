@@ -31,12 +31,15 @@ import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
 import com.gtnewhorizons.horizonqa.api.client.ClickTarget;
 import com.gtnewhorizons.horizonqa.api.client.ClientTest;
+import com.gtnewhorizons.horizonqa.client.NativeInput;
 
 /** Native GUI/input and authoritative gameplay checks; this holder must never load on a dedicated server. */
 @GameTestHolder(value = "horizonqaexamples", clientOnly = true)
 public final class ClientInteractionTests {
 
     private static boolean batchOpen;
+    private static int originalGuiScale = -1;
+    private static Runnable assertPlayerRestored;
 
     @BeforeBatch("client")
     public static void beforeBatch() {
@@ -48,6 +51,8 @@ public final class ClientInteractionTests {
     public static void afterBatch() {
         if (!batchOpen) throw new IllegalStateException("Batch lifecycle did not run");
         batchOpen = false;
+        originalGuiScale = -1;
+        assertPlayerRestored = null;
     }
 
     private ClientInteractionTests() {}
@@ -61,6 +66,7 @@ public final class ClientInteractionTests {
                 if (c.screen() != null) throw new AssertionError("Previous test leaked a screen");
                 Minecraft mc = Minecraft.getMinecraft();
                 int scale = mc.gameSettings.guiScale;
+                originalGuiScale = scale;
                 c.afterTest(() -> mc.gameSettings.guiScale = scale);
                 mc.gameSettings.guiScale = 2;
                 Minecraft.getMinecraft()
@@ -125,6 +131,27 @@ public final class ClientInteractionTests {
             player.setPositionAndUpdate(x, y, z);
             player.sendContainerToPlayer(player.inventoryContainer);
         });
+        assertPlayerRestored = () -> {
+            NBTTagList observedInventory = player.inventory.writeToNBT(new NBTTagList());
+            if (!inventory.equals(observedInventory)) {
+                throw new AssertionError(
+                    "Expected original player inventory " + inventory + ", observed " + observedInventory);
+            }
+            if (!ItemStack.areItemStacksEqual(cursor, player.inventory.getItemStack())) {
+                throw new AssertionError(
+                    "Expected original cursor " + cursor + ", observed " + player.inventory.getItemStack());
+            }
+            if (player.inventory.currentItem != selectedSlot || player.theItemInWorldManager.getGameType() != mode) {
+                throw new AssertionError(
+                    "Expected selected slot " + selectedSlot
+                        + " and game mode "
+                        + mode
+                        + ", observed "
+                        + player.inventory.currentItem
+                        + " and "
+                        + player.theItemInWorldManager.getGameType());
+            }
+        };
         TestPos chest = helper.absolute("chest");
         TestPos standing = helper.absolute("standing");
         player.setGameType(GameType.CREATIVE);
@@ -197,9 +224,23 @@ public final class ClientInteractionTests {
             .thenSucceed();
     }
 
-    @GameTest(batch = "client", timeoutTicks = 400)
+    @GameTest(batch = "client", timeoutTicks = 160)
     public static void zSuccessiveInteraction(GameTestHelper helper) {
-        aNativeButton(helper);
+        if (!batchOpen) throw new AssertionError("BeforeBatch did not run on the server thread");
+        if (assertPlayerRestored != null) assertPlayerRestored.run();
+        ClientTest client = ClientTest.attach(helper);
+        helper.startSequence()
+            .thenExecuteAsync("next session observes completed cleanup", 40, () -> client.run(c -> {
+                if (c.screen() != null) throw new AssertionError("Previous test leaked a screen");
+                if (!NativeInput.released()) throw new AssertionError("Previous test left input pressed");
+                if (originalGuiScale >= 0 && Minecraft.getMinecraft().gameSettings.guiScale != originalGuiScale) {
+                    throw new AssertionError(
+                        "Expected original GUI scale " + originalGuiScale
+                            + ", observed "
+                            + Minecraft.getMinecraft().gameSettings.guiScale);
+                }
+            }))
+            .thenSucceed();
     }
 
     private static ClickTarget chestSlot(ClientTest client) {

@@ -1,28 +1,12 @@
 """Exercise the shipped command outside a source checkout, including its bundled Gradle adapter."""
 import json
-import os
 from pathlib import Path
-import shutil
-import subprocess
 import sys
 
-from test_verify import ReportFixture
+from tool_test_case import ToolTestCase
 
 
-class PackagedToolTest(ReportFixture):
-    def setUp(self):
-        super().setUp()
-        archive = os.environ.get("HQA_TOOLS_ARCHIVE")
-        if not archive:
-            self.skipTest("Run ./gradlew hqaToolsTest to exercise the built archive")
-        self.archive = self.directory / "hqa.pyz"
-        shutil.copyfile(archive, self.archive)
-
-    def call(self, *arguments):
-        environment = dict(os.environ, PYTHONPATH="")
-        return subprocess.run([sys.executable, str(self.archive), *map(str, arguments)],
-            cwd=self.directory, env=environment, capture_output=True, text=True, timeout=20)
-
+class PackagedToolTest(ToolTestCase):
     def test_help_and_version_work_without_adjacent_source(self):
         result = self.call("--version")
         self.assertEqual(0, result.returncode, result.stderr)
@@ -32,23 +16,6 @@ class PackagedToolTest(ReportFixture):
             with self.subTest(command=command):
                 result = self.call(*command, "--help")
                 self.assertEqual(0, result.returncode, result.stderr)
-
-    def test_archive_preserves_success_optional_required_and_invalid_report_exits(self):
-        self.write()
-        self.assertEqual(0, self.call("verify", self.directory, "--tests", "mod:Holder.test").returncode)
-        self.result["tests"][0].update(status="failed", required=False)
-        self.result["counts"].update(passed=0, failed=1, optionalFailures=1, junitSkipped=1)
-        self.write(outcome="skipped")
-        self.assertEqual(0, self.call("verify", self.directory, "--tests", "mod:Holder.test").returncode)
-        self.result.update(status="failed", exitCode=1)
-        self.result["tests"][0]["required"] = True
-        self.result["counts"].update(optionalFailures=0, junitSkipped=0, requiredFailures=1, junitFailures=1)
-        self.write(outcome="failure")
-        self.assertEqual(1, self.call("verify", self.directory, "--tests", "mod:Holder.test").returncode)
-        self.write(outcome="skipped")
-        self.assertEqual(2, self.call("verify", self.directory, "--tests", "mod:Holder.test").returncode)
-        (self.directory / "horizonqa-result.json").unlink()
-        self.assertEqual(2, self.call("verify", self.directory).returncode)
 
     def test_gradle_resource_and_jvm_flags_need_no_copied_helpers(self):
         if sys.platform != "linux":

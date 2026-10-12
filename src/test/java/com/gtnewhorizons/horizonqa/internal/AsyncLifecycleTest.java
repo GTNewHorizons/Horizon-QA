@@ -2,6 +2,7 @@ package com.gtnewhorizons.horizonqa.internal;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -12,7 +13,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
@@ -21,6 +25,14 @@ import com.gtnewhorizons.horizonqa.client.ClientTaskQueue.Phase;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 
 public class AsyncLifecycleTest {
+
+    @Rule
+    public Timeout nonblockingDeadline = Timeout.seconds(5);
+
+    @After
+    public void releaseExecutionOwnership() {
+        GameTestRunner.shutdown();
+    }
 
     @Test
     public void unfinishedOperationDoesNotBlockOrSubmitAgainAndContinuesOnlyAtEnd() {
@@ -66,7 +78,7 @@ public class AsyncLifecycleTest {
         attempts.get(1)
             .complete(null);
         sequence.tick(5, TestPhase.END);
-        assertEquals(null, sequence.getActiveStep());
+        assertNull(sequence.getActiveStep());
     }
 
     @Test
@@ -117,12 +129,9 @@ public class AsyncLifecycleTest {
 
     @Test
     public void asynchronousCleanupCompletesBeforeServerCleanupAndFinalResult() throws Exception {
-        GameTestInstance instance = instance();
         List<String> ordering = new ArrayList<>();
         CompletableFuture<Void> cleanup = new CompletableFuture<>();
-        instance.addAsyncCleanup(3, () -> cleanup);
-        instance.addCleanup(() -> ordering.add("server"));
-        instance.start(null);
+        GameTestInstance instance = startWithCleanup(3, cleanup, () -> ordering.add("server"));
         instance.succeed();
         assertFalse(instance.isDone());
         instance.tickEnd();
@@ -137,12 +146,9 @@ public class AsyncLifecycleTest {
 
     @Test
     public void cleanupTimeoutIsInfrastructureEvenForOptionalPassedTestAndStillRestoresServerState() throws Exception {
-        GameTestInstance instance = instance();
         CompletableFuture<Void> cleanup = new CompletableFuture<>();
         AtomicInteger restoration = new AtomicInteger();
-        instance.addAsyncCleanup(2, () -> cleanup);
-        instance.addCleanup(restoration::incrementAndGet);
-        instance.start(null);
+        GameTestInstance instance = startWithCleanup(2, cleanup, restoration::incrementAndGet);
         instance.succeed();
         instance.tickEnd();
         instance.tickEnd();
@@ -158,12 +164,9 @@ public class AsyncLifecycleTest {
 
     @Test
     public void asynchronousFatalCleanupRestoresServerStateAndRethrowsOriginalFatalError() throws Exception {
-        GameTestInstance instance = instance();
         CompletableFuture<Void> cleanup = new CompletableFuture<>();
         AtomicInteger restoration = new AtomicInteger();
-        instance.addAsyncCleanup(2, () -> cleanup);
-        instance.addCleanup(restoration::incrementAndGet);
-        instance.start(null);
+        GameTestInstance instance = startWithCleanup(2, cleanup, restoration::incrementAndGet);
         instance.succeed();
         LinkageError fatal = new LinkageError("fatal asynchronous cleanup");
         cleanup.completeExceptionally(fatal);
@@ -173,8 +176,9 @@ public class AsyncLifecycleTest {
         assertEquals(GameTestStatus.ERROR, instance.getStatus());
     }
 
-    private static GameTestInstance instance() throws Exception {
-        return new GameTestInstance(
+    private static GameTestInstance startWithCleanup(int budget, CompletableFuture<Void> cleanup, Runnable restoration)
+        throws Exception {
+        GameTestInstance instance = new GameTestInstance(
             new GameTestDefinition(
                 "test:AsyncLifecycle.pending",
                 AsyncLifecycleTest.class.getMethod("pending", GameTestHelper.class),
@@ -186,16 +190,20 @@ public class AsyncLifecycleTest {
             0,
             0,
             0);
+        instance.addAsyncCleanup(budget, () -> cleanup);
+        instance.addCleanup(restoration);
+        instance.start(null);
+        return instance;
     }
 
     @Test
     public void terminalShutdownInterruptsAnOrderlyAbortAndRetainsPhysicalCleanupPromise() throws Exception {
-        GameTestInstance instance = instance();
         CompletableFuture<Void> physicalCleanup = new CompletableFuture<>();
         AtomicInteger restoration = new AtomicInteger();
-        instance.addAsyncCleanup(10, () -> physicalCleanup.thenApply(ignored -> null));
-        instance.addCleanup(restoration::incrementAndGet);
-        instance.start(null);
+        GameTestInstance instance = startWithCleanup(
+            10,
+            physicalCleanup.thenApply(ignored -> null),
+            restoration::incrementAndGet);
         GameTestRunner runner = new GameTestRunner();
         assertTrue(runner.tryStart(GameTestRunner.Kind.BATCH, () -> runner.addInstance(instance)));
         runner.abortIfActive("cancel", null, () -> {});

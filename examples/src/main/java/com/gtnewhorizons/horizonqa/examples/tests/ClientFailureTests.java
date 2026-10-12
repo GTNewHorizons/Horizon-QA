@@ -42,9 +42,7 @@ public final class ClientFailureTests {
                 originalScale = Minecraft.getMinecraft().gameSettings.guiScale;
                 c.afterTest(() -> Minecraft.getMinecraft().gameSettings.guiScale = originalScale);
                 Minecraft.getMinecraft().gameSettings.guiScale = 1;
-                Minecraft.getMinecraft()
-                    .displayGuiScreen(new GuiScreen());
-                c.holdKey(KeyEvent.VK_SHIFT);
+                holdInput(c);
                 c.click(0, "unavailable target", ignored -> null);
                 c.run(ignored -> staleWorkRan = true);
                 throw new AssertionError("intentional client assertion failure");
@@ -56,11 +54,7 @@ public final class ClientFailureTests {
     public static void cTimeoutWithInputHeld(GameTestHelper helper) {
         ClientTest client = ClientTest.attach(helper);
         helper.startSequence()
-            .thenExecuteAsync("hold input", 40, () -> client.run(c -> {
-                Minecraft.getMinecraft()
-                    .displayGuiScreen(new GuiScreen());
-                c.holdKey(KeyEvent.VK_SHIFT);
-            }))
+            .thenExecuteAsync("hold input", 40, () -> client.run(ClientFailureTests::holdInput))
             .thenExecuteAsync(
                 "unavailable target times out",
                 60,
@@ -130,11 +124,7 @@ public final class ClientFailureTests {
             () -> helper.getWorld()
                 .setTileEntity(chest.x(), chest.y(), chest.z(), original));
         helper.startSequence()
-            .thenExecuteAsync("hold input before server crash", 40, () -> client.run(c -> {
-                Minecraft.getMinecraft()
-                    .displayGuiScreen(new GuiScreen());
-                c.holdKey(KeyEvent.VK_SHIFT);
-            }))
+            .thenExecuteAsync("hold input before server crash", 40, () -> client.run(ClientFailureTests::holdInput))
             .thenExecute(
                 "fail in the actual world tick",
                 () -> helper.getWorld()
@@ -154,6 +144,12 @@ public final class ClientFailureTests {
                 }
             }))
             .thenSucceed();
+    }
+
+    private static void holdInput(ClientTest client) {
+        Minecraft.getMinecraft()
+            .displayGuiScreen(new GuiScreen());
+        client.holdKey(KeyEvent.VK_SHIFT);
     }
 
     private static final class CrashingScreen extends GuiScreen {

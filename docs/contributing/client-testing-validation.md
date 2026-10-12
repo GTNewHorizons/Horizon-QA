@@ -179,3 +179,37 @@ the Java 8 and Java 26 interaction runs establish real Minecraft behavior.
 The Maven classifier is configured locally and its coordinates are checked through generated metadata.
 No artifact was published. Network acquisition of a released archive and deployment of the central
 package/daily changes remain unverified until the reviewed artifact is released and workflows adopt it.
+
+## Test consolidation review
+
+The follow-up review covers the client/testing additions on `feat/client-testing-support`, starting
+from `32d3faa2c3d3db9e8e6279c93f8f346b350eed04`. Existing unrelated suites remain unchanged.
+
+Report exit policies are now tested once through the shipped archive, outside the source checkout.
+An explicit outcome table covers successful, optional, required, timeout, infrastructure, running,
+and not-started cases. Invalid reports must produce rejection diagnostics; valid infrastructure
+reports must be accepted as exit 2. Shared archive setup replaces imports between test modules.
+Missing archive configuration fails clearly rather than making the entire tools suite skip.
+Eight tools tests replace ten; client flag coverage joins the existing property matrix, leaving
+278 Java tests. The nine async lifecycle tests retain distinct submission, retry, phase, cancellation,
+cleanup, fatal-error, and shutdown coverage, with shared cleanup setup and a five-second deadline.
+
+The final real client case no longer repeats the native-button scenario. It checks cleanup from the
+preceding cases: authoritative inventory, cursor, selected slot and game mode on the server thread;
+screen, released input and GUI scale on the client thread. Batch cleanup releases its saved state.
+Assertion, timeout and server-crash examples share held-input fixture preparation while keeping
+their distinct failure paths.
+
+Local evidence is retained in `/tmp/hqa-test-review-evidence/`. Build, Javadoc, and the tools suite pass.
+The real Java 8 interaction suite passes all three cases. A separate client run produces required and
+optional assertion failures, a required timeout, and a passing subsequent cleanup case: expected
+exit 1, two JUnit failures, one JUnit skip, no infrastructure error or forced termination.
+Six disposable verifier mutations are caught by assertions: optional-failure policy, stale reports,
+incomplete execution, qualified selector identity, JSON/JUnit disagreement, and missing tick metadata.
+The mutation archive copies do not modify repository or release sources.
+
+Earlier `/tmp/hqa-client-evidence/` and `/tmp/hqa-tooling-evidence/` runtime inputs are no longer present.
+Display dependencies were downloaded and extracted locally for this follow-up; system packages and
+installed packs were not changed. No fresh packaged Java 26 replay is claimed for this test-only change:
+the earlier disposable pack, `launch.argv`, and `launch.env` are unavailable. Recreate an isolated pack
+and use the [packaged launch command](../guide/client-tests.md#packaged-and-ci-launch) to repeat it.

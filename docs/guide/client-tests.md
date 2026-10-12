@@ -126,8 +126,11 @@ The archive contains and extracts its isolation adapter automatically. No adjace
 required. See [CI tooling](ci-tools.md) for artifact coordinates, task options, and verification.
 
 `ClientInteractionTests` verifies a one-pixel live target through a GUI scale change at odd display dimensions, Escape through
-normal keyboard handling, a real chest GUI with server inventory/cursor assertions, and successive
-cases. `ClientFailureTests` intentionally tests required/optional assertions, held input on timeout,
+normal keyboard handling, and a real chest GUI with server inventory/cursor assertions. Its final case
+checks that the following session sees released input, a closed screen, restored GUI scale, and the
+original player inventory, cursor, selected slot, and game mode. It does not replay the first GUI test.
+Run the whole holder to exercise those checks across successive tests.
+`ClientFailureTests` intentionally tests required/optional assertions, held input on timeout,
 cancellation, a rendering crash, world unloading, and cleanup. Select its cases explicitly; its
 namespace is not a passing smoke suite.
 
