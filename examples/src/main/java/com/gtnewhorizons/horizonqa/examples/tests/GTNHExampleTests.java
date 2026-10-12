@@ -8,10 +8,13 @@ import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.horizonqa.api.gt.MaintenanceType;
 import com.gtnewhorizons.horizonqa.api.gt.Multiblock;
 import com.gtnewhorizons.horizonqa.examples.ExamplesMod;
+import com.ruling_0.materiallib.api.MaterialLibAPI;
 
 import gregtech.api.enums.GTValues;
-import gregtech.api.enums.Materials;
 import gregtech.api.enums.TierEU;
+import gregtech.api.enums.materials.Materials;
+import gregtech.api.enums.materials.Shapes;
+import gregtech.api.material.MaterialUtils;
 import gregtech.api.util.GTRecipeBuilder;
 
 @GameTestHolder(ExamplesMod.MODID)
@@ -26,13 +29,15 @@ public class GTNHExampleTests {
         ebf.assertFormed();
         ebf.fixMaintenance();
         ebf.inputBus(0)
-            .insert(Materials.Nickel.getDust(1), Materials.Aluminium.getDust(3))
+            .insert(
+                MaterialLibAPI.getStack(Materials.Nickel, Shapes.dust, 1),
+                MaterialLibAPI.getStack(Materials.Aluminium, Shapes.dust, 3))
             .programmedCircuit(0);
         ebf.energyHatch(0)
             .supply(TierEU.EV, 1, 900);
         ebf.runRecipe();
         ebf.outputs()
-            .assertContains(Materials.NickelAluminide.getIngots(4));
+            .assertContains(MaterialLibAPI.getStack(Materials.NickelAluminide, Shapes.ingot, 4));
         helper.succeed();
     }
 
@@ -48,14 +53,14 @@ public class GTNHExampleTests {
         gtnh.assertMachineFormed(controller);
         gtnh.fixAllMaintenanceIssues(controller);
 
-        helper.insertItem(inputBus, Materials.Nickel.getDust(1));
-        helper.insertItem(inputBus, Materials.Aluminium.getDust(3));
+        helper.insertItem(inputBus, MaterialLibAPI.getStack(Materials.Nickel, Shapes.dust, 1));
+        helper.insertItem(inputBus, MaterialLibAPI.getStack(Materials.Aluminium, Shapes.dust, 3));
         gtnh.insertProgrammedCircuit(inputBus, 0);
 
         gtnh.supplyEU(energyHatch, TierEU.EV, 1, 900);
         gtnh.runUntilMachineIdle(controller, 1500);
 
-        gtnh.assertItemInBus(outputBus, Materials.NickelAluminide.getIngots(4));
+        gtnh.assertItemInBus(outputBus, MaterialLibAPI.getStack(Materials.NickelAluminide, Shapes.ingot, 4));
 
         helper.succeed();
     }
@@ -67,7 +72,9 @@ public class GTNHExampleTests {
 
         ebf.assertFormed();
         ebf.inputBus(0)
-            .insert(Materials.Nickel.getDust(1), Materials.Aluminium.getDust(3))
+            .insert(
+                MaterialLibAPI.getStack(Materials.Nickel, Shapes.dust, 1),
+                MaterialLibAPI.getStack(Materials.Aluminium, Shapes.dust, 3))
             .programmedCircuit(0);
         ebf.energyHatch(0)
             .supply(TierEU.EV, 1, 20);
@@ -133,19 +140,19 @@ public class GTNHExampleTests {
         ebf.fixMaintenance();
 
         GTRecipeBuilder synthetic = GTValues.RA.stdBuilder()
-            .itemInputs(Materials.Lead.getDust(1))
-            .itemOutputs(Materials.Gold.getIngots(1))
+            .itemInputs(MaterialLibAPI.getStack(Materials.Lead, Shapes.dust, 1))
+            .itemOutputs(MaterialLibAPI.getStack(Materials.Gold, Shapes.ingot, 1))
             .duration(200)
             .eut(TierEU.EV);
 
         gtnh.withTestRecipe(ebf, synthetic);
         ebf.inputBus(0)
-            .insert(Materials.Lead.getDust(1));
+            .insert(MaterialLibAPI.getStack(Materials.Lead, Shapes.dust, 1));
         ebf.energyHatch(0)
             .supply(TierEU.EV, 1, 300);
         ebf.runRecipe();
         ebf.outputs()
-            .assertContains(Materials.Gold.getIngots(1));
+            .assertContains(MaterialLibAPI.getStack(Materials.Gold, Shapes.ingot, 1));
 
         helper.succeed();
     }
@@ -158,19 +165,19 @@ public class GTNHExampleTests {
         ebf.fixMaintenance();
 
         GTRecipeBuilder synthetic = GTValues.RA.stdBuilder()
-            .itemInputs(Materials.Lead.getDust(1))
-            .itemOutputs(Materials.Gold.getIngots(1))
+            .itemInputs(MaterialLibAPI.getStack(Materials.Lead, Shapes.dust, 1))
+            .itemOutputs(MaterialLibAPI.getStack(Materials.Gold, Shapes.ingot, 1))
             .duration(10)
             .eut(TierEU.LV);
 
         gtnh.withTestRecipe(ebf, synthetic);
         ebf.inputBus(0)
-            .insert(Materials.Lead.getDust(8));
+            .insert(MaterialLibAPI.getStack(Materials.Lead, Shapes.dust, 8));
         ebf.energyHatch(0)
             .supply(TierEU.EV, 1, 300);
         ebf.runRecipe();
         ebf.outputs()
-            .assertContains(Materials.Gold.getIngots(1));
+            .assertContains(MaterialLibAPI.getStack(Materials.Gold, Shapes.ingot, 1));
 
         helper.succeed();
     }
@@ -183,12 +190,12 @@ public class GTNHExampleTests {
         dt.fixMaintenance();
 
         GTRecipeBuilder synthetic = GTValues.RA.stdBuilder()
-            .fluidInputs(Materials.Helium.getGas(120))
+            .fluidInputs(MaterialUtils.gas(Materials.Helium, 120))
             .fluidOutputs(
-                Materials.Oxygen.getGas(1000),
-                Materials.Hydrogen.getGas(2000),
-                Materials.Nitrogen.getGas(500),
-                Materials.Helium.getGas(500))
+                MaterialUtils.gas(Materials.Oxygen, 1000),
+                MaterialUtils.gas(Materials.Hydrogen, 2000),
+                MaterialUtils.gas(Materials.Nitrogen, 500),
+                MaterialUtils.gas(Materials.Helium, 500))
             .duration(200)
             .eut(TierEU.EV);
 
@@ -200,13 +207,13 @@ public class GTNHExampleTests {
         dt.runRecipe();
 
         dt.outputHatch(0)
-            .assertContains(Materials.Oxygen.getGas(1000));
+            .assertContains(MaterialUtils.gas(Materials.Oxygen, 1000));
         dt.outputHatch(1)
-            .assertContains(Materials.Hydrogen.getGas(2000));
+            .assertContains(MaterialUtils.gas(Materials.Hydrogen, 2000));
         dt.outputHatch(2)
-            .assertContains(Materials.Nitrogen.getGas(500));
+            .assertContains(MaterialUtils.gas(Materials.Nitrogen, 500));
         dt.outputHatch(3)
-            .assertContains(Materials.Helium.getGas(500));
+            .assertContains(MaterialUtils.gas(Materials.Helium, 500));
 
         helper.succeed();
     }
