@@ -99,7 +99,7 @@ def main(argv=None):
         if not args.xvfb or not args.xdotool:
             raise ValueError("Xvfb and xdotool are required for private native input (install xvfb xdotool)")
         with (report / "xvfb.log").open("wb") as display_log:
-            display = subprocess.Popen([args.xvfb, "-displayfd", "1", "-screen", "0", "959x541x24", "-nolisten", "tcp"],
+            display = subprocess.Popen([args.xvfb, "-displayfd", "1", "-screen", "0", "2560x1440x24", "-nolisten", "tcp"],
                 stdout=subprocess.PIPE, stderr=display_log, start_new_session=True)
             with selectors.DefaultSelector() as selector:
                 selector.register(display.stdout, selectors.EVENT_READ)
@@ -158,11 +158,13 @@ def main(argv=None):
                 process = subprocess.Popen(command, cwd=args.cwd, env=environment, stdout=log,
                     stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True)
                 try:
-                    # HeadlessNH forcefocus prevents pausing; X11 still needs actual native focus.
-                    while process.poll() is None and time.monotonic() < deadline and "focusedWindow" not in summary:
+                    # LWJGL can replace its native window during startup; focus each replacement on our display.
+                    while process.poll() is None and time.monotonic() < deadline:
                         windows = subprocess.run([args.xdotool, "search", "--onlyvisible", "--class", "."],
                             env=environment, capture_output=True, text=True, timeout=2)
-                        for window in windows.stdout.splitlines():
+                        visible = windows.stdout.splitlines()
+                        candidates = [] if summary.get("focusedWindow") in visible else visible
+                        for window in candidates:
                             position = subprocess.run([args.xdotool, "windowmove", window, "0", "0"], env=environment,
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
                             if position.returncode != 0:
@@ -171,6 +173,7 @@ def main(argv=None):
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
                             if focus.returncode == 0:
                                 summary["focusedWindow"] = window
+                                summary.setdefault("focusedWindows", []).append(window)
                                 break
                         try:
                             process.wait(timeout=min(0.2, max(0.01, deadline - time.monotonic())))
