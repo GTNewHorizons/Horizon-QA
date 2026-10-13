@@ -120,7 +120,7 @@ def main(argv=None):
                 "-Dhorizonqa.autoRun=true", "-Dhorizonqa.stopServer=true", "-Dhorizonqa.turbo=1",
                 "-Dhorizonqa.tests=" + args.tests, "-Dhorizonqa.reportDir=" + str(report),
                 "-Djava.awt.headless=false", "-Dheadlessnh.gate.worldloaded=hqa-complete.gate",
-                "-Dheadlessnh.gate.timeout=900000"]
+                "-Dheadlessnh.gate.timeout=" + str((args.timeout + args.grace) * 1000)]
             if args.headless == "singleplayer":
                 jvm += ["-Dheadlessnh.active=true", "-Dheadlessnh.singleplayer=true",
                     "-Dheadlessnh.combined=false", "-Dheadlessnh.gate.mainmenu=", "-Dheadlessnh.gate.serverloaded=",

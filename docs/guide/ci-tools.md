@@ -82,6 +82,9 @@ Wayland hosts.
 The virtual display is 2560×1440; the initial game window is 959×541. Window-resize tests must keep
 their native input targets within the display's bounds.
 
+HeadlessNH's completion-gate timeout follows the launch deadline plus shutdown grace, so it cannot
+abort a longer configured run early.
+
 The default `--headless singleplayer` creates a world. `--headless existing` retains a launcher's
 navigation settings while still holding the completion gate. Extra arguments after `--` go to Gradle
 or, for packaged commands, the JVM; managed HQA/HeadlessNH settings cannot be overridden.

@@ -36,7 +36,7 @@ class PackagedToolTest(ToolTestCase):
         launch_env.write_text("DISPLAY=:host\nXDG_SESSION_TYPE=wayland\nWAYLAND_DISPLAY=wayland-test\nSDL_VIDEO_DRIVER=wayland\n")
         report = self.directory / "reports"
         result = self.call("run-client", "--cwd", self.directory, "--gradle-task", ":mod:runClient25",
-            "--tests", "mod:Holder.test", "--report-dir", report, "--timeout", "10",
+            "--tests", "mod:Holder.test", "--report-dir", report, "--timeout", "1200",
             "--xvfb", display, "--xdotool", focus, "--env-file", launch_env)
         # This probe establishes command/resource delivery, not Minecraft behavior. Missing game reports fail.
         self.assertEqual(2, result.returncode, result.stderr)
@@ -45,6 +45,9 @@ class PackagedToolTest(ToolTestCase):
         self.assertIn("--mcJvmArgs=-Dhorizonqa.tests=mod:Holder.test", command)
         self.assertIn("--mcJvmArgs=-Dhorizonqa.client=true", command)
         self.assertIn("-PhqaHeadlessNH=true", command)
+        gates = [value for value in command if value.startswith("--mcJvmArgs=-Dheadlessnh.gate.timeout=")]
+        self.assertEqual(1, len(gates))
+        self.assertGreater(int(gates[0].rsplit("=", 1)[1]), 1200 * 1000)
         adapter = Path(command[command.index("--init-script") + 1])
         self.assertEqual(report, adapter.parent)
         self.assertIn("task.workingDir", adapter.read_text())
