@@ -100,7 +100,7 @@ cannot run this mode and reports `CLIENT_UNAVAILABLE` with exit `2`.
 
 The launcher creates/joins the world. Client automation keeps the integrated world ticking while a GUI
 is open and temporarily disables pause on focus loss; it does not test pause semantics. See
-[Real client scenarios](../guide/client-tests.md) for native input and packaged launch commands.
+[Client tests](../guide/client-tests.md) for native input and packaged launch commands.
 
 ## `horizonqa.tests`
 

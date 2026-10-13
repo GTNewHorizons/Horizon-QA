@@ -137,7 +137,7 @@ nav:
       - GTNH multiblock testing: guide/gtnh-api.md
       - Negative assertions: guide/negative-tests.md
       - Sequences and timing: guide/sequences.md
-      - Real client scenarios: guide/client-tests.md
+      - Client tests: guide/client-tests.md
     - Run and diagnose:
       - CI and JUnit reports: guide/ci.md
       - CI tooling: guide/ci-tools.md
@@ -147,6 +147,7 @@ nav:
     - reference/index.md
     - Author API:
       - Core helper API: reference/helper-api.md
+      - Client API: reference/client-api.md
       - Annotations: reference/annotations.md
     - Runtime and output:
       - Commands: reference/commands.md

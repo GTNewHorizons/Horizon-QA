@@ -5,7 +5,7 @@ description: Headless CI mode, JUnit XML, status JSON, selectors, exit codes, an
 
 # CI and JUnit reports
 
-Client scenarios use the same result protocol and exit policy. See [Real client scenarios](client-tests.md)
+Client scenarios use the same result protocol and exit policy. See [Client tests](client-tests.md)
 for packaged launches and local downstream integration instructions. The versioned
 [CI tools archive](ci-tools.md) provides `python3 hqa-tools.pyz verify`, which checks both schema-3 JSON
 and JUnit, selected cases, counts, and exit policy.

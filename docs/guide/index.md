@@ -24,7 +24,7 @@ Use these guides when you are building, running, or investigating Horizon-QA tes
 [Sequences and timing](sequences.md)
 : Coordinate ordered steps, delays, tick phases, polling, and bounded waits with `GameTestSequence`.
 
-[Real client scenarios](client-tests.md)
+[Client tests](client-tests.md)
 : Exercise GUI input, client state, and integrated-server gameplay with bounded client operations.
 
 ## Run and diagnose
