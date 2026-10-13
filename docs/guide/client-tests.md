@@ -5,15 +5,25 @@ description: Native input, integrated gameplay, owning threads, and packaged Lin
 
 # Real client scenarios
 
-Use client scenarios when the behavior needs Minecraft's GUI/input loop, client state after packets,
-or rendering. HQA runs them in an integrated world and reuses server fixtures, sequences, assertions,
-batch hooks, selectors, and reports. Continue using the dedicated-server suite for server-only and
-dedicated-network behavior. Connected-dedicated-server GUI execution is not implemented.
+Use client scenarios to test Minecraft's GUI/input loop, client state after packets, or rendering.
+Install HQA and your test JARs in the client, then enable
+[client-test mode](../reference/jvm-flags.md#horizonqaclient). Create a singleplayer world manually or
+use HeadlessNH and the [CI tools](ci-tools.md) to automate world creation.
 
-Install HQA and the consumer's test JARs in the normal client and use its existing launcher. Enable
-client-test mode with the [documented JVM settings](../reference/jvm-flags.md#horizonqaclient); HQA waits for an
-integrated world before running. HeadlessNH and the optional [CI tools](ci-tools.md) automate world
-creation and process supervision. Mod authors do not copy launcher scripts into their repositories.
+## Execution model
+
+Minecraft starts its integrated server when you enter singleplayer. The client and integrated server
+run in the same game JVM, with separate owning threads. HQA waits for a world, player, and rendered
+world frame before starting the reported test run.
+
+Test methods, fixtures, batch hooks, and server assertions run on the integrated server thread.
+Client callbacks, native input, and framebuffer capture run on the client thread. The sequence awaits
+queued client operations without blocking either game thread. Gameplay actions still pass through
+Minecraft and Forge's normal input and packet handling before changing authoritative server state.
+
+Client scenarios use the usual discovery, selectors, fixtures, assertions, cleanup, and reports.
+Run server-only and dedicated-network tests on a dedicated server. Client scenarios require an
+integrated world; running them while connected to a dedicated server is unsupported.
 
 ## Author a scenario
 
@@ -59,7 +69,7 @@ was released; separately wait for the resulting GUI or authoritative server stat
 
 ## Fluent contract
 
-`ClientTest.scenario(helper)` attaches the client lifetime and creates the test's sole existing
+`ClientTest.scenario(helper)` attaches the client lifetime and creates the test's
 `GameTestSequence`. Build the chain on the server test thread and finish with `succeed()`; do not also
 call `helper.startSequence()`. Methods register deferred work. They do not run input during authoring.
 
@@ -92,8 +102,8 @@ have no tick budget and must return promptly.
 
 Shift-click rejects an already-held Shift key so it cannot release a caller's modifier. Target-resolution
 or click errors schedule modifier release before the operation completes; timeout and cancellation
-invalidate queued work and use the same bounded session teardown. The interaction example proves
-release after a failed resolver before a successful subsequent click, without ending the session.
+invalidate queued work and use bounded session teardown. For a runnable gesture-recovery example,
+see `ClientInteractionTests.aNativeButton` in the [examples mod](../contributing/examples-mod.md).
 
 ## Custom operations and owning threads
 
@@ -114,7 +124,7 @@ ClientTest.scenario(helper)
     .succeed();
 ```
 
-The lower-level `ClientTest.attach(helper)` API remains available with `thenExecuteAsync` and
+For lower-level authoring, use `ClientTest.attach(helper)` with `thenExecuteAsync` and
 `thenWaitUntilAsync`. `ClientTest.run` queues a callback at client END; `screen`, `afterTest`, `holdKey`,
 and `releaseKey` must be called there. `useItem()` is the queued counterpart of fluent `useHeldItem()`.
 Both authoring styles use the same native input, sequence, result and cleanup implementation.
@@ -124,9 +134,8 @@ queues client work for you; never touch client state from a server callback. Ass
 inventory/recipe/world state through `awaitServer` or ordinary helper/sequence calls.
 Both queues preserve START, world tick, END order. Test and step budgets count server END ticks;
 slow rendering may need larger maximum budgets, while assertions still wait on observable state.
-Client-mode fixture preparation notifies cleared blocks as well as placed blocks, so the client sees
-air in an existing terrain chunk. Await synchronized fixture/player state and the rendered interaction
-target before sending input; server placement alone does not establish client readiness.
+Await synchronized fixture/player state and the rendered interaction target before sending input;
+server placement alone does not establish client readiness.
 
 ## Cleanup and failures
 
@@ -147,9 +156,9 @@ restoration are best effort after a fatal JVM failure; the launcher retains logs
 dumps, then terminates its own process group within a bounded grace period.
 
 Required assertions/timeouts exit `1`; optional assertions/timeouts remain exit `0` and JUnit-skipped;
-configuration, cleanup, crash, cancellation, reporting and incomplete execution exit `2`. Schema `3`
-is unchanged. Client state, pending target, and screenshot paths appear in existing JUnit system-out
-and JSON output. Retain the complete report directory, including `launch.log`, `xvfb.log`,
+configuration, cleanup, crash, cancellation, reporting and incomplete execution exit `2`. Results use
+[status schema `3`](../reference/jvm-flags.md#status-json). Client diagnostics and screenshot paths
+appear in JUnit system-out and JSON output. Retain the complete report directory, including `launch.log`, `xvfb.log`,
 `launch-result.json`, `artifacts/`, and game logs/crash reports.
 
 ## Visible local runs
@@ -180,11 +189,8 @@ write reports into `$demo_dir`, and close the client when finished. This command
 display; Python, Xvfb and xdotool are not required. The Linux `timeout` command bounds the launch,
 and `--no-daemon` gives this invocation its own Gradle process.
 
-The examples omit HeadlessNH from ordinary development launches. It is only needed to automate menu
-navigation and world creation; the tools enable it with the Gradle property `-PhqaHeadlessNH=true`.
-HeadlessNH 1.1.1's disabled mode writes repeated world-loaded markers and throws when one already
-exists, while its enabled `NONE` mode still automates the world-creation screens. Keeping the mod off
-the manual runtime classpath preserves Minecraft's normal menus.
+The examples omit HeadlessNH from ordinary development launches. The automation tools enable its
+menu navigation and world creation with the Gradle property `-PhqaHeadlessNH=true`.
 
 ## Automated development runs
 
@@ -211,57 +217,55 @@ JSON/JUnit. The shortcut chooses a new report directory under `build/horizonqa/`
 `-PhqaTests=<selector>` for a focused case or `-PhqaClientTask=:examples:runClient25` for a supported
 modern runtime. An explicit `-PhqaReportDir=<path>` must be new.
 
-For consumer repositories, CI maintainers acquire the single versioned archive centrally; local
-developers can run that same artifact against their existing Gradle task:
+In your mod's repository, run the tools archive against its client task:
 
 ```bash
 python3 hqa-tools.pyz run-client --gradle-task runClient \
   --tests mymod:ClientTests --report-dir "$PWD/build/client-run"
 ```
 
-The archive contains and extracts its isolation adapter automatically. No adjacent helper files are
-required. See [CI tooling](ci-tools.md) for artifact coordinates, task options, and verification.
+See [CI tooling](ci-tools.md) for artifact coordinates, launch options, and report verification.
 
-`ClientInteractionTests` uses the fluent interface to verify failure recovery within one Shift-click
-session, exactly one native click on a one-pixel live target through a GUI scale change at odd display
-dimensions, Escape through normal keyboard handling, and a real chest GUI with server inventory/cursor
-assertions. Its final case
-checks that the following session sees released input, a closed screen, restored GUI scale, and the
-original player inventory, cursor, selected slot, and game mode. It does not replay the first GUI test.
-Run the whole holder to exercise those checks across successive tests.
-`ClientFailureTests` intentionally tests required/optional assertions, held input on timeout,
-cancellation, a rendering crash, world unloading, and cleanup. Select its cases explicitly; its
-namespace is not a passing smoke suite.
+`ClientInteractionTests` demonstrates native button input, Escape, chest inventory changes, and
+restoration between successive tests. Run the whole holder to exercise that lifecycle.
+`ClientFailureTests` demonstrates required/optional failures, timeout, cancellation, crashes, world
+unloading, and cleanup. Select its cases explicitly: some intentionally fail or terminate the run.
 
 ## Packaged and CI launch
 
-Put the reobfuscated HQA and consumer test JARs plus HeadlessNH in an isolated assembled pack. Use the
-pack's normal bootstrapper to prepare libraries, natives, and an argv file: one literal argument per
-line, starting with an absolute Java executable. No source checkout or Gradle wrapper is required.
-The game directory must contain no `saves` directory. For example, after Prism bootstrap:
+Install the reobfuscated HQA and test JARs in an isolated pack. The same test classes run without a
+source checkout or Gradle wrapper. Use the pack's launcher and a compatible Java/LWJGL runtime;
+modern Java requires the pack's supported lwjgl3ify configuration. Automated world creation also
+requires HeadlessNH.
 
-```bash
-python3 /path/to/hqa-tools.pyz run-client \
-  --cwd /path/to/isolated-pack/.minecraft \
-  --argv-file /path/to/isolated-pack/launch.argv \
-  --env-file /path/to/isolated-pack/launch.env \
-  --tests mymod:ClientTests \
-  --report-dir /path/to/results/client --timeout 900
-```
+Follow [packaged launch setup](ci-tools.md#existing-packaged-launchers) to use a prepared Java command,
+or the [existing-launcher contract](ci-tools.md#integrate-with-an-existing-launcher) to add HQA to your
+own CI lifecycle. Give server and client suites separate report directories and retain both.
 
-Launch environment assignments are parsed as literal values, without shell evaluation. The launcher's
-default HeadlessNH singleplayer mode holds `gate.worldloaded` while HQA executes and HQA shuts down
-after writing its result. `--headless existing` preserves a prepared launcher's navigation settings
-and still installs the worldloaded gate. Extra arguments after `--` are forwarded to Gradle, or
-inserted as JVM arguments in a packaged launch. Use Java 8/LWJGL 2 and the pack's supported modern
-runtime/lwjgl3ify variant with the same test/API: input does not reflect into LWJGL private buffers.
+Screenshots are diagnostics. Tests for a specific shader or graphics device must provide their own
+environment and correctness assertions. HeadlessNH 1.1.1 dismisses unsolicited pause menus; use a
+launcher without those menu overrides when testing pause-menu input. Client-test mode keeps the
+integrated world ticking while a GUI is open and disables pause on focus loss, so it does not test
+Minecraft's normal pause semantics.
 
-Package CI should opt into a separate client stage after build and its server tests. Daily CI should
-keep the existing dedicated RCON tests, then let its combined HeadlessNH client reach singleplayer
-and run client holders there. Replace the current five-second worldloaded shutdown with waiting for
-HQA's report/process completion. Give server and client distinct report directories; verify and
-retain both. Concrete repository-specific steps are in [Downstream integration](../contributing/client-ci-integration.md).
+## Diagnose a client run
 
-HeadlessNH 1.1.1 dismisses unsolicited pause menus. Pause-menu tests need another world launcher or a
-HeadlessNH change. Hardware/shader-specific rendering also needs a consumer-defined environment and
-assertion. These are external integration requirements, not implemented HQA coverage.
+Start with `horizonqa-result.json` and the failing JUnit case's `system-out`. Look for `lastScreen`,
+`waitingFor`, and `screenshot` diagnostics. For an automated launch, also inspect
+`launch-result.json` and `launch.log`. A crash before HQA initializes can leave no game reports;
+the launch log and JVM crash report are then the starting point.
+
+| Symptom | What to check |
+|---|---|
+| `CLIENT_CONFIG` | Client mode requires `mode=ci`, `world=normal`, `autoRun=true`, `stopServer=true`, and `turbo=1` |
+| `CLIENT_STARTUP` or no tests start | Enter a singleplayer world, close loading/menu screens, and reach a rendered player/world within the 600-second startup budget |
+| Native input or focus error | Keep the visible window focused; automation needs a working private display, xdotool, and an AWT-capable JVM with `java.awt.headless=false` |
+| Timeout while resolving a target | Read `waitingFor` and the named step; check screen type, live bounds, readiness, and synchronized fixture/player state |
+| Cleanup error and subsequent cases do not start | Read the original cleanup cause; register restoration before mutation and let queued input release complete |
+| `Failed to create HeadlessNH marker` with HeadlessNH 1.1.1 | Its disabled mode repeats world-marker writes; omit HeadlessNH for manual world creation, as the examples do |
+| Missing or inconsistent reports | Treat the run as infrastructure failure; check the launcher log and verify a fresh report directory with the [CI tools](ci-tools.md#verify-reports) |
+
+To reproduce one case, set `-PhqaTests=<exact-test-id>` on `hqaClientTest`, or pass
+`--mcJvmArgs=-Dhorizonqa.tests=<exact-test-id>` to the visible client task. Use a fresh game/report
+directory, then inspect the retained screenshots and logs. Increase a step's maximum budget only
+when its readiness condition is correct and the environment needs more rendering time.

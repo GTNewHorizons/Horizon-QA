@@ -158,9 +158,6 @@ nav:
   - Project:
     - Contributing: contributing/index.md
     - Clean-room policy: contributing/legal.md
-    - Client testing decision: contributing/client-testing-decision.md
-    - Client CI integration: contributing/client-ci-integration.md
-    - Client testing validation: contributing/client-testing-validation.md
   - Javadoc API: https://www.gtnewhorizons.com/Horizon-QA/javadoc/index.html
 
 strict: true

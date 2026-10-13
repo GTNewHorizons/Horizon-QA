@@ -24,10 +24,16 @@ Use these guides when you are building, running, or investigating Horizon-QA tes
 [Sequences and timing](sequences.md)
 : Coordinate ordered steps, delays, tick phases, polling, and bounded waits with `GameTestSequence`.
 
+[Real client scenarios](client-tests.md)
+: Exercise GUI input, client state, and integrated-server gameplay with bounded client operations.
+
 ## Run and diagnose
 
 [CI and JUnit reports](ci.md)
 : Run selected tests in automation and publish JUnit XML, status JSON, and event traces.
+
+[CI tooling](ci-tools.md)
+: Launch client tests in an isolated environment and verify complete, fresh reports.
 
 [Setup troubleshooting](troubleshooting.md)
 : Resolve missing commands or tests, template and label errors, absent reports, and unsupported controllers.
