@@ -27,13 +27,17 @@ class PackagedToolTest(ToolTestCase):
         focus.write_text(f"#!{sys.executable}\n")
         focus.chmod(0o700)
         gradle = self.directory / "gradlew"
-        gradle.write_text(f"#!{sys.executable}\nimport json, pathlib, sys\n"
-            "pathlib.Path('captured-argv.json').write_text(json.dumps(sys.argv[1:]))\n")
+        gradle.write_text(f"#!{sys.executable}\nimport json, os, pathlib, sys\n"
+            "pathlib.Path('captured-argv.json').write_text(json.dumps(sys.argv[1:]))\n"
+            "pathlib.Path('captured-env.json').write_text(json.dumps({"
+            "key: os.environ.get(key) for key in ('DISPLAY', 'XDG_SESSION_TYPE', 'WAYLAND_DISPLAY', 'SDL_VIDEO_DRIVER')}))\n")
         gradle.chmod(0o700)
+        launch_env = self.directory / "launch.env"
+        launch_env.write_text("DISPLAY=:host\nXDG_SESSION_TYPE=wayland\nWAYLAND_DISPLAY=wayland-test\nSDL_VIDEO_DRIVER=wayland\n")
         report = self.directory / "reports"
         result = self.call("run-client", "--cwd", self.directory, "--gradle-task", ":mod:runClient25",
             "--tests", "mod:Holder.test", "--report-dir", report, "--timeout", "10",
-            "--xvfb", display, "--xdotool", focus)
+            "--xvfb", display, "--xdotool", focus, "--env-file", launch_env)
         # This probe establishes command/resource delivery, not Minecraft behavior. Missing game reports fail.
         self.assertEqual(2, result.returncode, result.stderr)
         command = json.loads((self.directory / "captured-argv.json").read_text())
@@ -44,6 +48,11 @@ class PackagedToolTest(ToolTestCase):
         self.assertEqual(report, adapter.parent)
         self.assertIn("task.workingDir", adapter.read_text())
         self.assertEqual(str(report / "gradle-cache"), command[command.index("--project-cache-dir") + 1])
+        environment = json.loads((self.directory / "captured-env.json").read_text())
+        self.assertEqual(":199", environment["DISPLAY"])
+        self.assertEqual("x11", environment["XDG_SESSION_TYPE"])
+        self.assertIsNone(environment["WAYLAND_DISPLAY"])
+        self.assertEqual("x11", environment["SDL_VIDEO_DRIVER"])
         summary = json.loads((report / "launch-result.json").read_text())
         self.assertEqual(2, summary["exitCode"])
         self.assertNotEqual("development", summary["toolsVersion"])

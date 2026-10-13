@@ -33,6 +33,14 @@ python3 hqa-tools.pyz verify --help
 `launch-result.json` records `toolsVersion` alongside the process outcome. HQA's schema-3 JSON and
 JUnit protocol is unchanged.
 
+The supervisor owns a private X11 display. After reading launch environment overrides, it sets
+`DISPLAY`, `XDG_SESSION_TYPE=x11`, and `SDL_VIDEO_DRIVER=x11`, and removes `WAYLAND_DISPLAY`.
+This keeps native input and the game window on the same display on Wayland hosts. The choices follow
+[GLFW's Linux platform selection](https://github.com/glfw/glfw/blob/3.4/src/platform.c#L78-L91)
+and [SDL's video-driver selection](https://wiki.libsdl.org/SDL3/SDL_HINT_VIDEO_DRIVER).
+Graphics-driver or native-library startup failures still produce infrastructure exit 2 and retain
+their logs/crash reports.
+
 ## Development shortcut
 
 In the Horizon-QA repository, run the focused client smoke suite with:

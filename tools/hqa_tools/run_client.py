@@ -109,6 +109,10 @@ def main(argv=None):
                 if not number.isdecimal():
                     raise ValueError("private display failed; see xvfb.log")
             environment["DISPLAY"] = ":" + number
+            # GLFW and SDL must use the private X11 display even when the host session uses Wayland.
+            environment["XDG_SESSION_TYPE"] = "x11"
+            environment["SDL_VIDEO_DRIVER"] = "x11"
+            environment.pop("WAYLAND_DISPLAY", None)
             summary["display"] = environment["DISPLAY"]
             environment.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
             environment.setdefault("ALSOFT_DRIVERS", "null")
