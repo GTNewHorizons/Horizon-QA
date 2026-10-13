@@ -25,7 +25,11 @@ Do not also call `helper.startSequence()`.
 | `awaitServer(label, assertion)` | Poll authoritative server assertions at END after the world tick |
 | `awaitScreen(type)` | Wait for the live screen type on the client thread |
 | `click(target)`, `rightClick(target)` | Resolve a live target, send one native click, observe release |
+| `doubleClick(target)` | Resolve once; send two native left clicks at the same position; observe processing and release |
 | `shiftClick(target)` | Own Shift around one left-click; observe mouse and modifier release |
+| `scroll(target, notches)` | Send native wheel input at a live target; positive scrolls down, negative up |
+| `drag(target, endpoint, movementFrames)` | Left-button drag to a client-resolved scaled GUI point; observe release |
+| `resizeWindow(width, height)` | Resize the native window; await Minecraft's normal resize/rendering |
 | `useHeldItem()` | Send the configured use-item binding with no GUI |
 | `key(KeyEvent.VK_*)`, `escape()` | Send one physical key press/release; no text-entry guarantee |
 | `capture(name)` | Capture a completed framebuffer; encode PNG off the game thread |
@@ -37,6 +41,15 @@ their original cause. Observation callbacks must not mutate state. Actions are n
 because a later assertion fails. Await the resulting GUI or server state separately from input release.
 Screenshots are diagnostics, not pixel correctness assertions.
 
+Use `doubleClick` when two presses must reach the same position before camera or layout changes.
+It sends both press/release pairs without intervening game frames and rejects an already-held
+left button. Two separate `click` steps each resolve rendered readiness and may follow a moving target.
+
+Wheel counts must be nonzero and between -100 and 100. Drag movement frames describe the gesture's
+trajectory; they do not replace readiness assertions. A drag rejects an already-held left button,
+an endpoint outside the screen, or a screen/size change while pressed. Both gestures resolve targets
+on the client thread and retain the session's input release and bounded cleanup.
+
 Client state belongs inside `client` / `awaitClient` callbacks. An `async` supplier runs on the
 **server** thread: use queued session methods such as `c.run(...)` or `c.click(...)` there.
 Never block either game thread with `get()` / `join()`. START runs before the world tick;
@@ -47,7 +60,7 @@ END callbacks, polling, and timeout evaluation run after it.
 `ClientTarget.of("name", resolver)` names a reusable deferred lookup; creating it reads no client
 state. Its resolver runs on the client thread and returns a `ClickTarget` containing:
 
-- **Identity:** the live widget, stable during pointer positioning.
+- **Identity:** the live widget object, compared by reference during pointer positioning.
 - **Bounds:** a `java.awt.Rectangle` in current scaled GUI pixels.
 - **Readiness:** a predicate for the widget's actual hit-test readiness after rendering at the pointer.
 
@@ -98,6 +111,11 @@ For lower-level authoring, `ClientTest.attach(helper)` works with the existing s
 `thenExecuteAsync` / `thenWaitUntilAsync`. `ClientTest.run` queues client END work; `screen`,
 `afterTest`, `holdKey`, and `releaseKey` require that client callback. `useItem()` is the queued
 counterpart of fluent `useHeldItem()`. Both styles share input, cleanup, and reporting.
+
+`requestWindowResize(width, height)` requests resizing inside a client callback without awaiting
+completion; observe framebuffer dimensions separately. `resizeWindow` awaits them for you.
+Both restore the original native window and framebuffer size before the next test; a created,
+resizable, windowed display without an AWT parent is required.
 
 Client-test mode keeps the integrated world ticking with GUIs open and disables pause on focus loss;
 it does not test normal pause semantics. HeadlessNH 1.1.1 dismisses unsolicited pause menus, so

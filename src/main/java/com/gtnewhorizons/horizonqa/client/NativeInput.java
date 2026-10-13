@@ -70,6 +70,13 @@ public final class NativeInput {
         }
     }
 
+    /** Sends ordinary OS wheel input; positive notches scroll down, negative notches scroll up. */
+    public void scroll(int notches) {
+        if (notches == 0 || notches < -100 || notches > 100)
+            throw new IllegalArgumentException("Wheel notches must be -100..100 and nonzero");
+        robot.mouseWheel(notches);
+    }
+
     public void key(int awtKeyCode, boolean down) {
         if (down) {
             keys.add(awtKeyCode);

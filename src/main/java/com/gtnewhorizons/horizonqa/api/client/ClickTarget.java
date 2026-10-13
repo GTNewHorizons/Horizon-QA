@@ -12,7 +12,7 @@ public final class ClickTarget {
     public final BooleanSupplier ready;
 
     /**
-     * @param identity stable widget identity, used to reject a replacement during pointer positioning
+     * @param identity live widget object, compared by reference to reject replacement during pointer positioning
      * @param bounds   visible, clickable bounds in the current screen's coordinate system
      * @param ready    consumer's actual hit-test readiness after a rendered frame at the pointer
      */

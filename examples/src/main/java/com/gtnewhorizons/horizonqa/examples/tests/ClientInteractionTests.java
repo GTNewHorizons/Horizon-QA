@@ -1,5 +1,6 @@
 package com.gtnewhorizons.horizonqa.examples.tests;
 
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletionException;
@@ -22,6 +23,8 @@ import net.minecraft.world.WorldSettings.GameType;
 
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.input.Mouse;
+import org.lwjgl.opengl.Display;
 
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.TestPos;
@@ -41,6 +44,8 @@ public final class ClientInteractionTests {
     private static final ClientTarget CHEST_SLOT = ClientTarget.of("chest slot", ClientInteractionTests::chestSlot);
     private static boolean batchOpen;
     private static int originalGuiScale = -1;
+    private static int originalWindowWidth;
+    private static int originalWindowHeight;
     private static Runnable assertPlayerRestored;
 
     @BeforeBatch("client")
@@ -54,6 +59,8 @@ public final class ClientInteractionTests {
         if (!batchOpen) throw new IllegalStateException("Batch lifecycle did not run");
         batchOpen = false;
         originalGuiScale = -1;
+        originalWindowWidth = 0;
+        originalWindowHeight = 0;
         assertPlayerRestored = null;
     }
 
@@ -70,6 +77,8 @@ public final class ClientInteractionTests {
                 Minecraft mc = Minecraft.getMinecraft();
                 int scale = mc.gameSettings.guiScale;
                 originalGuiScale = scale;
+                originalWindowWidth = mc.displayWidth;
+                originalWindowHeight = mc.displayHeight;
                 c.afterTest(() -> mc.gameSettings.guiScale = scale);
                 mc.gameSettings.guiScale = 2;
                 Minecraft.getMinecraft()
@@ -99,6 +108,30 @@ public final class ClientInteractionTests {
                         "Expected one native Shift-click, release and screen updates; clicks=" + screen.clicks);
                 }
                 if (!NativeInput.released()) throw new AssertionError("Shift-click completed with input still held");
+            })
+            .doubleClick(ClientTarget.of("one-pixel button", ClientInteractionTests::button), 200)
+            .awaitClient("normal input handler receives both clicks", c -> {
+                if (c.screen(ButtonScreen.class).clicks != 3 || !NativeInput.released())
+                    throw new AssertionError("Expected two additional native button clicks with released input");
+            })
+            .scroll(ClientTarget.of("native wheel area", ClientInteractionTests::dragArea), -1)
+            .awaitClient(
+                "normal screen handler receives wheel input",
+                c -> {
+                    if (c.screen(ButtonScreen.class).wheel <= 0)
+                        throw new AssertionError("Expected native wheel-up input");
+                })
+            .drag(ClientTarget.of("native drag area", ClientInteractionTests::dragArea), c -> new Point(80, 60), 8, 200)
+            .awaitClient("normal screen handler receives drag and release", c -> {
+                ButtonScreen screen = c.screen(ButtonScreen.class);
+                if (screen.dragDistance < 30 || !NativeInput.released()) throw new AssertionError(
+                    "Expected a native drag with released input; distance=" + screen.dragDistance);
+            })
+            .resizeWindow(801, 601, 200)
+            .awaitClient("normal resize updates the client framebuffer", c -> {
+                Minecraft mc = Minecraft.getMinecraft();
+                if (mc.displayWidth != 801 || mc.displayHeight != 601) throw new AssertionError(
+                    "Expected resized framebuffer, observed " + mc.displayWidth + "x" + mc.displayHeight);
             })
             .capture("button")
             .escape(200)
@@ -241,6 +274,11 @@ public final class ClientInteractionTests {
                             + ", observed "
                             + Minecraft.getMinecraft().gameSettings.guiScale);
                 }
+                if (originalWindowWidth > 0
+                    && (Display.getWidth() != originalWindowWidth || Display.getHeight() != originalWindowHeight
+                        || Minecraft.getMinecraft().displayWidth != originalWindowWidth
+                        || Minecraft.getMinecraft().displayHeight != originalWindowHeight))
+                    throw new AssertionError("Previous test leaked its native window size");
             })
             .succeed();
     }
@@ -274,6 +312,14 @@ public final class ClientInteractionTests {
             () -> true);
     }
 
+    private static ClickTarget dragArea(ClientTest client) {
+        ButtonScreen screen = client.screen(ButtonScreen.class);
+        return new ClickTarget(
+            screen,
+            new Rectangle(20, 20, 1, 1),
+            () -> screen.renderedX == 20 && screen.renderedY == 20);
+    }
+
     private static int offset(GuiContainer screen, String developmentName, String runtimeName) {
         try {
             Field field = FieldUtils.getField(screen.getClass(), developmentName, true);
@@ -295,6 +341,9 @@ public final class ClientInteractionTests {
         private int renderedX;
         private int renderedY;
         private GuiButton button;
+        private int wheel;
+        private Point dragStart;
+        private double dragDistance;
 
         @Override
         public void initGui() {
@@ -312,6 +361,24 @@ public final class ClientInteractionTests {
         protected void mouseMovedOrUp(int x, int y, int button) {
             if (button == 0) released = true;
             super.mouseMovedOrUp(x, y, button);
+        }
+
+        @Override
+        public void handleMouseInput() {
+            wheel += Mouse.getEventDWheel();
+            super.handleMouseInput();
+        }
+
+        @Override
+        protected void mouseClicked(int x, int y, int button) {
+            if (button == 0) dragStart = new Point(x, y);
+            super.mouseClicked(x, y, button);
+        }
+
+        @Override
+        protected void mouseClickMove(int x, int y, int button, long elapsed) {
+            if (button == 0 && dragStart != null) dragDistance = Math.max(dragDistance, dragStart.distance(x, y));
+            super.mouseClickMove(x, y, button, elapsed);
         }
 
         @Override

@@ -1,5 +1,6 @@
 package com.gtnewhorizons.horizonqa.api.client;
 
+import java.awt.Point;
 import java.awt.event.KeyEvent;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
@@ -70,6 +71,20 @@ public final class ClientScenario {
         return async("click " + target.description, maxTicks, c -> c.click(0, target.description, target.resolver));
     }
 
+    /** Sends two native left clicks at one ready position, with the default budget. */
+    public ClientScenario doubleClick(ClientTarget target) {
+        return doubleClick(target, defaultTimeout);
+    }
+
+    /** Sends a native double-click and awaits normal input processing and release within this operation's budget. */
+    public ClientScenario doubleClick(ClientTarget target, int maxTicks) {
+        Objects.requireNonNull(target, "target");
+        return async(
+            "double click " + target.description,
+            maxTicks,
+            c -> c.doubleClick(target.description, target.resolver));
+    }
+
     /** Right-clicks a live target, with the default budget. */
     public ClientScenario rightClick(ClientTarget target) {
         return rightClick(target, defaultTimeout);
@@ -82,6 +97,49 @@ public final class ClientScenario {
             "right click " + target.description,
             maxTicks,
             c -> c.click(1, target.description, target.resolver));
+    }
+
+    /** Scrolls a live target with the default budget; positive OS notches scroll down, negative up. */
+    public ClientScenario scroll(ClientTarget target, int notches) {
+        return scroll(target, notches, defaultTimeout);
+    }
+
+    /** Sends 1..100 native wheel notches in either direction, then awaits normal input processing. */
+    public ClientScenario scroll(ClientTarget target, int notches, int maxTicks) {
+        Objects.requireNonNull(target, "target");
+        return async(
+            "scroll " + target.description,
+            maxTicks,
+            c -> c.scroll(notches, target.description, target.resolver));
+    }
+
+    /** Drags a live target to a client-resolved endpoint over rendered movement frames, with the default budget. */
+    public ClientScenario drag(ClientTarget target, Function<ClientTest, Point> endpoint, int movementFrames) {
+        return drag(target, endpoint, movementFrames, defaultTimeout);
+    }
+
+    /**
+     * Sends one native left-button drag and observes release. Endpoints use current scaled GUI pixels.
+     * Movement frames define the gesture trajectory; maxTicks bounds readiness and completion.
+     */
+    public ClientScenario drag(ClientTarget target, Function<ClientTest, Point> endpoint, int movementFrames,
+        int maxTicks) {
+        Objects.requireNonNull(target, "target");
+        Objects.requireNonNull(endpoint, "endpoint");
+        return async(
+            "drag " + target.description,
+            maxTicks,
+            c -> c.drag(target.description, target.resolver, endpoint, movementFrames));
+    }
+
+    /** Resizes the real window and awaits normal game resize/rendering, with the default budget. */
+    public ClientScenario resizeWindow(int width, int height) {
+        return resizeWindow(width, height, defaultTimeout);
+    }
+
+    /** Resizes without calling Minecraft's resize handler; client teardown restores the original window size. */
+    public ClientScenario resizeWindow(int width, int height, int maxTicks) {
+        return async("resize window to " + width + "x" + height, maxTicks, c -> c.resizeWindow(width, height));
     }
 
     /** Shift-clicks a live target, with the default budget. */

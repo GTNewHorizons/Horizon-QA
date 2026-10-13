@@ -24,6 +24,7 @@ import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 import com.gtnewhorizons.horizonqa.client.ClientTaskQueue;
 import com.gtnewhorizons.horizonqa.client.ClientTaskQueue.Phase;
 import com.gtnewhorizons.horizonqa.client.FrameCapture;
+import com.gtnewhorizons.horizonqa.client.LwjglWindow;
 import com.gtnewhorizons.horizonqa.client.NativeInput;
 import com.gtnewhorizons.horizonqa.internal.FatalErrors;
 
@@ -58,6 +59,8 @@ public final class ClientTest {
     private Throwable cleanupError;
     private Error fatalCleanupError;
     private String waitingFor = "";
+    private int originalWindowWidth;
+    private int originalWindowHeight;
 
     private ClientTest(GameTestHelper helper) {
         File artifacts = new File(
@@ -152,6 +155,107 @@ public final class ClientTest {
                 return renderedFrames;
             }))
             .thenCompose(frame -> awaitReleasedFrame(frame, () -> !Mouse.isButtonDown(button)));
+    }
+
+    /**
+     * Sends two native left clicks at one resolved position without intervening game frames.
+     * Normal input handling consumes both press/release pairs; no GUI handlers are invoked directly.
+     * Rejects an already-held left button and observes rendered processing and release before completing.
+     * Await the resulting client or gameplay state separately; the enclosing sequence bounds all waiting.
+     */
+    public CompletableFuture<Void> doubleClick(String description, Function<ClientTest, ClickTarget> resolver) {
+        TargetPosition target = new TargetPosition(description, resolver);
+        return operations.submitWhenReady(Phase.END, target::ready, () -> {
+            if (Mouse.isButtonDown(0)) throw new IllegalStateException("Double-click requires a released left button");
+            for (int click = 0; click < 2; click++) {
+                nativeInput().mouse(0, true);
+                nativeInput().mouse(0, false);
+            }
+            return renderedFrames;
+        })
+            .thenCompose(
+                frame -> operations
+                    .submitWhenReady(Phase.END, () -> renderedAfterPress(frame) && !Mouse.isButtonDown(0), () -> {
+                        waitingFor = "";
+                        return null;
+                    }));
+    }
+
+    /**
+     * Scrolls a live target through OS input and waits for the normal game loop to process it.
+     * Positive notches scroll down; negative notches scroll up. Accepts nonzero values from -100 to 100.
+     * Assert the resulting scroll/zoom state separately; the enclosing sequence bounds all waiting.
+     */
+    public CompletableFuture<Void> scroll(int notches, String description, Function<ClientTest, ClickTarget> resolver) {
+        if (notches == 0 || notches < -100 || notches > 100)
+            throw new IllegalArgumentException("Wheel notches must be -100..100 and nonzero");
+        TargetPosition target = new TargetPosition(description, resolver);
+        return operations.submitWhenReady(Phase.END, target::ready, () -> {
+            nativeInput().scroll(notches);
+            return renderedFrames;
+        })
+            .thenCompose(frame -> operations.submitWhenReady(Phase.END, () -> renderedAfterPress(frame), () -> {
+                waitingFor = "";
+                return null;
+            }));
+    }
+
+    /**
+     * Drags a live target with the native left button over a positive number of rendered movement frames.
+     * Resolve the endpoint on the client thread immediately before pressing, in scaled GUI pixels.
+     * Rejects already-held input and screen/size changes during the gesture. Completion observes release;
+     * failures and cancellation retain bounded session cleanup. Await resulting state separately.
+     */
+    public CompletableFuture<Void> drag(String description, Function<ClientTest, ClickTarget> resolver,
+        Function<ClientTest, Point> endpoint, int movementFrames) {
+        if (movementFrames <= 0) throw new IllegalArgumentException("Movement frames must be positive");
+        DragGesture gesture = new DragGesture(description, resolver, endpoint, movementFrames);
+        return operations.submitWhenReady(Phase.END, gesture::ready, () -> null);
+    }
+
+    /** Queues a native window resize and awaits normal Minecraft resize handling and a completed frame. */
+    public CompletableFuture<Void> resizeWindow(int width, int height) {
+        validateWindowSize(width, height);
+        return operations.submit(Phase.END, () -> {
+            requestWindowResize(width, height);
+            return renderedFrames;
+        })
+            .thenCompose(frame -> operations.submitWhenReady(Phase.END, () -> {
+                Minecraft mc = Minecraft.getMinecraft();
+                waitingFor = "window " + width
+                    + "x"
+                    + height
+                    + ": framebuffer="
+                    + mc.displayWidth
+                    + "x"
+                    + mc.displayHeight;
+                return renderedFrames > frame + 1 && mc.displayWidth == width && mc.displayHeight == height;
+            }, () -> {
+                waitingFor = "";
+                return null;
+            }));
+    }
+
+    /**
+     * Requests native resizing inside a client callback, without blocking or invoking Minecraft's resize handler.
+     * The normal loop must observe the new framebuffer dimensions; await them separately.
+     * The first request registers restoration of the original window size before mutation.
+     */
+    public void requestWindowResize(int width, int height) {
+        requireClientThread();
+        validateWindowSize(width, height);
+        if (!Display.isCreated() || Display.isFullscreen() || Display.getParent() != null || !Display.isResizable())
+            throw new GameTestInfrastructureException("CLIENT_WINDOW", "Resize requires a resizable windowed display");
+        if (originalWindowWidth == 0) {
+            originalWindowWidth = Display.getWidth();
+            originalWindowHeight = Display.getHeight();
+            afterTest(() -> LwjglWindow.resize(originalWindowWidth, originalWindowHeight));
+        }
+        LwjglWindow.resize(width, height);
+    }
+
+    private static void validateWindowSize(int width, int height) {
+        if (width <= 0 || height <= 0) throw new IllegalArgumentException("Window dimensions must be positive");
     }
 
     /**
@@ -274,8 +378,17 @@ public final class ClientTest {
 
     private NativeInput nativeInput() {
         requireClientThread();
-        if (!Display.isActive())
-            throw new GameTestInfrastructureException("CLIENT_FOCUS", "Client display has no input focus");
+        if (!Display.isActive()) throw new GameTestInfrastructureException(
+            "CLIENT_FOCUS",
+            "Client display has no input focus; window=" + Display.getX()
+                + ","
+                + Display.getY()
+                + " "
+                + Display.getWidth()
+                + "x"
+                + Display.getHeight()
+                + "; renderedFrames="
+                + renderedFrames);
         if (input == null) input = new NativeInput();
         return input;
     }
@@ -351,6 +464,11 @@ public final class ClientTest {
             || (input != null && !NativeInput.released())) return;
         restore();
         if (!finalCapture.isDone() || renderedFrames <= restoredFrame) return;
+        if (originalWindowWidth > 0
+            && (Display.getWidth() != originalWindowWidth || Display.getHeight() != originalWindowHeight
+                || Minecraft.getMinecraft().displayWidth != originalWindowWidth
+                || Minecraft.getMinecraft().displayHeight != originalWindowHeight))
+            return;
         attempt(() -> finalCapture.join());
         completeTeardown();
     }
@@ -388,6 +506,99 @@ public final class ClientTest {
             if (FatalErrors.isFatal(error) && fatalCleanupError == null) fatalCleanupError = (Error) error;
             if (cleanupError == null) cleanupError = error;
             else if (cleanupError != error) cleanupError.addSuppressed(error);
+        }
+    }
+
+    private final class DragGesture {
+
+        private final TargetPosition target;
+        private final Function<ClientTest, Point> endpoint;
+        private final int movementFrames;
+        private GuiScreen screen;
+        private int width;
+        private int height;
+        private Point from;
+        private Point to;
+        private long frame;
+        private int movement;
+        private int stage;
+        private boolean pressed;
+
+        DragGesture(String description, Function<ClientTest, ClickTarget> resolver,
+            Function<ClientTest, Point> endpoint, int movementFrames) {
+            target = new TargetPosition(description, resolver);
+            this.endpoint = java.util.Objects.requireNonNull(endpoint, "endpoint");
+            this.movementFrames = movementFrames;
+        }
+
+        boolean ready() {
+            try {
+                return advance();
+            } catch (RuntimeException | Error error) {
+                if (pressed && input != null) {
+                    try {
+                        input.mouse(0, false);
+                    } catch (RuntimeException | Error releaseError) {
+                        error.addSuppressed(releaseError);
+                        FatalErrors.rethrow(releaseError);
+                    }
+                }
+                pressed = false;
+                throw error;
+            }
+        }
+
+        private boolean advance() {
+            if (stage == 0) {
+                if (!target.ready()) return false;
+                screen = screen();
+                width = screen.width;
+                height = screen.height;
+                from = new Point(target.positioned);
+                to = new Point(java.util.Objects.requireNonNull(endpoint.apply(ClientTest.this), "endpoint"));
+                if (!new Rectangle(0, 0, width, height).contains(to))
+                    throw new IllegalArgumentException("Drag endpoint must be inside the live screen");
+                if (Mouse.isButtonDown(0)) throw new IllegalStateException("Left mouse button is already held");
+                pressed = true;
+                nativeInput().mouse(0, true);
+                stage = 1;
+                frame = renderedFrames;
+                return false;
+            }
+            if (screen() != screen || screen.width != width || screen.height != height)
+                throw new AssertionError("Screen changed during native drag");
+            waitingFor = "drag " + target.description
+                + ": movement="
+                + movement
+                + "/"
+                + movementFrames
+                + " stage="
+                + stage
+                + " renderedFrame="
+                + renderedFrames
+                + " after="
+                + frame;
+            if (stage == 1 && !renderedAfterPress(frame)) return false;
+            if (stage == 2 && renderedFrames <= frame) return false;
+            if (stage == 3) {
+                if (renderedFrames <= frame || Mouse.isButtonDown(0)) return false;
+                waitingFor = "";
+                return true;
+            }
+            if (movement < movementFrames) {
+                movement++;
+                int x = from.x + (int) ((long) (to.x - from.x) * movement / movementFrames);
+                int y = from.y + (int) ((long) (to.y - from.y) * movement / movementFrames);
+                nativeInput().move(screen, x, y);
+                frame = renderedFrames;
+                stage = 2;
+                return false;
+            }
+            nativeInput().mouse(0, false);
+            pressed = false;
+            frame = renderedFrames;
+            stage = 3;
+            return false;
         }
     }
 
