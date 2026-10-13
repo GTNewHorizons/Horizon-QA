@@ -42,9 +42,11 @@ See [Sequences and timing](../guide/sequences.md) for phase ordering and bounded
 
 Asynchronous cleanup starts on the server test thread. It must return immediately; it cannot block
 on the other game thread. The integer is an END-tick budget. Failed or unfinished cleanup becomes an
-infrastructure error, even for an optional case. `ClientTest.attach` owns this registration for client
+infrastructure error, even for an optional case. `ClientTest.scenario` (or the lower-level
+`ClientTest.attach`) owns this registration for client
 scenarios; register client restoration through `ClientTest.afterTest` and server restoration through
 `GameTestHelper.afterTest`. Client restoration finishes before server restoration and the next case.
+The [fluent client interface](../guide/client-tests.md#fluent-contract) uses the same sequence and cleanup.
 
 A failed assumption aborts the current method or callback and records its message as the skip reason. Cleanup registered with `afterTest` still runs. Use holder-level `requiredMods` for optional class dependencies that must be checked before class loading; use assumptions for runtime state such as configuration, registrations, or capabilities that discovery cannot know.
 

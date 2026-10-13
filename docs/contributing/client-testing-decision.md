@@ -31,7 +31,17 @@ Adapting the whole PR would import two additional concerns: a Gradle supervisor 
 
 Retain the PR's annotation-metadata side filter, serial client work queue, asynchronous END sequence steps, asynchronous cleanup before server cleanup, and sequential reported client cases. Retain the existing result pipeline and schema 3. Fix cancellation, fatal-error propagation, cleanup deadlines, and late crash handling in those seams. Do not swallow a real game-loop crash as an optional test failure.
 
-Discard private LWJGL input/window reflection: the packaged lwjgl3ify `Keyboard` has an event queue and no `readBuffer` or `keyDownBuffer`, and `Display.getImplementation()` returns null. The PR's input release and native resize therefore fail on the daily backend. Discard its scratch-world launcher, audio overrides, accelerated client/server timing, broad fluent facade, and new timing records. These do not establish a required consumer contract and increase the maintenance surface. Keep deferred, toolkit-independent target bounds and readiness predicates.
+Discard private LWJGL input/window reflection: the packaged lwjgl3ify `Keyboard` has an event queue and no `readBuffer` or `keyDownBuffer`, and `Display.getImplementation()` returns null. The PR's input release and native resize therefore fail on the daily backend. Discard its scratch-world launcher, audio overrides, accelerated client/server timing, and new timing records. These do not establish a required consumer contract and increase the maintenance surface. Keep deferred, toolkit-independent target bounds and readiness predicates.
+
+The authoring follow-up retains the useful design of the PR's
+[`ClientScenario`](https://github.com/GTNewHorizons/Horizon-QA/blob/6cff237c3b829edce087d771bd1b04b38c3df4e3/src/main/java/com/gtnewhorizons/horizonqa/api/client/ClientScenario.java)
+and [`ClientTarget`](https://github.com/GTNewHorizons/Horizon-QA/blob/6cff237c3b829edce087d771bd1b04b38c3df4e3/src/main/java/com/gtnewhorizons/horizonqa/api/client/ClientTarget.java).
+The fluent surface delegates to the existing sequence and native session; it adds no execution engine
+or result protocol. Pass exceptional budgets directly to operations and labels directly to callbacks,
+rather than storing next-step modifiers. Scope native Shift-click through observed modifier release,
+and retain the queued-operation/sequence escape hatches for custom code. The current interaction and
+failure examples use this interface and preserve their registered IDs and outcome semantics. Their
+runtime checks earn the authoring layer without duplicating runner tests or introducing toolkit APIs.
 
 Use one versioned Python tools archive for development and packaged commands. It bundles the Gradle
 adapter internally; consumers do not copy helper scripts. The `hqaClientTest` shortcut delegates to it,

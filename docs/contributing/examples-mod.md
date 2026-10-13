@@ -60,7 +60,7 @@ failures intentionally; select its individual cases explicitly.
 | Class                | Focus                                                              |
 |----------------------|--------------------------------------------------------------------|
 | `BasicTests`         | Pass / fail / timeout, runtime assumptions, optional `required = false`, batch hooks |
-| `ClientInteractionTests` | Native Shift-click/Escape, live hover targets, real chest packets/gameplay, successive cleanup and batch hooks |
+| `ClientInteractionTests` | Fluent authoring, scoped Shift-click failure/recovery, live hover targets, native Escape, real chest packets/gameplay, successive cleanup and batch hooks |
 | `ClientFailureTests` | Required/optional failures, held input on timeout, cancellation, world loss, real client/server crashes and cleanup |
 | `HelperApiTests`     | Blocks, inventories, NBT, entities, redstone, world controls, fake players |
 | `MissingModGatedTests` | Discovery-time `requiredMods` skip without loading or executing the holder |

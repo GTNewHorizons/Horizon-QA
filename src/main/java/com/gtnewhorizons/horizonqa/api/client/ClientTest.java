@@ -2,10 +2,12 @@ package com.gtnewhorizons.horizonqa.api.client;
 
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.event.KeyEvent;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -27,7 +29,8 @@ import com.gtnewhorizons.horizonqa.internal.FatalErrors;
 
 /**
  * A single test's client lifetime. Attach on the server test thread, then await every operation with
- * {@code thenExecuteAsync} or {@code thenWaitUntilAsync}. Callbacks run on the client thread;
+ * {@code thenExecuteAsync} or {@code thenWaitUntilAsync}, or author through {@link #scenario}.
+ * Callbacks run on the client thread;
  * server assertions belong in ordinary sequence steps. No future may be awaited with a blocking get/join.
  */
 public final class ClientTest {
@@ -81,6 +84,16 @@ public final class ClientTest {
         helper.afterTest(() -> session.diagnostics.forEach(helper::recordDiagnostic));
         active = session;
         return session;
+    }
+
+    /**
+     * Attaches one client lifetime and starts the test's sole existing sequence for fluent authoring.
+     * Call on the server test thread before execution; do not also call {@code helper.startSequence()}.
+     * Finish the returned chain with {@link ClientScenario#succeed()}.
+     */
+    public static ClientScenario scenario(GameTestHelper helper) {
+        ClientTest session = attach(helper);
+        return new ClientScenario(helper.startSequence(), session);
     }
 
     private synchronized CompletableFuture<Void> close() {
@@ -139,6 +152,42 @@ public final class ClientTest {
                 return renderedFrames;
             }))
             .thenCompose(frame -> awaitReleasedFrame(frame, () -> !Mouse.isButtonDown(button)));
+    }
+
+    /**
+     * Owns Shift around one normal native left-click. An already-held modifier is rejected.
+     * Completion includes observed modifier release; errors also schedule release, while cancellation
+     * and timeout retain the session's exclusive bounded teardown. Await through a sequence step.
+     */
+    public CompletableFuture<Void> shiftClick(String description, Function<ClientTest, ClickTarget> resolver) {
+        return operations.submit(Phase.END, () -> {
+            if (!nativeInput().keyReleased(KeyEvent.VK_SHIFT)) throw new IllegalStateException("Shift is already held");
+            nativeInput().key(KeyEvent.VK_SHIFT, true);
+            return renderedFrames;
+        })
+            .thenCompose(frame -> {
+                CompletableFuture<Void> gesture = operations
+                    .submitWhenReady(
+                        Phase.END,
+                        () -> renderedAfterPress(frame) && !nativeInput().keyReleased(KeyEvent.VK_SHIFT),
+                        () -> null)
+                    .thenCompose(ignored -> click(0, description, resolver));
+                return gesture.handle((ignored, error) -> operations.submit(Phase.END, () -> {
+                    nativeInput().key(KeyEvent.VK_SHIFT, false);
+                    return renderedFrames;
+                })
+                    .thenCompose(
+                        released -> awaitReleasedFrame(released, () -> nativeInput().keyReleased(KeyEvent.VK_SHIFT)))
+                    .handle((released, releaseError) -> {
+                        if (releaseError != null) {
+                            if (error != null && error != releaseError) releaseError.addSuppressed(error);
+                            throw new CompletionException(releaseError);
+                        }
+                        if (error != null) throw new CompletionException(error);
+                        return (Void) null;
+                    }))
+                    .thenCompose(release -> release);
+            });
     }
 
     /** Sends one native key press/release using an AWT {@code KeyEvent.VK_*} code, through normal input. */

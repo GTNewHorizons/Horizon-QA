@@ -12,6 +12,7 @@ import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
 import com.gtnewhorizons.horizonqa.api.client.ClickTarget;
+import com.gtnewhorizons.horizonqa.api.client.ClientTarget;
 import com.gtnewhorizons.horizonqa.api.client.ClientTest;
 import com.gtnewhorizons.horizonqa.client.NativeInput;
 import com.gtnewhorizons.horizonqa.internal.ReportedRun;
@@ -36,9 +37,8 @@ public final class ClientFailureTests {
     }
 
     private static void assertionFailure(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync("mutate and fail with input held", 40, () -> client.run(c -> {
+        ClientTest.scenario(helper)
+            .client("mutate and fail with input held", 40, c -> {
                 originalScale = Minecraft.getMinecraft().gameSettings.guiScale;
                 c.afterTest(() -> Minecraft.getMinecraft().gameSettings.guiScale = originalScale);
                 Minecraft.getMinecraft().gameSettings.guiScale = 1;
@@ -46,86 +46,75 @@ public final class ClientFailureTests {
                 c.click(0, "unavailable target", ignored -> null);
                 c.run(ignored -> staleWorkRan = true);
                 throw new AssertionError("intentional client assertion failure");
-            }))
-            .thenSucceed();
+            })
+            .succeed();
     }
 
     @GameTest(timeoutTicks = 30)
     public static void cTimeoutWithInputHeld(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync("hold input", 40, () -> client.run(ClientFailureTests::holdInput))
-            .thenExecuteAsync(
-                "unavailable target times out",
-                60,
-                () -> client.click(
-                    0,
-                    "never ready",
-                    c -> new ClickTarget(c.screen(), new Rectangle(30, 30, 10, 10), () -> false)))
-            .thenSucceed();
+        ClientTest.scenario(helper)
+            .client("hold input", 40, ClientFailureTests::holdInput)
+            .click(
+                ClientTarget
+                    .of("never ready", c -> new ClickTarget(c.screen(), new Rectangle(30, 30, 10, 10), () -> false)),
+                60)
+            .succeed();
     }
 
     @GameTest(timeoutTicks = 160)
     public static void dCancellation(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync(
+        ClientTest.scenario(helper)
+            .client(
                 "cancel from the client thread",
                 40,
-                () -> client.run(c -> ReportedRun.requestAbort("intentional client cancellation")))
-            .thenSucceed();
+                c -> ReportedRun.requestAbort("intentional client cancellation"))
+            .succeed();
     }
 
     @GameTest(required = false, timeoutTicks = 160)
     public static void eRenderCrashIsInfrastructure(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync(
+        ClientTest.scenario(helper)
+            .client(
                 "open crashing real renderer",
                 40,
-                () -> client.run(
-                    c -> Minecraft.getMinecraft()
-                        .displayGuiScreen(new CrashingScreen())))
-            .thenSucceed();
+                c -> Minecraft.getMinecraft()
+                    .displayGuiScreen(new CrashingScreen()))
+            .succeed();
     }
 
     @GameTest(timeoutTicks = 160)
     public static void fWorldUnloadIsInfrastructure(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync(
+        ClientTest.scenario(helper)
+            .client(
                 "unload the world",
                 40,
-                () -> client.run(
-                    c -> Minecraft.getMinecraft()
-                        .loadWorld(null)))
-            .thenSucceed();
+                c -> Minecraft.getMinecraft()
+                    .loadWorld(null))
+            .succeed();
     }
 
     @GameTest(timeoutTicks = 160)
     public static void gCancellationWhileWorldUnloads(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync("cancel then stop server during teardown", 40, () -> client.run(c -> {
+        ClientTest.scenario(helper)
+            .client("cancel then stop server during teardown", 40, c -> {
                 ReportedRun.requestAbort("intentional cancellation while world unloads");
                 Minecraft.getMinecraft()
                     .loadWorld(null);
-            }))
-            .thenSucceed();
+            })
+            .succeed();
     }
 
     @GameTest(template = "client_chest", required = false, timeoutTicks = 160)
     public static void hServerTickCrashIsInfrastructure(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
         TestPos chest = helper.absolute("chest");
         TileEntity original = helper.getWorld()
             .getTileEntity(chest.x(), chest.y(), chest.z());
         helper.afterTest(
             () -> helper.getWorld()
                 .setTileEntity(chest.x(), chest.y(), chest.z(), original));
-        helper.startSequence()
-            .thenExecuteAsync("hold input before server crash", 40, () -> client.run(ClientFailureTests::holdInput))
-            .thenExecute(
+        ClientTest.scenario(helper)
+            .client("hold input before server crash", 40, ClientFailureTests::holdInput)
+            .server(
                 "fail in the actual world tick",
                 () -> helper.getWorld()
                     .setTileEntity(chest.x(), chest.y(), chest.z(), new CrashingTile()));
@@ -133,17 +122,16 @@ public final class ClientFailureTests {
 
     @GameTest(timeoutTicks = 160)
     public static void zCleanupAfterFailure(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenWaitUntilAsync("previous case fully cleaned", 40, () -> client.run(c -> {
+        ClientTest.scenario(helper)
+            .awaitClient("previous case fully cleaned", 40, c -> {
                 if (c.screen() != null) throw new AssertionError("Screen leaked from previous case");
                 if (!NativeInput.released()) throw new AssertionError("Input remained pressed");
                 if (staleWorkRan) throw new AssertionError("Cancelled queued work executed");
                 if (originalScale >= 0 && Minecraft.getMinecraft().gameSettings.guiScale != originalScale) {
                     throw new AssertionError("Client settings were not restored");
                 }
-            }))
-            .thenSucceed();
+            })
+            .succeed();
     }
 
     private static void holdInput(ClientTest client) {

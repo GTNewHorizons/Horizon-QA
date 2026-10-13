@@ -1,8 +1,8 @@
 package com.gtnewhorizons.horizonqa.examples.tests;
 
 import java.awt.Rectangle;
-import java.awt.event.KeyEvent;
 import java.lang.reflect.Field;
+import java.util.concurrent.CompletionException;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
@@ -30,6 +30,7 @@ import com.gtnewhorizons.horizonqa.api.annotation.BeforeBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
 import com.gtnewhorizons.horizonqa.api.client.ClickTarget;
+import com.gtnewhorizons.horizonqa.api.client.ClientTarget;
 import com.gtnewhorizons.horizonqa.api.client.ClientTest;
 import com.gtnewhorizons.horizonqa.client.NativeInput;
 
@@ -37,6 +38,7 @@ import com.gtnewhorizons.horizonqa.client.NativeInput;
 @GameTestHolder(value = "horizonqaexamples", clientOnly = true)
 public final class ClientInteractionTests {
 
+    private static final ClientTarget CHEST_SLOT = ClientTarget.of("chest slot", ClientInteractionTests::chestSlot);
     private static boolean batchOpen;
     private static int originalGuiScale = -1;
     private static Runnable assertPlayerRestored;
@@ -60,9 +62,10 @@ public final class ClientInteractionTests {
     @GameTest(batch = "client", timeoutTicks = 400)
     public static void aNativeButton(GameTestHelper helper) {
         if (!batchOpen) throw new AssertionError("BeforeBatch did not run on the server thread");
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync("open real screen and check previous cleanup", 40, () -> client.run(c -> {
+        AssertionError resolverFailure = new AssertionError("intentional live target failure");
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .client("open real screen and check previous cleanup", c -> {
                 if (c.screen() != null) throw new AssertionError("Previous test leaked a screen");
                 Minecraft mc = Minecraft.getMinecraft();
                 int scale = mc.gameSettings.guiScale;
@@ -71,45 +74,43 @@ public final class ClientInteractionTests {
                 mc.gameSettings.guiScale = 2;
                 Minecraft.getMinecraft()
                     .displayGuiScreen(new ButtonScreen());
-                c.holdKey(KeyEvent.VK_SHIFT);
-            }))
-            .thenExecuteAsync("native button input after hover frame", 200, () -> client.click(0, "button", c -> {
+            })
+            .async(
+                "failed gesture releases Shift before recovery",
+                c -> c.shiftClick("failing target", ignored -> { throw resolverFailure; })
+                    .handle((ignored, error) -> {
+                        while (error instanceof CompletionException) error = error.getCause();
+                        if (error != resolverFailure) {
+                            if (error != null) throw new CompletionException(error);
+                            throw new AssertionError("Expected original target failure");
+                        }
+                        return null;
+                    }))
+            .awaitClient(
+                "failed gesture released its modifier",
+                c -> {
+                    if (!NativeInput.released()) throw new AssertionError("Failed Shift-click left input pressed");
+                })
+            .shiftClick(ClientTarget.of("one-pixel button", ClientInteractionTests::button), 200)
+            .awaitClient("normal input handler received one Shift-click and release", c -> {
                 ButtonScreen screen = c.screen(ButtonScreen.class);
-                GuiButton button = screen.button;
-                return new ClickTarget(button, new Rectangle(button.xPosition, button.yPosition, 1, 1), () -> {
-                    if (screen.renderedX != button.xPosition || screen.renderedY != button.yPosition) return false;
-                    if (!screen.rescaled) {
-                        screen.rescaled = true;
-                        Minecraft mc = Minecraft.getMinecraft();
-                        mc.gameSettings.guiScale = 1;
-                        ScaledResolution resolution = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
-                        screen.setWorldAndResolution(mc, resolution.getScaledWidth(), resolution.getScaledHeight());
-                        return false;
-                    }
-                    return true;
-                });
-            }))
-            .thenWaitUntilAsync("normal input handler received click", 40, () -> client.run(c -> {
-                ButtonScreen screen = c.screen(ButtonScreen.class);
-                if (!screen.clicked || !screen.released || !screen.shiftPressed || screen.updates == 0) {
-                    throw new AssertionError("Expected native Shift-click, release and screen updates");
+                if (screen.clicks != 1 || !screen.released || !screen.shiftPressed || screen.updates == 0) {
+                    throw new AssertionError(
+                        "Expected one native Shift-click, release and screen updates; clicks=" + screen.clicks);
                 }
-                c.releaseKey(KeyEvent.VK_SHIFT);
-            }))
-            .thenExecuteAsync("capture normal rendered screen", 40, () -> client.capture("button"))
-            .thenExecuteAsync("Escape through native keyboard", 200, () -> client.key(KeyEvent.VK_ESCAPE))
-            .thenWaitUntilAsync(
+                if (!NativeInput.released()) throw new AssertionError("Shift-click completed with input still held");
+            })
+            .capture("button")
+            .escape(200)
+            .awaitClient(
                 "screen closed normally",
-                40,
-                () -> client
-                    .run(c -> { if (c.screen() != null) throw new AssertionError("Escape did not close the screen"); }))
-            .thenSucceed();
+                c -> { if (c.screen() != null) throw new AssertionError("Escape did not close the screen"); })
+            .succeed();
     }
 
     @GameTest(batch = "client", template = "client_chest", timeoutTicks = 400)
     public static void bChestGameplay(GameTestHelper helper) {
         if (!batchOpen) throw new AssertionError("BeforeBatch did not run on the server thread");
-        ClientTest client = ClientTest.attach(helper);
         EntityPlayerMP player = (EntityPlayerMP) helper.getWorld().playerEntities.get(0);
         NBTTagList inventory = player.inventory.writeToNBT(new NBTTagList());
         ItemStack cursor = player.inventory.getItemStack();
@@ -160,8 +161,9 @@ public final class ClientInteractionTests {
         player.inventory.currentItem = 0;
         player.setPositionAndUpdate(standing.x() + 0.5, standing.y(), standing.z() + 0.5);
         helper.setSlot("chest", 0, new ItemStack(Items.diamond, 3));
-        helper.startSequence()
-            .thenWaitUntilAsync("fixture and player synchronized", 100, () -> client.run(c -> {
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(60)
+            .awaitClient("fixture and player synchronized", 100, c -> {
                 Minecraft mc = Minecraft.getMinecraft();
                 if (mc.theWorld.getBlock(chest.x(), chest.y(), chest.z()) != Blocks.chest
                     || Math.abs(mc.thePlayer.posX - standing.x() - 0.5) > 0.2
@@ -184,53 +186,53 @@ public final class ClientInteractionTests {
                             + " expected feet="
                             + standing);
                 }
-                mc.thePlayer.rotationYaw = 180;
-                mc.thePlayer.rotationPitch = 29.3F;
+            })
+            .client("aim at the synchronized chest", c -> {
+                Minecraft.getMinecraft().thePlayer.rotationYaw = 180;
+                Minecraft.getMinecraft().thePlayer.rotationPitch = 29.3F;
+            })
+            .awaitClient("rendered chest ray", c -> {
+                Minecraft mc = Minecraft.getMinecraft();
                 if (mc.objectMouseOver == null || mc.objectMouseOver.typeOfHit != MovingObjectType.BLOCK
                     || mc.objectMouseOver.blockX != chest.x()
                     || mc.objectMouseOver.blockY != chest.y()
                     || mc.objectMouseOver.blockZ != chest.z()) {
                     throw new AssertionError("Waiting for actual rendered chest ray: " + mc.objectMouseOver);
                 }
-            }))
-            .thenExecuteAsync("right click chest with configured use binding", 40, client::useItem)
-            .thenWaitUntilAsync("real chest window and inventory synchronized", 80, () -> client.run(c -> {
+            })
+            .useHeldItem(40)
+            .awaitScreen(GuiChest.class, 80)
+            .awaitClient("real chest inventory synchronized", 80, c -> {
                 GuiChest screen = c.screen(GuiChest.class);
                 ItemStack stack = screen.inventorySlots.getSlot(0)
                     .getStack();
                 if (stack == null || stack.getItem() != Items.diamond || stack.stackSize != 3) {
                     throw new AssertionError("Expected three diamonds from the server chest");
                 }
-            }))
-            .thenExecuteAsync(
-                "take stack through native container input",
-                60,
-                () -> client.click(0, "chest slot", c -> chestSlot(c)))
-            .thenWaitUntil("server chest emptied by GUI packet", 60, () -> {
-                helper.assertInventoryEmpty("chest");
+            })
+            .rightClick(CHEST_SLOT)
+            .awaitServer("server chest split by GUI packet", () -> {
+                helper.assertInventoryCount("chest", new ItemStack(Items.diamond), 1);
                 ItemStack stack = player.inventory.getItemStack();
-                if (stack == null || stack.getItem() != Items.diamond || stack.stackSize != 3) {
-                    throw new AssertionError("Expected authoritative cursor stack of three diamonds");
+                if (stack == null || stack.getItem() != Items.diamond || stack.stackSize != 2) {
+                    throw new AssertionError("Expected authoritative cursor stack of two diamonds");
                 }
             })
-            .thenExecuteAsync(
-                "return stack through native container input",
-                60,
-                () -> client.click(0, "chest slot", c -> chestSlot(c)))
-            .thenWaitUntil(
-                "server chest restored",
-                60,
-                () -> helper.assertInventoryCount("chest", new ItemStack(Items.diamond), 3))
-            .thenSucceed();
+            .click(CHEST_SLOT)
+            .awaitServer("server chest restored and cursor emptied", () -> {
+                helper.assertInventoryCount("chest", new ItemStack(Items.diamond), 3);
+                if (player.inventory.getItemStack() != null)
+                    throw new AssertionError("Expected empty cursor after returning diamonds");
+            })
+            .succeed();
     }
 
     @GameTest(batch = "client", timeoutTicks = 160)
     public static void zSuccessiveInteraction(GameTestHelper helper) {
         if (!batchOpen) throw new AssertionError("BeforeBatch did not run on the server thread");
         if (assertPlayerRestored != null) assertPlayerRestored.run();
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync("next session observes completed cleanup", 40, () -> client.run(c -> {
+        ClientTest.scenario(helper)
+            .client("next session observes completed cleanup", 40, c -> {
                 if (c.screen() != null) throw new AssertionError("Previous test leaked a screen");
                 if (!NativeInput.released()) throw new AssertionError("Previous test left input pressed");
                 if (originalGuiScale >= 0 && Minecraft.getMinecraft().gameSettings.guiScale != originalGuiScale) {
@@ -239,8 +241,25 @@ public final class ClientInteractionTests {
                             + ", observed "
                             + Minecraft.getMinecraft().gameSettings.guiScale);
                 }
-            }))
-            .thenSucceed();
+            })
+            .succeed();
+    }
+
+    private static ClickTarget button(ClientTest client) {
+        ButtonScreen screen = client.screen(ButtonScreen.class);
+        GuiButton button = screen.button;
+        return new ClickTarget(button, new Rectangle(button.xPosition, button.yPosition, 1, 1), () -> {
+            if (screen.renderedX != button.xPosition || screen.renderedY != button.yPosition) return false;
+            if (!screen.rescaled) {
+                screen.rescaled = true;
+                Minecraft mc = Minecraft.getMinecraft();
+                mc.gameSettings.guiScale = 1;
+                ScaledResolution resolution = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
+                screen.setWorldAndResolution(mc, resolution.getScaledWidth(), resolution.getScaledHeight());
+                return false;
+            }
+            return true;
+        });
     }
 
     private static ClickTarget chestSlot(ClientTest client) {
@@ -268,7 +287,7 @@ public final class ClientInteractionTests {
 
     private static final class ButtonScreen extends GuiScreen {
 
-        private boolean clicked;
+        private int clicks;
         private boolean shiftPressed;
         private boolean released;
         private boolean rescaled;
@@ -285,7 +304,7 @@ public final class ClientInteractionTests {
 
         @Override
         protected void actionPerformed(GuiButton button) {
-            clicked = true;
+            clicks++;
             shiftPressed = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
         }
 

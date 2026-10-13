@@ -146,6 +146,80 @@ were validated locally, and remain undeployed. Production client holders/toolkit
 consumer adoption. Connected dedicated-server GUI execution, pause-menu behavior with HeadlessNH 1.1.1,
 and hardware/shader pixel assertions remain outside the selected implementation.
 
+## Fluent authoring follow-up
+
+The 2026-10-13 follow-up starts from local commit
+`c34674292638822b51880bba59a271f0e3f09edc` on `feat/client-testing-support` in
+`/home/eliott/.t3/worktrees/Horizon-QA/t3-dc388de4`. It adds the fluent interface and named live targets,
+scopes native Shift-click through observed release, preserves author source locations without client
+linkage in common code, and converts the existing interaction/failure holders. Test IDs and schema 3
+remain stable. The button example checks original failure propagation and released Shift before
+recovering within the same session; the chest example checks real right-click splitting and left-click
+return packets, including the authoritative cursor. Fixture aiming runs once, outside assertion polling.
+
+Fresh evidence is under `build/horizonqa/fluent-evidence/` in this worktree. Earlier `/tmp/` evidence
+paths above are historical and are no longer available in this session. The detailed local
+`validation-summary.md` contains exact invocations, runtime/backend versions, and targeted display probes.
+Client launches use the shipped tools archive, fresh game/report directories, owned supervision,
+and separate `--mcJvmArgs` for every HQA property.
+
+| Check | Result | Evidence under `build/horizonqa/fluent-evidence/` |
+|---|---|---|
+| `./gradlew build javadoc` | 278 Java tests and 8 tools tests; compilation, formatting, Checkstyle and Javadoc passed | `build-javadoc.log`, `build-summary.json` |
+| `mkdocs build --strict` | Passed | `mkdocs.log` |
+| Java 8 interaction holder with final shipped archive | Three cases passed; Shift-click failure/recovery, exactly one handler click, right-click chest 1/cursor 2, left-click chest 3/cursor empty, following restoration checks | `client-interactions-complete/` |
+| Required + optional + timeout + cleanup | Expected exit 1; two JUnit failures, one optional skip, following cleanup passed; no incomplete cases or infrastructure issues | `client-required-optional-timeout-cleanup/` |
+| Optional + cleanup | Expected exit 0; optional JUnit-skipped, following cleanup passed | `client-optional-cleanup/` |
+| Cancellation + following case | Expected exit 2; following case remained `notStarted`, incomplete execution retained | `client-cancellation-next-final/` |
+| Dedicated `SequencePhaseTests.phaseOrder` on Java 25 | Passed; client holders remained discovery-safe | Reports in parent `build/horizonqa/` |
+| Archive display-isolation regression | Failed against the original archive's Wayland environment; passed after managed X11 selection | `display-regression-red.log`, `build-javadoc.log` |
+
+The first cancellation attempt overlapped a build and failed before Minecraft during compilation.
+It was correctly rejected as infrastructure exit 2; the fresh sequential retry above passed its
+expected cancellation contract. The earlier failed attempt remains in `client-cancellation-next/`.
+Builds and game launches must run sequentially in a shared worktree.
+
+Java 8 uses Azul `1.8.0_492` and LWJGL `2.9.4`. The attempted modern development task uses JetBrains
+`25.0.3`, lwjgl3ify `3.0.20`, and LWJGL `3.4.2-snapshot+2`. Its initial inherited Wayland environment
+produced no window on Xvfb and native input/focus failures. The supervisor now fixes `DISPLAY`,
+`XDG_SESSION_TYPE=x11`, and `SDL_VIDEO_DRIVER=x11` and removes `WAYLAND_DISPLAY` after environment
+overrides; the existing archive test checks that contract without adding a duplicate test. The live
+probe confirmed those fields in the owned game JVM. That runtime then consistently crashed in native
+`pthread_mutex_lock` during `SDL_CreateWindowWithProperties`, before any game window or HQA report.
+Selecting Mesa EGL instead of NVIDIA also reproduced the native crash. These launches remain
+infrastructure exit 2, with crash files retained; Java 25 client interaction is **unverified** here.
+
+Reproduce the native blocker with the current archive, extracted display dependencies from the
+detailed summary (or installed Xvfb/xdotool), and a new report directory:
+
+```bash
+python3 hqa-tools.pyz run-client --gradle-task :examples:runClient25 \
+  --tests horizonqaexamples:ClientInteractionTests.aNativeButton \
+  --report-dir "$PWD/build/horizonqa/new-java25-reproduction" --timeout 300
+```
+
+The final shipped-archive replay under the normal inherited host environment reproduced this same
+startup blocker in `client-java25-final-blocker/`; its monitor confirms the delivered archive applies
+all managed X11 settings to the actual game JVM. `client-java25-no-wayland-probe/`,
+`client-java25-sdl-x11-probe/`, and `client-java25-mesa-probe/`
+contain the owned-process environment/window inventories and native crash evidence. Neither the
+fluent interface nor the input implementation is invoked before this native startup crash.
+
+A fresh packaged/fullpack replay of this follow-up is also **unverified**. The inspected Prism
+instances contain saves and have no prepared launcher argv/environment; installed packs were
+preserved. Prepare an isolated copy without saves and its normal bootstrapper's literal argv, then run:
+
+```bash
+python3 hqa-tools.pyz run-client --cwd /path/to/isolated-pack/.minecraft \
+  --argv-file /path/to/isolated-pack/launch.argv \
+  --env-file /path/to/isolated-pack/launch.env \
+  --tests horizonqaexamples:ClientInteractionTests \
+  --report-dir /path/to/new-results --timeout 900
+```
+
+The historical Java 26/fullpack checks above establish the previous implementation, not a fresh
+validation of this fluent follow-up. Package/daily workflow integration remains local and undeployed.
+
 ## Tools distribution and development shortcut
 
 The follow-up retains the same Java runtime, input behavior, schema-3 reports, and exit policy. It

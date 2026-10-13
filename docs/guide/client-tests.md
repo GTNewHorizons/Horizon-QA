@@ -24,45 +24,104 @@ before class loading; dedicated discovery never links these classes.
 ```java
 @GameTestHolder(value = "mymod", clientOnly = true)
 public final class ClientTests {
+    private static final ClientTarget SUBMIT = ClientTarget.of("submit", c -> {
+        MyButton button = c.screen(MyScreen.class).submitButton();
+        return new ClickTarget(button, button.bounds(), button::isReady);
+    });
+
     @GameTest(timeoutTicks = 200)
     public static void opensScreen(GameTestHelper helper) {
-        ClientTest client = ClientTest.attach(helper);
-        helper.startSequence()
-            .thenExecuteAsync("open prerequisite screen", 40, () -> client.run(c -> {
+        ClientTest.scenario(helper)
+            .defaultTimeoutTicks(40)
+            .client("open prerequisite screen", c -> {
                 // Prepare the screen, or use normal input when opening it is under test.
                 Minecraft.getMinecraft().displayGuiScreen(new MyScreen());
-            }))
-            .thenExecuteAsync("native button click", 60, () -> client.click(0, "submit", c -> {
-                MyScreen screen = c.screen(MyScreen.class);
-                MyButton button = screen.submitButton();
-                return new ClickTarget(button, button.bounds(), button::isReady);
-            }))
-            .thenWaitUntilAsync("client observed response", 40,
-                () -> client.run(c -> c.screen(MyScreen.class).assertResponse()))
-            .thenWaitUntil("authoritative gameplay changed", 40, () -> {
-                // Assert the real server state through helper, labels, and consumer APIs.
             })
-            .thenSucceed();
+            .awaitScreen(MyScreen.class)
+            .click(SUBMIT, 60)
+            .awaitClient("client observed response", c -> c.screen(MyScreen.class).assertResponse())
+            .awaitServer("authoritative gameplay changed", () -> Checks.assertSubmitted(helper))
+            .capture("submitted")
+            .succeed();
     }
 }
 ```
 
-The screen/button names above belong to the consumer. HQA knows no GUI toolkit: a `ClickTarget` contains
+The screen/button names and `Checks.assertSubmitted` above belong to the consumer; the latter asserts
+the real authoritative gameplay result through helper labels and consumer APIs. Import `ClientTest`, `ClientTarget`, and
+`ClickTarget` from `com.gtnewhorizons.horizonqa.api.client`. `ClientTarget.of` names a deferred resolver;
+creating or reusing the target does not query a screen. HQA knows no GUI toolkit: a `ClickTarget` contains
 identity, a rectangle in current scaled GUI pixels, and a readiness predicate. Resolve these anew on
 the client thread; return `null` while absent and throw on ambiguity. HQA clips bounds, positions the
 native pointer, waits for its position and rendered hover state, then presses and releases through
 the operating system. The actual Minecraft/Forge handlers receive the events. Completion means input
 was released; separately wait for the resulting GUI or authoritative server state.
 
-`ClientTest.run` queues a callback at client END; `screen`, `afterTest`, `holdKey`, and `releaseKey` must
-be called there. `key(KeyEvent.VK_*)` sends a native key press/release. `useItem()` uses the player's
-configured use-item binding with no GUI; fixture setup may equip/aim the player, but must not call the
-item/block handler. `capture(name)` saves a rendered framebuffer as PNG and encodes off the game thread.
-Screenshots are diagnostics, not pixel correctness assertions.
+## Fluent contract
 
-Test bodies and ordinary sequence steps run on the integrated server thread. Queue client work with
-`thenExecuteAsync` or `thenWaitUntilAsync`; never block either game thread or touch client state from a
-server callback. Assert server inventory/recipe/world state through ordinary helper/sequence calls.
+`ClientTest.scenario(helper)` attaches the client lifetime and creates the test's sole existing
+`GameTestSequence`. Build the chain on the server test thread and finish with `succeed()`; do not also
+call `helper.startSequence()`. Methods register deferred work. They do not run input during authoring.
+
+| Operation | Contract |
+|---|---|
+| `client(label, callback)` | Run the callback once at client END |
+| `server(label, callback)` | Run once at server END; synchronous and nonblocking |
+| `awaitClient(label, assertion)` | Retry completed client assertions, at most one attempt in flight |
+| `awaitServer(label, assertion)` | Poll authoritative server assertions at END after the world tick |
+| `awaitScreen(type)` | Poll the live screen type on the client thread |
+| `click(target)`, `rightClick(target)` | Await a live target, send one normal native click and observe release |
+| `shiftClick(target)` | Own Shift around one native left-click and observe both mouse and modifier release |
+| `useHeldItem()` | Send the configured use-item binding with no GUI; fixture setup may equip/aim the player |
+| `key(KeyEvent.VK_*)`, `escape()` | Send one native physical key press/release; this does not promise text entry |
+| `capture(name)` | Capture a completed framebuffer and encode its PNG off the game thread |
+
+Actions are never retried because a later observation fails. An assertion wait retries only completed
+assertion failures; other exceptions fail immediately with their original cause. Observation callbacks
+must avoid mutation. Click completion establishes released input; separately await the expected client
+and authoritative server state. Screenshots are diagnostics, not pixel correctness assertions.
+
+Bounded operations initially allow 100 server END ticks, including time in flight.
+`defaultTimeoutTicks(40)` changes the budget for subsequently registered steps. An exceptional budget
+belongs directly to its operation: `click(SUBMIT, 60)`, `awaitScreen(MyScreen.class, 80)`, or
+`awaitClient("reply", 80, assertion)`. The same overload pattern applies to other gestures, `client`,
+`awaitServer`, `capture`, and `async`. A custom callback's label belongs directly to that step; gestures
+derive labels from their named target, key or checkpoint. Options never spill into adjacent operations.
+The enclosing `@GameTest(timeoutTicks = ...)` still bounds the whole test. Synchronous `server` callbacks
+have no tick budget and must return promptly.
+
+Shift-click rejects an already-held Shift key so it cannot release a caller's modifier. Target-resolution
+or click errors schedule modifier release before the operation completes; timeout and cancellation
+invalidate queued work and use the same bounded session teardown. The interaction example proves
+release after a failed resolver before a successful subsequent click, without ending the session.
+
+## Custom operations and owning threads
+
+`async(label, maxTicks, c -> completionStage)` starts its supplier on the **server** thread. Use queued
+session methods there, such as `c.click(...)` or `c.run(callback)`; never read client state directly in
+that supplier. Neither game thread may block on `get` or `join`. `serverSequence()` exposes the same
+sequence for advanced START/END scheduling; finish those registrations before continuing the chain.
+Custom mutations still register restoration before changing state:
+
+```java
+ClientTest.scenario(helper)
+    .client("temporary GUI scale", c -> {
+        Minecraft mc = Minecraft.getMinecraft();
+        int original = mc.gameSettings.guiScale;
+        c.afterTest(() -> mc.gameSettings.guiScale = original);
+        mc.gameSettings.guiScale = 2;
+    })
+    .succeed();
+```
+
+The lower-level `ClientTest.attach(helper)` API remains available with `thenExecuteAsync` and
+`thenWaitUntilAsync`. `ClientTest.run` queues a callback at client END; `screen`, `afterTest`, `holdKey`,
+and `releaseKey` must be called there. `useItem()` is the queued counterpart of fluent `useHeldItem()`.
+Both authoring styles use the same native input, sequence, result and cleanup implementation.
+
+Test bodies and ordinary sequence steps run on the integrated server thread. The fluent interface
+queues client work for you; never touch client state from a server callback. Assert server
+inventory/recipe/world state through `awaitServer` or ordinary helper/sequence calls.
 Both queues preserve START, world tick, END order. Test and step budgets count server END ticks;
 slow rendering may need larger maximum budgets, while assertions still wait on observable state.
 Client-mode fixture preparation notifies cleared blocks as well as placed blocks, so the client sees
@@ -71,8 +130,9 @@ target before sending input; server placement alone does not establish client re
 
 ## Cleanup and failures
 
-Register restoration before mutation. Register client callbacks with `client.afterTest` inside
-`client.run`, and server callbacks with `helper.afterTest`. `ClientTest.attach` registers one exclusive
+Register restoration before mutation. Register client callbacks with `c.afterTest` inside a fluent
+`client` callback (or `ClientTest.run`), and server callbacks with `helper.afterTest`.
+`ClientTest.scenario` and `ClientTest.attach` register one exclusive
 asynchronous teardown. It invalidates pending work, releases owned native input, waits for release
 through the game loop, captures the final frame, restores client state/screen and an ungrabbed GUI
 pointer, then permits server cleanup. Minecraft owns the grabbed pointer when returning to gameplay.
@@ -125,8 +185,10 @@ python3 hqa-tools.pyz run-client --gradle-task runClient \
 The archive contains and extracts its isolation adapter automatically. No adjacent helper files are
 required. See [CI tooling](ci-tools.md) for artifact coordinates, task options, and verification.
 
-`ClientInteractionTests` verifies a one-pixel live target through a GUI scale change at odd display dimensions, Escape through
-normal keyboard handling, and a real chest GUI with server inventory/cursor assertions. Its final case
+`ClientInteractionTests` uses the fluent interface to verify failure recovery within one Shift-click
+session, exactly one native click on a one-pixel live target through a GUI scale change at odd display
+dimensions, Escape through normal keyboard handling, and a real chest GUI with server inventory/cursor
+assertions. Its final case
 checks that the following session sees released input, a closed screen, restored GUI scale, and the
 original player inventory, cursor, selected slot, and game mode. It does not replay the first GUI test.
 Run the whole holder to exercise those checks across successive tests.
