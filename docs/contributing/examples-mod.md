@@ -52,7 +52,9 @@ Start with one passing smoke test:
 
 Client holders run in reported CI mode in a physical client. `./gradlew hqaClientTest` runs the focused
 interaction suite through the bundled CI tool. See [Real client scenarios](../guide/client-tests.md)
-for selectors and runtime requirements. `ClientFailureTests` contains required and infrastructure
+for selectors, [visible local runs](../guide/client-tests.md#visible-local-runs), and runtime requirements.
+HeadlessNH is omitted from ordinary development launches and included when the automation tools set
+`-PhqaHeadlessNH=true`. `ClientFailureTests` contains required and infrastructure
 failures intentionally; select its individual cases explicitly.
 
 ## What each test class covers

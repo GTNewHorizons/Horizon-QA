@@ -152,14 +152,51 @@ is unchanged. Client state, pending target, and screenshot paths appear in exist
 and JSON output. Retain the complete report directory, including `launch.log`, `xvfb.log`,
 `launch-result.json`, `artifacts/`, and game logs/crash reports.
 
+## Visible local runs
+
+Launch the examples through the normal Java 8 client task to watch the native input and gameplay.
+Use a fresh game/report directory and create a new singleplayer world manually:
+
+```bash
+mkdir -p "$PWD/build/horizonqa"
+demo_dir="$(mktemp -d "$PWD/build/horizonqa/visible-XXXXXX")"
+mkdir "$demo_dir/game"
+
+timeout --signal=TERM --kill-after=15s 900s ./gradlew --no-daemon :examples:runClient \
+  -PrunClientWorkingDirectory="$demo_dir/game" \
+  --mcJvmArgs=-Dhorizonqa.mode=ci \
+  --mcJvmArgs=-Dhorizonqa.client=true \
+  --mcJvmArgs=-Dhorizonqa.world=normal \
+  --mcJvmArgs=-Dhorizonqa.tests=horizonqaexamples:ClientInteractionTests \
+  --mcJvmArgs="-Dhorizonqa.reportDir=$demo_dir" \
+  --mcJvmArgs=-Djava.awt.headless=false \
+  --mcArgs=--width --mcArgs=959 \
+  --mcArgs=--height --mcArgs=541
+```
+
+Create a Creative/Superflat world within the 600-second startup budget. Keep the game window focused
+and let the tests move the pointer and press keys. They start after the first ordinary world frame,
+write reports into `$demo_dir`, and close the client when finished. This command uses the desktop
+display; Python, Xvfb and xdotool are not required. The Linux `timeout` command bounds the launch,
+and `--no-daemon` gives this invocation its own Gradle process.
+
+The examples omit HeadlessNH from ordinary development launches. It is only needed to automate menu
+navigation and world creation; the tools enable it with the Gradle property `-PhqaHeadlessNH=true`.
+HeadlessNH 1.1.1's disabled mode writes repeated world-loaded markers and throws when one already
+exists, while its enabled `NONE` mode still automates the world-creation screens. Keeping the mod off
+the manual runtime classpath preserves Minecraft's normal menus.
+
 ## Automated development runs
 
 Linux needs Python 3.9+, Xvfb, xdotool, and an AWT-capable Java runtime. Automation creates a private
 display and a new game directory; native input is never sent to the developer's desktop. HeadlessNH
-owns menu navigation and world creation. The examples include its development runtime dependency:
+owns menu navigation and world creation. The examples opt into its development runtime dependency
+when the tools pass `-PhqaHeadlessNH=true`:
 
 ```groovy
-runtimeOnlyNonPublishable('net.sxmaa.headlessnh:HeadlessNH:1.1.1:dev')
+if (providers.gradleProperty('hqaHeadlessNH').getOrElse('false').toBoolean()) {
+    runtimeOnlyNonPublishable('net.sxmaa.headlessnh:HeadlessNH:1.1.1:dev')
+}
 ```
 
 From the Horizon-QA repository root, the shortcut builds the tools archive and runs the focused suite:

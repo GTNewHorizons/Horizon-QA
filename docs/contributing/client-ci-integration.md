@@ -49,7 +49,9 @@ reports. Do not treat a marker, Gradle success, or only `status == passed` as pr
 
 In `.github/workflows/build-and-test.yml`, add a `workflow_call` string input `hqa-client-tests`, default
 empty. An empty value keeps existing package jobs unchanged. Consumers opt in with their namespace,
-holder, or exact client case IDs and add HeadlessNH's development dependency to their `runClient` runtime.
+holder, or exact client case IDs and include HeadlessNH's development dependency when
+`hqaHeadlessNH=true`, as in the [development runtime example](../guide/client-tests.md#automated-development-runs).
+The supervisor supplies that Gradle property; manual development launches can use normal world creation.
 After build and server tests, run the opt-in client stage.
 
 The consumer's workflow opts in with only its selector; acquisition and supervision stay in the

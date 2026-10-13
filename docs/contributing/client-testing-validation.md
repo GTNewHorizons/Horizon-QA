@@ -220,6 +220,41 @@ python3 hqa-tools.pyz run-client --cwd /path/to/isolated-pack/.minecraft \
 The historical Java 26/fullpack checks above establish the previous implementation, not a fresh
 validation of this fluent follow-up. Package/daily workflow integration remains local and undeployed.
 
+## Visible launch correction
+
+The 2026-10-13 follow-up from local commit `3bf4414ebfd8995b216aeb8682f02137ddf85343`
+corrects the manual development launch. The original command included HeadlessNH with
+`headlessnh.active=false`; its 1.1.1 renderer callback repeatedly created `.worldloaded.headlessnh`
+and threw when that file already existed. HQA correctly reported infrastructure exit 2 and three
+incomplete cases in `build/horizonqa/visible-1791886724/`. That failed game/report directory is preserved.
+
+An unmodified HeadlessNH controller-source probe reproduced the exact duplicate-marker exception in
+under a second with supplied Minecraft state and real filesystem operations. Enabling the controller
+in `NONE` mode avoided that exception, but a real client check showed its world-creation screens
+still ran automatically. The examples now omit HeadlessNH from ordinary development runtime;
+`hqaHeadlessNH=true` opts in, and the shipped supervisor supplies that Gradle property automatically.
+The [visible launch command](../guide/client-tests.md#visible-local-runs) uses normal Minecraft menus
+and a fresh game/report directory. There are no framework lifecycle, input, schema, or exit-policy changes.
+
+Fresh evidence is under `build/horizonqa/visible-evidence/`; `summary.md` records exact commands and
+screenshots. The Java 8 client was driven through the empty world list, Create New World,
+Creative selection, Superflat selection, and Create using actual input on an owned private display.
+The actual loaded-mod list excludes HeadlessNH, with no HeadlessNH logs or marker files. All three
+interaction cases passed, matching JUnit and supervisor/process exit 0, without forced termination,
+timeouts, or crashes. This validates the manual GUI path; the user's desktop compositor/input focus
+was not driven by the validation.
+
+The subsequent default automated replay includes HeadlessNH in its loaded-mod list, automatically
+enters singleplayer, and passes the same three cases with matching JSON/JUnit and supervisor/process
+exit 0. The manual and automated results are retained in `manual-no-headless/` and
+`automated-default/`, respectively. No manual input was supplied to the automated replay.
+
+`./gradlew build javadoc` passed, with 278 Java tests and eight tools tests. The existing shipped-archive
+contract test fails against the old archive's missing automation dependency opt-in and passes with the
+new archive. The marker probes, archive regression, build log and strict MkDocs log are retained in
+the same evidence directory. The preliminary `active=true`/`NONE` client run is retained separately
+and does not establish manual world creation.
+
 ## Tools distribution and development shortcut
 
 The follow-up retains the same Java runtime, input behavior, schema-3 reports, and exit policy. It

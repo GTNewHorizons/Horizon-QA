@@ -44,6 +44,7 @@ class PackagedToolTest(ToolTestCase):
         self.assertEqual(":mod:runClient25", command[0])
         self.assertIn("--mcJvmArgs=-Dhorizonqa.tests=mod:Holder.test", command)
         self.assertIn("--mcJvmArgs=-Dhorizonqa.client=true", command)
+        self.assertIn("-PhqaHeadlessNH=true", command)
         adapter = Path(command[command.index("--init-script") + 1])
         self.assertEqual(report, adapter.parent)
         self.assertIn("task.workingDir", adapter.read_text())

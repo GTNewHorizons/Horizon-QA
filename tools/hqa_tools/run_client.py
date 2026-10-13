@@ -136,7 +136,8 @@ def main(argv=None):
                 isolation.write_text(files("hqa_tools").joinpath("client-test-isolation.init.gradle").read_text(encoding="utf-8"))
                 command = [str(args.cwd.resolve() / "gradlew"), args.gradle_task, "--no-daemon", "--console=plain",
                     "--project-cache-dir", str(report / "gradle-cache"), "--init-script", str(isolation),
-                    "-PhorizonQaClientTask=" + args.gradle_task, "-PhorizonQaClientReportDir=" + str(report)]
+                    "-PhorizonQaClientTask=" + args.gradle_task, "-PhorizonQaClientReportDir=" + str(report),
+                    "-PhqaHeadlessNH=true"]
                 command += ["--mcJvmArgs=" + value for value in jvm]
                 command += ["--mcArgs=--width", "--mcArgs=959", "--mcArgs=--height", "--mcArgs=541"] + extra
             else:

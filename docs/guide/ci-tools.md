@@ -54,6 +54,11 @@ under `build/horizonqa/`, which the printed launch summary identifies. It does n
 reports or a developer's saves. The task is intentionally separate from `build` because it boots
 Minecraft and requires a display/input environment.
 
+The supervisor sets `-PhqaHeadlessNH=true` for Gradle client launches. Horizon-QA's examples use that
+property to include HeadlessNH only for automation; ordinary development launches omit it. To watch
+the tests on your desktop and create a world manually, use the
+[visible local run](client-tests.md#visible-local-runs).
+
 Override only what the run needs:
 
 ```bash
