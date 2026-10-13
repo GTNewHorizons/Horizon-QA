@@ -141,20 +141,12 @@ public final class ClientTest {
      * Clicks a live target through native OS input and the normal game loop. Buttons are 0 left, 1 right,
      * 2 middle. Return null while unavailable; throw on ambiguity. Bounds, screen and actual pointer
      * readiness are resolved again after rendering before press. Completion includes release; separately
-     * await the resulting client or authoritative gameplay state. The enclosing sequence bounds all waiting.
+     * await the resulting client or authoritative gameplay state. Press/release are queued together so
+     * rendering load cannot turn a click into a long press. An already-held button is rejected.
+     * The enclosing sequence bounds all waiting.
      */
     public CompletableFuture<Void> click(int button, String description, Function<ClientTest, ClickTarget> resolver) {
-        TargetPosition target = new TargetPosition(description, resolver);
-        return operations.submitWhenReady(Phase.END, target::ready, () -> {
-            waitingFor = "";
-            nativeInput().mouse(button, true);
-            return renderedFrames;
-        })
-            .thenCompose(frame -> operations.submitWhenReady(Phase.END, () -> renderedAfterPress(frame), () -> {
-                nativeInput().mouse(button, false);
-                return renderedFrames;
-            }))
-            .thenCompose(frame -> awaitReleasedFrame(frame, () -> !Mouse.isButtonDown(button)));
+        return clicks(button, 1, description, resolver);
     }
 
     /**
@@ -164,18 +156,26 @@ public final class ClientTest {
      * Await the resulting client or gameplay state separately; the enclosing sequence bounds all waiting.
      */
     public CompletableFuture<Void> doubleClick(String description, Function<ClientTest, ClickTarget> resolver) {
+        return clicks(0, 2, description, resolver);
+    }
+
+    private CompletableFuture<Void> clicks(int button, int count, String description,
+        Function<ClientTest, ClickTarget> resolver) {
+        if (button < 0 || button > 2) throw new IllegalArgumentException("Mouse button must be 0, 1, or 2");
         TargetPosition target = new TargetPosition(description, resolver);
-        return operations.submitWhenReady(Phase.END, target::ready, () -> {
-            if (Mouse.isButtonDown(0)) throw new IllegalStateException("Double-click requires a released left button");
-            for (int click = 0; click < 2; click++) {
-                nativeInput().mouse(0, true);
-                nativeInput().mouse(0, false);
+        return operations.submitWhenReady(Phase.END, () -> {
+            if (Mouse.isButtonDown(button)) throw new IllegalStateException("Click requires a released mouse button");
+            return target.ready();
+        }, () -> {
+            for (int click = 0; click < count; click++) {
+                nativeInput().mouse(button, true);
+                nativeInput().mouse(button, false);
             }
             return renderedFrames;
         })
             .thenCompose(
                 frame -> operations
-                    .submitWhenReady(Phase.END, () -> renderedAfterPress(frame) && !Mouse.isButtonDown(0), () -> {
+                    .submitWhenReady(Phase.END, () -> renderedAfterPress(frame) && !Mouse.isButtonDown(button), () -> {
                         waitingFor = "";
                         return null;
                     }));

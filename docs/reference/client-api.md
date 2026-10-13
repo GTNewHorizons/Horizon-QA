@@ -41,6 +41,9 @@ their original cause. Observation callbacks must not mutate state. Actions are n
 because a later assertion fails. Await the resulting GUI or server state separately from input release.
 Screenshots are diagnostics, not pixel correctness assertions.
 
+Clicks queue native press/release together, then await ordinary input processing and release.
+They reject an already-held button. Use `drag` for a held-button gesture.
+
 Use `doubleClick` when two presses must reach the same position before camera or layout changes.
 It sends both press/release pairs without intervening game frames and rejects an already-held
 left button. Two separate `click` steps each resolve rendered readiness and may follow a moving target.
