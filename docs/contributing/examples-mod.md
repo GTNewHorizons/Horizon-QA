@@ -22,6 +22,7 @@ examples/
   src/main/java/.../examples/tests/
     BasicTests.java
     ClientInteractionTests.java
+    ClientAccelerationTests.java
     ClientFailureTests.java
     HelperApiTests.java
     MissingModGatedTests.java
@@ -63,7 +64,8 @@ failures intentionally; select its individual cases explicitly.
 |----------------------|--------------------------------------------------------------------|
 | `BasicTests`         | Pass / fail / timeout, runtime assumptions, optional `required = false`, batch hooks |
 | `ClientInteractionTests` | Fluent authoring, Shift-click recovery, double-click, live targets, native wheel/drag/Escape, window resize, chest packets/gameplay, successive cleanup and batch hooks |
-| `ClientFailureTests` | Required/optional failures, held input on timeout, cancellation, world loss, real client/server crashes and cleanup |
+| `ClientAccelerationTests` | Real furnace at normal/accelerated speed, normal native input afterward, rate/fixture cleanup |
+| `ClientFailureTests` | Required/optional failures, held input on normal/accelerated timeout, cancellation, world loss, real client/server crashes and cleanup |
 | `HelperApiTests`     | Blocks, inventories, NBT, entities, redstone, world controls, fake players |
 | `MissingModGatedTests` | Discovery-time `requiredMods` skip without loading or executing the holder |
 | `ParameterizedTests`  | Named parameterized-test rows and argument injection                 |

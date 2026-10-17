@@ -552,6 +552,10 @@ public class GameTestInstance {
         return status.isDone() && !cleaningUp;
     }
 
+    int tickMultiplier() {
+        return status == GameTestStatus.RUNNING && !cleaningUp && sequence != null ? sequence.tickMultiplier() : 1;
+    }
+
     public GameTestStatus getStatus() {
         return status;
     }

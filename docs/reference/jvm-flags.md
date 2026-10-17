@@ -98,6 +98,10 @@ and waits for a rendered integrated world and player before starting the existin
 It requires `mode=ci`, `world=normal`, `autoRun=true`, `stopServer=true`, and `turbo=1`. A dedicated server
 cannot run this mode and reports `CLIENT_UNAVAILABLE` with exit `2`.
 
+The global turbo property stays `1` in client mode. Use an explicit
+[`awaitServerAccelerated`](client-api.md#accelerated-server-waits) step for faster server simulation
+inside a client scenario.
+
 The launcher creates/joins the world. Client automation keeps the integrated world ticking while a GUI
 is open and temporarily disables pause on focus loss; it does not test pause semantics. See
 [Client tests](../guide/client-tests.md) for native input and packaged launch commands.

@@ -26,6 +26,60 @@ import com.gtnewhorizons.horizonqa.report.CaseResult;
 
 public class AsyncLifecycleTest {
 
+    @Test
+    public void acceleratedTimeoutStopsBeforePendingClientCleanupAndRetainsDiagnostics() throws Exception {
+        CompletableFuture<Void> cleanup = new CompletableFuture<>();
+        AtomicInteger restoration = new AtomicInteger();
+        GameTestInstance instance = startAcceleratedWait(2, cleanup, restoration);
+        instance.tickStart();
+        instance.tickEnd();
+        assertEquals(GameTestStatus.FAILED, instance.getStatus());
+        assertEquals(1, instance.tickMultiplier());
+        assertFalse(instance.isDone());
+        assertTrue(
+            instance.getFailureCause()
+                .getMessage()
+                .contains("server turbo x10"));
+        cleanup.complete(null);
+        instance.tickEnd();
+        assertTrue(instance.isDone());
+        assertEquals(1, restoration.get());
+    }
+
+    @Test
+    public void failureAndAbortStopAccelerationBeforeAsynchronousCleanup() throws Exception {
+        for (boolean abort : new boolean[] { false, true }) {
+            CompletableFuture<Void> cleanup = new CompletableFuture<>();
+            AtomicInteger restoration = new AtomicInteger();
+            GameTestInstance instance = startAcceleratedWait(10, cleanup, restoration);
+            if (abort) instance.abortExecution("cancel accelerated wait", null);
+            else instance.fail(new IllegalStateException("per-tick failure"));
+            assertEquals(abort ? GameTestStatus.ERROR : GameTestStatus.FAILED, instance.getStatus());
+            assertEquals(1, instance.tickMultiplier());
+            assertFalse(instance.isDone());
+            cleanup.complete(null);
+            instance.tickEnd();
+            assertTrue(instance.isDone());
+            assertEquals(1, restoration.get());
+        }
+    }
+
+    private static GameTestInstance startAcceleratedWait(int budget, CompletableFuture<Void> cleanup,
+        AtomicInteger restoration) throws Exception {
+        GameTestInstance instance = startWithCleanup(10, cleanup, restoration::incrementAndGet);
+        GameTestSequence sequence = new GameTestSequence(instance);
+        instance.setSequence(sequence);
+        sequence.thenWaitUntilAccelerated(
+            "real simulation pending",
+            budget,
+            10,
+            () -> { throw new AssertionError("not completed"); });
+        instance.tickStart();
+        instance.tickEnd();
+        assertEquals(10, instance.tickMultiplier());
+        return instance;
+    }
+
     @Rule
     public Timeout nonblockingDeadline = Timeout.seconds(5);
 

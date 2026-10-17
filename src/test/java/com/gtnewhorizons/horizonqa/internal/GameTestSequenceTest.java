@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
@@ -25,6 +26,56 @@ import com.gtnewhorizons.horizonqa.internal.GameTestSequence.StepState;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 
 public class GameTestSequenceTest {
+
+    @Test
+    public void accelerationBelongsOnlyToTheRunningWaitAndNextClientBudgetStartsFresh() {
+        GameTestSequence sequence = new GameTestSequence(new GameTestInstance(null, 0, 0, 0));
+        AtomicInteger attempts = new AtomicInteger();
+        CompletableFuture<Void> clientOperation = new CompletableFuture<>();
+        sequence
+            .thenWaitUntilAccelerated(
+                "construction completed",
+                3,
+                10,
+                () -> { if (attempts.incrementAndGet() < 3) throw new AssertionError("still building"); })
+            .thenExecuteAsync("next client operation", 4, () -> clientOperation);
+
+        assertEquals(1, sequence.tickMultiplier());
+        sequence.tick(1, TestPhase.START);
+        assertEquals(1, sequence.tickMultiplier());
+        sequence.tick(1, TestPhase.END);
+        assertEquals(10, sequence.tickMultiplier());
+        sequence.tick(2, TestPhase.END);
+        assertEquals(10, sequence.tickMultiplier());
+        sequence.tick(3, TestPhase.END);
+        assertEquals(1, sequence.tickMultiplier());
+        sequence.tick(4, TestPhase.END);
+        sequence.tick(5, TestPhase.END);
+        clientOperation.complete(null);
+        sequence.tick(6, TestPhase.END);
+        assertEquals(1, sequence.tickMultiplier());
+        assertEquals(
+            6,
+            sequence.getSteps()
+                .get(1)
+                .deadlineTick());
+        assertEquals(
+            StepState.COMPLETED,
+            sequence.getSteps()
+                .get(1)
+                .state());
+    }
+
+    @Test
+    public void acceleratedWaitRejectsInvalidBudgetsAndMultipliersBeforeRegistration() {
+        GameTestSequence sequence = new GameTestSequence(new GameTestInstance(null, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> sequence.thenWaitUntilAccelerated("bad", 3, 0, () -> {}));
+        assertThrows(IllegalArgumentException.class, () -> sequence.thenWaitUntilAccelerated("bad", 3, 101, () -> {}));
+        assertThrows(IllegalArgumentException.class, () -> sequence.thenWaitUntilAccelerated("bad", 0, 10, () -> {}));
+        assertTrue(
+            sequence.getSteps()
+                .isEmpty());
+    }
 
     @Test
     public void finishedStepSummaryOnlyShowsUsefulTiming() {

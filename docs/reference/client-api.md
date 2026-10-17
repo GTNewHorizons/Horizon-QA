@@ -23,6 +23,7 @@ Do not also call `helper.startSequence()`.
 | `server(label, callback)` | Run once at server END; must return promptly |
 | `awaitClient(label, assertion)` | Retry client assertions, at most one attempt in flight |
 | `awaitServer(label, assertion)` | Poll authoritative server assertions at END after the world tick |
+| `awaitServerAccelerated(label, multiplier, assertion)` | Poll server state after complete ticks, accelerating only this wait |
 | `awaitScreen(type)` | Wait for the live screen type on the client thread |
 | `click(target)`, `rightClick(target)` | Resolve a live target, send one native click, observe release |
 | `doubleClick(target)` | Resolve once; send two native left clicks at the same position; observe processing and release |
@@ -57,6 +58,30 @@ Client state belongs inside `client` / `awaitClient` callbacks. An `async` suppl
 **server** thread: use queued session methods such as `c.run(...)` or `c.click(...)` there.
 Never block either game thread with `get()` / `join()`. START runs before the world tick;
 END callbacks, polling, and timeout evaluation run after it.
+
+## Accelerated server waits
+
+Opt in for tick-driven construction, processing, or travel that does not depend on client progress
+or wall-clock time:
+
+```java
+.awaitServer("server accepted construction", fixture::assertConstructionStarted)
+.awaitServerAccelerated("construction completed", 600, 10, fixture::assertBuilt)
+.awaitClient("completed construction synchronized", 100, c -> fixture.assertClientBuilt())
+```
+
+The four arguments are label, maximum simulated server ticks, multiplier, and assertion. The
+three-argument overload uses the scenario's default tick budget. Multipliers are 1..100; 1 runs
+normally. All loaded server worlds advance. Every tick runs START, world logic, and END; the
+assertion retries after each world tick. Rendering and input keep their normal cadence.
+Normal `awaitServer` calls are unchanged.
+
+Acceleration ends before subsequent steps and teardown, including on failure, timeout, or cancellation.
+The wait and whole-test deadlines count simulated ticks; later client-step budgets start at normal
+speed. Use ordinary waits for synchronization, animation, timing-sensitive behavior, and cleanup.
+Confirm that input or a network request was accepted before accelerating its resulting simulation.
+Keep the global `horizonqa.turbo=1` setting in client mode; no launcher change is needed.
+Step diagnostics identify accelerated waits with `[server turbo xN]`.
 
 ## Live click targets
 

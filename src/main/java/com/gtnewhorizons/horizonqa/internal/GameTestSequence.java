@@ -120,6 +120,19 @@ public class GameTestSequence {
         return thenWaitUntilAtEnd(label, maxTicks, condition);
     }
 
+    /** Registers the client facade's opt-in simulation wait without changing the global turbo property. */
+    public GameTestSequence thenWaitUntilAccelerated(String label, int maxTicks, int multiplier, Runnable condition) {
+        if (multiplier < 1 || multiplier > 100) throw new IllegalArgumentException("Multiplier must be 1..100");
+        thenWaitUntilAtEnd(label, maxTicks, condition);
+        pendingSteps.getLast().tickMultiplier = multiplier;
+        return this;
+    }
+
+    int tickMultiplier() {
+        SequenceStep step = pendingSteps.peek();
+        return step != null && step.state == StepState.RUNNING ? step.tickMultiplier : 1;
+    }
+
     public GameTestSequence thenWaitUntilAtStart(Runnable condition) {
         return thenWaitUntilAtStart(null, condition);
     }
@@ -418,7 +431,8 @@ public class GameTestSequence {
     }
 
     private static String displayLabel(SequenceStep step) {
-        return step.label.isEmpty() ? step.source.toString() : step.label;
+        String label = step.label.isEmpty() ? step.source.toString() : step.label;
+        return step.tickMultiplier > 1 ? label + " [server turbo x" + step.tickMultiplier + "]" : label;
     }
 
     private void shiftPendingSteps(long ticks) {
@@ -629,6 +643,7 @@ public class GameTestSequence {
         long startedTick = -1;
         long completedTick = -1;
         int attempts;
+        int tickMultiplier = 1;
         Supplier<? extends CompletionStage<?>> asyncAction;
         CompletableFuture<?> inFlight;
         AssertionError lastAssertion;
@@ -677,7 +692,7 @@ public class GameTestSequence {
                 phase,
                 kind,
                 state,
-                label,
+                tickMultiplier > 1 ? displayLabel(this) : label,
                 source,
                 lastAssertion);
         }

@@ -15,6 +15,7 @@ import com.gtnewhorizons.horizonqa.api.client.ClickTarget;
 import com.gtnewhorizons.horizonqa.api.client.ClientTarget;
 import com.gtnewhorizons.horizonqa.api.client.ClientTest;
 import com.gtnewhorizons.horizonqa.client.NativeInput;
+import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
 import com.gtnewhorizons.horizonqa.internal.ReportedRun;
 
 /** Intentional failure examples: select exact cases; these are not an all-pass suite. */
@@ -118,6 +119,46 @@ public final class ClientFailureTests {
                 "fail in the actual world tick",
                 () -> helper.getWorld()
                     .setTileEntity(chest.x(), chest.y(), chest.z(), new CrashingTile()));
+    }
+
+    /** An exhausted accelerated step remains optional and releases held input before the next case. */
+    @GameTest(required = false, timeoutTicks = 160)
+    public static void iOptionalAcceleratedTimeout(GameTestHelper helper) {
+        acceleratedPending(helper, 20);
+    }
+
+    /** The whole-test simulated-tick deadline still bounds an accelerated wait. */
+    @GameTest(timeoutTicks = 40)
+    public static void jRequiredAcceleratedTimeout(GameTestHelper helper) {
+        acceleratedPending(helper, 100);
+    }
+
+    /** Abort during real accelerated ticking; cleanup must settle at normal speed. */
+    @GameTest(timeoutTicks = 160)
+    public static void kAcceleratedCancellation(GameTestHelper helper) {
+        helper.onEachTick(
+            "cancel only after acceleration starts",
+            () -> {
+                if (GameTestRunner.tickMultiplier() > 1)
+                    ReportedRun.requestAbort("intentional accelerated-wait cancellation");
+            });
+        acceleratedPending(helper, 100);
+    }
+
+    private static void acceleratedPending(GameTestHelper helper, int budget) {
+        helper.afterTest(
+            () -> {
+                if (GameTestRunner.tickMultiplier() != 1)
+                    throw new AssertionError("Accelerated wait leaked into server cleanup");
+            });
+        ClientTest.scenario(helper)
+            .client("hold input before accelerated wait", 40, ClientFailureTests::holdInput)
+            .awaitServerAccelerated(
+                "intentionally unfinished simulation",
+                budget,
+                10,
+                () -> { throw new AssertionError("intentional accelerated wait timeout"); })
+            .succeed();
     }
 
     @GameTest(timeoutTicks = 160)

@@ -89,6 +89,10 @@ Reported Run is active. It does not change the phase ordering or omit tick bodie
 run finishes. See [JVM properties](../reference/jvm-flags.md#runtime-behavior-overrides) for its range and wall-clock
 caveat.
 
+Client scenarios keep the global turbo property at `1` and may opt individual server waits into
+[scoped acceleration](../reference/client-api.md#accelerated-server-waits). Their input, rendering,
+ordinary waits, and cleanup retain the normal cadence.
+
 See [Sequences and timing](../guide/sequences.md) for scheduling, bounded waits, and phase-ordering rules.
 
 ## GregTech time-warp

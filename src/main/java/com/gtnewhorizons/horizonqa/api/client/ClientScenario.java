@@ -233,6 +233,33 @@ public final class ClientScenario {
         return this;
     }
 
+    /**
+     * Uses the default budget and the simulation constraints of
+     * {@link #awaitServerAccelerated(String, int, int, Runnable)}.
+     */
+    public ClientScenario awaitServerAccelerated(String label, int multiplier, Runnable assertion) {
+        return awaitServerAccelerated(label, defaultTimeout, multiplier, assertion);
+    }
+
+    /**
+     * Retries authoritative server assertions at END after every complete world tick. The multiplier is
+     * 1..100; 1 uses normal speed. All loaded server worlds advance. The positive budget and enclosing
+     * test timeout count simulated server ticks. Acceleration ends before the next step or teardown,
+     * including on failure and cancellation;
+     * client input, rendering and subsequent client-operation budgets retain their normal cadence.
+     * Use only when the assertion and simulation are independent of wall-clock timing and client progress.
+     * The callback observes state and must not mutate it or wait for client work.
+     */
+    public ClientScenario awaitServerAccelerated(String label, int maxTicks, int multiplier, Runnable assertion) {
+        checkOpen();
+        sequence.thenWaitUntilAccelerated(
+            Objects.requireNonNull(label, "label"),
+            maxTicks,
+            multiplier,
+            Objects.requireNonNull(assertion, "assertion"));
+        return this;
+    }
+
     /** Schedules custom queued work once, with the default budget. The supplier starts on the server thread. */
     public ClientScenario async(String label, Function<ClientTest, ? extends CompletionStage<?>> action) {
         return async(label, defaultTimeout, action);

@@ -109,6 +109,22 @@ For your mod's Gradle task, packaged games, or an existing CI launcher, follow
 [CI tooling](ci-tools.md). Install HQA and the test JARs in the client; packaged tests need no
 source checkout or Gradle wrapper.
 
+## Speed up simulation waits
+
+Use `awaitServerAccelerated("construction completed", 600, 10, assertion)` for server simulation
+that can run independently of client input and wall-clock timing. It runs up to ten complete server
+ticks per normal tick slot only while that assertion is waiting, then restores normal speed.
+Client input and synchronization waits stay at normal speed. See the
+[accelerated-wait contract](../reference/client-api.md#accelerated-server-waits).
+
+Run the same real furnace at normal speed and 10× speed, followed by a cleanup check:
+
+```bash
+./gradlew hqaClientTest -PhqaTests=horizonqaexamples:ClientAccelerationTests
+```
+
+Each case records simulation ticks and wall-clock seconds in its existing report diagnostics.
+
 ## Diagnose a failure
 
 Read `horizonqa-result.json` and the failing JUnit case's `system-out` first. Diagnostics include

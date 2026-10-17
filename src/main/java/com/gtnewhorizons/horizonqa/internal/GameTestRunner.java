@@ -89,8 +89,17 @@ public final class GameTestRunner {
     }
 
     public static boolean isTurboActive() {
-        return isBatchActive() && HorizonQAProperties.usesHeadlessServerBehavior()
-            && HorizonQAProperties.turboMultiplier() > 1;
+        return tickMultiplier() > 1;
+    }
+
+    /** Current server-thread tick budget; client acceleration belongs only to its active synchronous wait. */
+    public static int tickMultiplier() {
+        GameTestRunner runner = activeRunner();
+        if (runner == null || runner.kind != Kind.BATCH || !HorizonQAProperties.usesHeadlessServerBehavior()) return 1;
+        if (!HorizonQAProperties.clientTestsEnabled()) return HorizonQAProperties.turboMultiplier();
+        if (runner.aborting || runner.instances.size() != 1) return 1;
+        return runner.instances.get(0)
+            .tickMultiplier();
     }
 
     public static void shutdown() {
