@@ -63,7 +63,7 @@ failures intentionally; select its individual cases explicitly.
 | Class                | Focus                                                              |
 |----------------------|--------------------------------------------------------------------|
 | `BasicTests`         | Pass / fail / timeout, runtime assumptions, optional `required = false`, batch hooks |
-| `ClientInteractionTests` | Fluent authoring, Shift-click recovery, double-click, live targets, native wheel/drag/Escape, window resize, chest packets/gameplay, successive cleanup and batch hooks |
+| `ClientInteractionTests` | Fluent authoring, rejected-key cleanup, Shift-click recovery, double-click, live targets, native wheel/drag/Escape, window resize, chest packets/gameplay, successive cleanup and batch hooks |
 | `ClientAccelerationTests` | Real furnace at normal/accelerated speed, normal native input afterward, rate/fixture cleanup |
 | `ClientFailureTests` | Required/optional failures, held input on normal/accelerated timeout, cancellation, world loss, real client/server crashes and cleanup |
 | `HelperApiTests`     | Blocks, inventories, NBT, entities, redstone, world controls, fake players |

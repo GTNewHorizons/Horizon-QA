@@ -7,7 +7,9 @@ import java.awt.Robot;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
+import java.util.function.IntConsumer;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
@@ -62,8 +64,8 @@ public final class NativeInput {
         if (button < 0 || button > 2) throw new IllegalArgumentException("Mouse button must be 0, 1, or 2");
         int mask = InputEvent.getMaskForButton(button == 1 ? 3 : button == 2 ? 2 : 1);
         if (down) {
-            buttons.add(mask);
             robot.mousePress(mask);
+            buttons.add(mask);
         } else {
             robot.mouseRelease(mask);
             buttons.remove(mask);
@@ -79,8 +81,8 @@ public final class NativeInput {
 
     public void key(int awtKeyCode, boolean down) {
         if (down) {
-            keys.add(awtKeyCode);
             robot.keyPress(awtKeyCode);
+            keys.add(awtKeyCode);
         } else {
             robot.keyRelease(awtKeyCode);
             keys.remove(awtKeyCode);
@@ -119,11 +121,25 @@ public final class NativeInput {
     }
 
     public void release() {
-        for (int mask : buttons) robot.mouseRelease(mask);
-        buttons.clear();
-        for (int key : keys) robot.keyRelease(key);
-        keys.clear();
+        RuntimeException failure = releaseOwned(buttons, robot::mouseRelease, null);
+        failure = releaseOwned(keys, robot::keyRelease, failure);
         KeyBinding.unPressAllKeys();
+        if (failure != null) throw failure;
+    }
+
+    private static RuntimeException releaseOwned(Set<Integer> inputs, IntConsumer release, RuntimeException failure) {
+        Iterator<Integer> pending = inputs.iterator();
+        while (pending.hasNext()) {
+            int input = pending.next();
+            try {
+                release.accept(input);
+                pending.remove();
+            } catch (RuntimeException error) {
+                if (failure == null) failure = error;
+                else if (failure != error) failure.addSuppressed(error);
+            }
+        }
+        return failure;
     }
 
     public void restorePointer() {

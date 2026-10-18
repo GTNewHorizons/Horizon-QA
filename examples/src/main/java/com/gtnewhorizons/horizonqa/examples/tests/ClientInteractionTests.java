@@ -2,6 +2,7 @@ package com.gtnewhorizons.horizonqa.examples.tests;
 
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.event.KeyEvent;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletionException;
 
@@ -138,6 +139,27 @@ public final class ClientInteractionTests {
             .awaitClient(
                 "screen closed normally",
                 c -> { if (c.screen() != null) throw new AssertionError("Escape did not close the screen"); })
+            .succeed();
+    }
+
+    @GameTest(batch = "client", timeoutTicks = 160)
+    public static void aRejectedKey(GameTestHelper helper) {
+        ClientTest.scenario(helper)
+            .client("reject an invalid key while owning Control", c -> {
+                c.afterTest(
+                    () -> {
+                        if (!NativeInput.released()) throw new AssertionError("Rejected key prevented input cleanup");
+                    });
+                c.holdKey(KeyEvent.VK_CONTROL);
+                try {
+                    c.holdKey(KeyEvent.VK_UNDEFINED);
+                    throw new AssertionError("Expected an undefined native key to be rejected");
+                } catch (IllegalArgumentException expected) {}
+            })
+            .awaitClient("Control reached ordinary keyboard handling", c -> {
+                if (!Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) && !Keyboard.isKeyDown(Keyboard.KEY_RCONTROL))
+                    throw new AssertionError("Expected held Control before teardown");
+            })
             .succeed();
     }
 
