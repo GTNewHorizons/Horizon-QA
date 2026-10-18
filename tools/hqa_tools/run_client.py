@@ -39,14 +39,17 @@ def terminate(process):
     return True
 
 
-def dump_threads(process):
-    # Signal only JVMs in the session created for this invocation, including an RFG child JVM.
+def dump_threads(process, report):
+    # Gradle's single-use daemon starts another session; the managed report argument identifies its game JVM.
+    report_argument = ("-Dhorizonqa.reportDir=" + str(report)).encode()
     for entry in Path("/proc").iterdir():
         if not entry.name.isdecimal():
             continue
         try:
             fields = (entry / "stat").read_text().rsplit(")", 1)[1].split()
-            if int(fields[3]) == process.pid and (entry / "comm").read_text().strip() == "java":
+            if (entry / "comm").read_text().strip() != "java":
+                continue
+            if int(fields[3]) == process.pid or report_argument in (entry / "cmdline").read_bytes().split(b"\0"):
                 os.kill(int(entry.name), signal.SIGQUIT)
         except (OSError, ValueError):
             pass
@@ -183,7 +186,7 @@ def main(argv=None):
                 except (subprocess.TimeoutExpired, KeyboardInterrupt):
                     summary["timedOut"] = True
                     (report / "stop-client").touch()
-                    dump_threads(process)
+                    dump_threads(process, report)
                     try:
                         process.wait(timeout=args.grace)
                     except subprocess.TimeoutExpired:
