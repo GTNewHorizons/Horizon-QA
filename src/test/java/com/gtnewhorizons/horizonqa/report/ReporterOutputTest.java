@@ -290,31 +290,44 @@ public class ReporterOutputTest {
 
     @Test
     public void intentionalSkipsIncludeReasonInJunitAndStatusJson() throws Exception {
-        CaseResult skipped = CaseResult.skipped(
+        for (GameTestDefinition definition : Arrays.asList(
             templateDefinition("mod:Suite.fluidCompatibility", ""),
-            "AE2 Fluid Crafting is not loaded",
-            CaseResult.MISSING_REQUIRED_MOD);
-        RunResult result = RunResult
-            .completedCases("ci", Collections.singletonList(skipped), Collections.emptyList(), "TEST.xml");
+            GameTestDefinition.parameterizedSkippedAtDiscovery(
+                "mod:Suite.fluidCompatibility",
+                "mod.Suite",
+                "",
+                20,
+                "",
+                true,
+                0,
+                "Missing optional mod"))) {
+            boolean family = definition.isUnresolvedCaseFamily();
+            CaseResult skipped = CaseResult
+                .skipped(definition, "AE2 Fluid Crafting is not loaded", CaseResult.MISSING_REQUIRED_MOD);
+            RunResult result = RunResult
+                .completedCases("ci", Collections.singletonList(skipped), Collections.emptyList(), "TEST.xml");
 
-        assertEquals(0, result.exitCode());
-        assertEquals(1, result.skipped());
-        assertEquals(1, result.junitSkipped());
+            assertEquals(0, result.exitCode());
+            assertEquals(1, result.skipped());
+            assertEquals(1, result.junitSkipped());
 
-        File xmlOutput = temporaryFolder.newFile("intentional-skip.xml");
-        JUnitXmlReporter.write(result, xmlOutput);
-        String xml = read(xmlOutput);
-        assertTrue(xml.contains("tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"1\""));
-        assertTrue(
-            xml.contains("<skipped message=\"AE2 Fluid Crafting is not loaded\" type=\"MISSING_REQUIRED_MOD\"/>"));
+            File xmlOutput = temporaryFolder.newFile("intentional-skip-" + family + ".xml");
+            JUnitXmlReporter.write(result, xmlOutput);
+            String xml = read(xmlOutput);
+            assertTrue(xml.contains("tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"1\""));
+            assertTrue(
+                xml.contains("<skipped message=\"AE2 Fluid Crafting is not loaded\" type=\"MISSING_REQUIRED_MOD\"/>"));
+            assertEquals(family, xml.contains("unresolvedCaseFamily=true"));
 
-        File jsonOutput = temporaryFolder.newFile("intentional-skip.json");
-        StatusJsonReporter.write(result, jsonOutput);
-        String json = read(jsonOutput);
-        assertTrue(json.contains("\"status\": \"skipped\""));
-        assertTrue(json.contains("\"skipReason\": \"AE2 Fluid Crafting is not loaded\""));
-        assertTrue(json.contains("\"skipType\": \"MISSING_REQUIRED_MOD\""));
-        assertFalse(json.contains("\"failure\": {"));
+            File jsonOutput = temporaryFolder.newFile("intentional-skip-" + family + ".json");
+            StatusJsonReporter.write(result, jsonOutput);
+            String json = read(jsonOutput);
+            assertTrue(json.contains("\"status\": \"skipped\""));
+            assertTrue(json.contains("\"skipReason\": \"AE2 Fluid Crafting is not loaded\""));
+            assertTrue(json.contains("\"skipType\": \"MISSING_REQUIRED_MOD\""));
+            assertEquals(family, json.contains("unresolvedCaseFamily=true"));
+            assertFalse(json.contains("\"failure\": {"));
+        }
     }
 
     @Test

@@ -129,6 +129,28 @@ class ReportVerificationTest(ToolTestCase):
         self.write_report(outcome="skipped")
         self.assert_rejected("differ")
 
+    def test_missing_mod_family_skip_matches_selected_row_without_accepting_other_cases(self):
+        selector = "mod:Holder.test[fast]"
+        self.result["configuration"]["tests"] = selector
+        self.result["tests"][0].update(status="skipped", skipType="MISSING_REQUIRED_MOD")
+        self.result["tests"][0]["output"].append("unresolvedCaseFamily=true")
+        self.result["counts"].update(passed=0, skipped=1, junitSkipped=1)
+        self.write_report(outcome="skipped")
+        completed = self.verify(selector)
+        self.assertEqual(0, completed.returncode, completed.stderr)
+
+        for changes in (
+            {"output": ["holderClass=com.expected.Holder"]},
+            {"skipType": "ASSUMPTION_FAILED"},
+            {"id": "mod:Holder.test[slow]", "name": "test[slow]"},
+            {"id": "mod:Holder.testing", "name": "testing"},
+        ):
+            with self.subTest(changes=changes):
+                result = copy.deepcopy(self.result)
+                result["tests"][0].update(changes)
+                self.write_report(result, "skipped")
+                self.assert_rejected("unexecuted selector", selectors=selector)
+
 
 if __name__ == "__main__":
     unittest.main()

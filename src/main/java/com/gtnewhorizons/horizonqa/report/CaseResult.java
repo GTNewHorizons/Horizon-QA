@@ -348,6 +348,7 @@ public record CaseResult(String id, String classname, String name, Status status
     private static void addParameterSummary(GameTestDefinition definition, List<String> output) {
         if (!definition.getHolderClassName()
             .isEmpty()) output.add("holderClass=" + definition.getHolderClassName());
+        if (definition.isUnresolvedCaseFamily()) output.add("unresolvedCaseFamily=true");
         if (definition.isParameterized()) {
             output.add(PARAMETERS_PREFIX + definition.getArgumentSummary());
         }

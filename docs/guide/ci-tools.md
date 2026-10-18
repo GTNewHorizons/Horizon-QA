@@ -139,6 +139,7 @@ python3 hqa-tools.pyz verify /path/to/reports \
 `--tests` checks the automatic run's selector; omit it for manually selected RCON batches.
 Always supply `--earliest` in CI (its default is `0`). Missing, stale, malformed, incomplete,
 contradictory, or empty success reports fail with exit `2`.
+Selecting a parameterized row still permits a discovery-time family skip when its required mod is absent.
 
 Both commands preserve HQA's outcomes: optional failures/timeouts are `0` and JUnit-skipped;
 required failures/timeouts are `1`; infrastructure/incomplete/reporting errors are `2`.

@@ -91,7 +91,9 @@ def verify(directory, selectors, earliest=0):
 def matches(test, selector):
     test_id = test["id"]
     if ":" in selector:
-        return test_id.startswith(selector)
+        return test_id.startswith(selector) or (
+            test["status"] == "skipped" and test.get("skipType") == "MISSING_REQUIRED_MOD"
+            and "unresolvedCaseFamily=true" in test.get("output", []) and selector.startswith(test_id + "["))
     namespace, holder = test_id.split(":", 1)
     holders = [line[len("holderClass="):] for line in test.get("output", []) if line.startswith("holderClass=")]
     return selector == namespace or holder.startswith(selector + ".") or any(
