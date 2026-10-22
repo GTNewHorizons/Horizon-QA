@@ -12,6 +12,7 @@ public final class HorizonQAProperties {
 
     public static final String MODE_PROPERTY = "horizonqa.mode";
     public static final String CLIENT_PROPERTY = "horizonqa.client";
+    public static final String CLIENT_SOUND_PROPERTY = "horizonqa.client.sound";
     public static final String WORLD_PROPERTY = "horizonqa.world";
     public static final String AUTO_RUN_PROPERTY = "horizonqa.autoRun";
     public static final String STOP_SERVER_PROPERTY = "horizonqa.stopServer";
@@ -39,6 +40,11 @@ public final class HorizonQAProperties {
     /** Explicit opt-in for automated tests in an isolated integrated client. */
     public static boolean clientTestsEnabled() {
         return CLIENT_TESTS;
+    }
+
+    /** Enables configured sound levels in otherwise silent automated client sessions without changing saved options. */
+    public static boolean clientSoundEnabled() {
+        return Boolean.getBoolean(CLIENT_SOUND_PROPERTY);
     }
 
     public static Mode mode() {

@@ -24,4 +24,7 @@ public @interface GameTestHolder {
      * every {@link GameTest} in the holder is reported as skipped without loading the holder class.
      */
     String[] requiredMods() default {};
+
+    /** Loaded only in the explicitly enabled integrated-client test run, never on a dedicated server. */
+    boolean clientOnly() default false;
 }

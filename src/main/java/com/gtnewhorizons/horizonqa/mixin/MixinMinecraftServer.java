@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
+import com.gtnewhorizons.horizonqa.internal.ReportedRun;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
 @Mixin(MinecraftServer.class)
@@ -24,12 +25,23 @@ public abstract class MixinMinecraftServer {
 
     @Redirect(method = "run", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;tick()V"))
     private void gametest$tickAtTurboRate(MinecraftServer server) {
-        int multiplier = gametest$isTurboTicking() ? HorizonQAProperties.turboMultiplier() : 1;
-        for (int tick = 0; tick < multiplier; tick++) {
-            server.tick();
-            if (!gametest$isTurboTicking()) {
-                break;
+        try {
+            int multiplier = GameTestRunner.tickMultiplier();
+            for (int tick = 0; tick < multiplier; tick++) {
+                server.tick();
+                if (GameTestRunner.tickMultiplier() < multiplier) {
+                    break;
+                }
             }
+        } catch (RuntimeException | Error crash) {
+            if (HorizonQAProperties.clientTestsEnabled()) {
+                try {
+                    ReportedRun.crashed(crash);
+                } catch (RuntimeException | Error reportingError) {
+                    if (reportingError != crash) crash.addSuppressed(reportingError);
+                }
+            }
+            throw crash;
         }
     }
 
