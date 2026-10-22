@@ -155,11 +155,12 @@ public final class LwjglInput {
 
     /** Delivers native motion with the existing button still held. */
     public static void dragMove(GuiScreen screen, int x, int y) {
-        move(screen, x, y);
         if (usesSdl()) {
+            SdlInput.dragMove(SdlInput.mainWindowId(), sdlX(screen, x), sdlY(screen, y));
             handleInput(screen);
             return;
         }
+        move(screen, x, y);
         writeMouseEvent(pointerX, pointerY, -1, false, 0);
         handleInput(screen);
     }
@@ -269,7 +270,8 @@ public final class LwjglInput {
     }
 
     private static int sdlY(GuiScreen screen, int y) {
-        return Math.round(y * SdlInput.mainHeight() / (float) screen.height);
+        // GuiScreen's bottom-origin conversion subtracts one GUI pixel after scaling.
+        return Math.round((y + 1) * SdlInput.mainHeight() / (float) screen.height);
     }
 
     private static void clear(ByteBuffer buffer) {

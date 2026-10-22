@@ -97,7 +97,11 @@ public final class ClientTestRuntime {
     /** Publish readiness only after the first world frame, so bootstrap does not consume test or cleanup budgets. */
     @SubscribeEvent
     public void renderTick(TickEvent.RenderTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || ready) return;
+        if (event.phase == TickEvent.Phase.START) {
+            LwjglInput.applyPointer();
+            return;
+        }
+        if (ready) return;
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.thePlayer != null && mc.theWorld != null && mc.getIntegratedServer() != null) ready = true;
     }

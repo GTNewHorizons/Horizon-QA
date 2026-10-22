@@ -8,6 +8,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.gtnewhorizons.horizonqa.client.OffscreenWindowDriver;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
 /** Observes actual Offscreen frames without treating main-window frames as progress. */
 @Pseudo
@@ -18,6 +20,11 @@ public abstract class MixinOffscreenWindow {
     private int pixelWidth;
     @Shadow
     private int pixelHeight;
+
+    @WrapMethod(method = { "renderFrame", "update" })
+    private void horizonqa$scopedInput(Operation<Void> original) {
+        OffscreenWindowDriver.withInput(this, () -> original.call());
+    }
 
     @Inject(
         method = "renderFrame",

@@ -72,17 +72,19 @@ public final class OffscreenWindowDriver implements WindowDriver {
     public <T> T observe(Supplier<T> observation) {
         requireOpen();
         if (observing) return observation.get();
-        Object ui = invoke(window, "getCurrentUI");
-        if (ui == null) return observation.get();
-        Object scope = invoke(ui, "scope");
-        invoke(scope, "enter");
-        observing = true;
-        try {
-            return observation.get();
-        } finally {
-            observing = false;
-            invoke(scope, "restore");
-        }
+        return SdlInput.withMouseState(id, () -> {
+            Object ui = invoke(window, "getCurrentUI");
+            if (ui == null) return observation.get();
+            Object scope = invoke(ui, "scope");
+            invoke(scope, "enter");
+            observing = true;
+            try {
+                return observation.get();
+            } finally {
+                observing = false;
+                invoke(scope, "restore");
+            }
+        });
     }
 
     private Point coordinates(GuiScreen screen, int x, int y) {
@@ -172,6 +174,16 @@ public final class OffscreenWindowDriver implements WindowDriver {
         release();
         if (isOpen()) invoke(window, "destroy");
         closed();
+    }
+
+    /** Scopes polling to a bound test window during the host's real update and render lifecycle. */
+    public static void withInput(Object window, Runnable action) {
+        OffscreenWindowDriver driver = WINDOWS.get(window);
+        if (driver == null) action.run();
+        else SdlInput.withMouseState(driver.id, () -> {
+            action.run();
+            return null;
+        });
     }
 
     /** Called while the completed Offscreen framebuffer is still bound on the render thread. */

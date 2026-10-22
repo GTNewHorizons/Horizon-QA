@@ -592,7 +592,9 @@ Input completion alone does not prove that an additional window consumed an even
 
 Open only fixtures owned by the test and register their cleanup during the same client callback as creation. `offscreenWindow(id)` binds an existing window but does not create it or establish that the test owns it. Explicit `close()` is an operation to await in the scenario. Cleanup callbacks must close their owned fixture through the consumer's synchronous API because ordinary queue submission is closed during teardown. Main-window resize retains its normal automatic restoration. Close test-owned additional windows rather than leaving resized windows behind.
 
-The runnable example is `horizonqaexamples:ClientWindowTests.offscreenWindowKeepsMainUsable`. It opens two real `GuiScreen` instances with separate button counters, clicks and captures both, resizes and clicks the Offscreen view, closes it and verifies that the original main screen still accepts clicks. It skips broad selections to avoid opening an unexpected native window. Selecting its exact ID without Offscreen fails with a prerequisite diagnostic.
+The runnable example is `horizonqaexamples:ClientWindowTests.offscreenWindowKeepsMainUsable`. It opens two real `GuiScreen` instances with separate button counters, clicks and captures both, resizes and clicks the Offscreen view, closes it and verifies that the original main screen still accepts clicks. It skips broad selections to avoid opening an unexpected native window. Select the exact ID, either alone or in a comma-separated list of exact IDs. Selecting it without Offscreen fails with a prerequisite diagnostic.
+
+The exact-ID examples `horizonqaexamples:ClientWindowTests.offscreenClickFailureIsReported` and `horizonqaexamples:ClientWindowTests.offscreenKeyFailureIsReported` intentionally change fixture state and then throw from a hosted handler. Each must produce an optional failure retaining the original exception, not a passed test. The launcher still exits zero for optional failures, so inspect the case status and exception in the report when verifying these examples.
 
 Supply an Offscreen 0.3 alpha dev JAR and select the example's opt-in Java 21 SDL profile:
 
@@ -610,6 +612,10 @@ These scenarios verify event routing, independent GUI state, rendering and nativ
 Use `shiftClick` for interactions such as NEI's modifier-assisted recipe transfer. Shift press is dispatched through the real screen keyboard path and is visible through `Keyboard.isKeyDown` and `GuiScreen.isShiftKeyDown` during both mouse callbacks. The helper dispatches Shift release after the mouse release and clears held input even if a callback throws. It does not change NEI preferences or invoke recipe-transfer handlers directly.
 
 Offscreen modifier clicks require the additional window to have native input focus. Horizon checks this precondition before sending Shift or a mouse press and reports a clear failure when focus is elsewhere. It does not silently perform an unmodified click or steal OS focus. Ordinary pointer clicks can still target an inactive Offscreen window.
+
+Offscreen's adapter determines which GUI callbacks receive input. In 0.3, `VanillaUI` does not forward drag to `GuiScreen.mouseClickMove` or wheel input to `GuiScreen.handleMouseInput`. Polling-driven gestures can observe the held button during that window's update and rendering. The MUI2 adapter implements drag and scrolling callbacks. HQA sends the real SDL events and does not add callbacks missing from the production host.
+
+The exact-ID example `horizonqaexamples:ClientWindowTests.offscreenDragKeepsInputScoped` checks held-button polling over multiple Offscreen frames, the release point, and absence of held input in the main window.
 
 Offscreen 0.3 reduces wheel input consumed in one frame to a single signed notch. Use one `120` or `-120` scroll operation per awaited step when testing it. Native window integration does not change that host behavior.
 

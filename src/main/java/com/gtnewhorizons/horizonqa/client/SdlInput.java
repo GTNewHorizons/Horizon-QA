@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.sdl.SDLError;
@@ -133,6 +134,14 @@ public final class SdlInput {
     }
 
     public static void move(int windowId, int x, int y) {
+        move(windowId, x, y, false);
+    }
+
+    public static void dragMove(int windowId, int x, int y) {
+        move(windowId, x, y, true);
+    }
+
+    private static void move(int windowId, int x, int y, boolean dispatchMotion) {
         State state = state(windowId);
         try (SDL_Event event = SDL_Event.calloc()) {
             event.motion()
@@ -147,6 +156,10 @@ public final class SdlInput {
             state.x = x;
             state.y = y;
             push(event);
+        }
+        if (windowId == mainWindowId() && !dispatchMotion) {
+            // Positioning must render before the gesture dispatches its next motion event.
+            while ((Boolean) call("org.lwjglx.input.Mouse", "next", new Class<?>[0])) {}
         }
         applyMainState();
     }
@@ -175,12 +188,14 @@ public final class SdlInput {
 
     public static void scroll(int windowId, int x, int y, int wheelDelta) {
         move(windowId, x, y);
+        // lwjgl3ify exposes SDL wheel values directly. Offscreen converts notches to LWJGL units.
+        float delta = windowId == mainWindowId() ? wheelDelta : wheelDelta / 120.0f;
         try (SDL_Event event = SDL_Event.calloc()) {
             event.wheel()
                 .type(SDL_EVENT_MOUSE_WHEEL)
                 .windowID(windowId)
                 .timestamp(System.nanoTime())
-                .y(wheelDelta / 120.0f)
+                .y(delta)
                 .mouse_x(x)
                 .mouse_y(y);
             push(event);
@@ -311,7 +326,20 @@ public final class SdlInput {
         }
         if (SDL_GetWindowFromID(windowId) == 0) frameConsumed(windowId);
         if (state.textBuffers.isEmpty()) states.remove(windowId);
+        if (windowId == mainWindowId()) call("org.lwjglx.input.Mouse", "getDWheel", new Class<?>[0]);
         applyMainState();
+    }
+
+    /** Publishes the selected window's held buttons only while its GUI context is active. */
+    public static <T> T withMouseState(int windowId, Supplier<T> action) {
+        Object previous = field("org.lwjglx.input.Mouse", "sdlMouseButtonFlags", null, false);
+        State state = states.get(windowId);
+        field("org.lwjglx.input.Mouse", "sdlMouseButtonFlags", state == null ? 0 : state.buttons, true);
+        try {
+            return action.get();
+        } finally {
+            field("org.lwjglx.input.Mouse", "sdlMouseButtonFlags", previous, true);
+        }
     }
 
     public static void applyMainState() {

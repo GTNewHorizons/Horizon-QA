@@ -142,8 +142,10 @@ public final class ClientWindow {
      * Sends one wheel event after the same target positioning and readiness checks as
      * {@link #click(int, String, Function)}.
      * The nonzero delta uses raw LWJGL wheel units, normally +120 for one upward notch and -120 for one downward notch.
-     * The exact signed value is delivered once, without splitting it into repeated events. The GUI decides its effect.
-     * Completion means the screen handled the event and input was cleared, not that scrolling changed the GUI.
+     * The main window receives the exact signed value once, without splitting it into repeated events.
+     * Offscreen 0.3 reduces a frame's wheel input to one signed notch. The GUI decides its effect.
+     * Completion means the host consumed the event and input was cleared, not that scrolling changed the GUI.
+     * Offscreen 0.3 VanillaUI does not forward wheel callbacks. Its MUI2 adapter does.
      */
     public CompletableFuture<Void> scroll(int wheelDelta, String description,
         Function<ClientWindow, ClickTarget> resolver) {
@@ -171,6 +173,8 @@ public final class ClientWindow {
      * Each of the positive number of movement frames is rendered with the button held before its motion event.
      * Releases at the endpoint. A screen change, resize or handler failure aborts the gesture and clears input.
      * Test teardown also releases held input. Await completion before submitting another input operation.
+     * Offscreen 0.3 VanillaUI supports polling-driven gestures but does not forward mouseClickMove.
+     * Callback-driven dragging requires a host adapter that implements it, such as MUI2.
      */
     public CompletableFuture<Void> drag(int button, String description, Function<ClientWindow, ClickTarget> start,
         Function<ClientWindow, Point> end, int frames) {
@@ -178,8 +182,7 @@ public final class ClientWindow {
         Drag drag = new Drag(button, description, Objects.requireNonNull(end, "end"), frames);
         return atTarget(description, start, drag::begin)
             .thenCompose(ignored -> operations.submitWhenReady(Phase.END, drag::advance, () -> null))
-            .thenCompose(ignored -> driver.inputConsumed())
-            .whenComplete((ignored, error) -> driver.release());
+            .thenCompose(ignored -> driver.inputConsumed());
     }
 
     private CompletableFuture<Void> atTarget(String description, Function<ClientWindow, ClickTarget> resolver,
