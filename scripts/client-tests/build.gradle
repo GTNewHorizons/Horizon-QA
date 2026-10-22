@@ -1,0 +1,204 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import org.gradle.api.tasks.options.Option
+import java.nio.file.Files
+import java.nio.file.StandardOpenOption
+import java.nio.channels.FileChannel
+import java.nio.channels.FileLock
+import java.nio.channels.OverlappingFileLockException
+import java.util.concurrent.TimeUnit
+
+// A separate build keeps supervision independent of the target build's task and cache locks.
+abstract class RunClientTests extends DefaultTask {
+    @Input @Option(option = 'tests', description = 'Required Horizon QA test selector')
+    abstract Property<String> getTests()
+    @Internal @Option(option = 'project-root', description = 'Target project directory')
+    abstract Property<String> getProjectRoot()
+    @Input @Option(option = 'client-task', description = 'Target RFG client task')
+    abstract Property<String> getClientTask()
+    @Internal @Option(option = 'report-dir', description = 'New directory for this run')
+    abstract Property<String> getReportDir()
+    @Input @Option(option = 'timeout-seconds', description = 'Deadline including build preparation')
+    abstract Property<String> getTimeoutSeconds()
+    @Input @Option(option = 'shutdown-seconds', description = 'Grace period after requesting shutdown')
+    abstract Property<String> getShutdownSeconds()
+    @Optional @Input @Option(option = 'horizon-qa-jar', description = 'Horizon QA development JAR override')
+    abstract Property<String> getHorizonQaJar()
+    @Input @Option(option = 'gradle-argument', description = 'Additional target Gradle argument, repeatable')
+    abstract ListProperty<String> getGradleArguments()
+    @Internal abstract Property<String> getIsolationScript()
+    @Internal abstract Property<String> getJavaHome()
+
+    @TaskAction
+    void launch() {
+        if (!tests.get().trim()) throw new GradleException('A nonempty --tests selector is required')
+        long timeout = positiveSeconds(timeoutSeconds.get())
+        long grace = positiveSeconds(shutdownSeconds.get())
+        File root = new File(projectRoot.get()).canonicalFile
+        String id = UUID.randomUUID().toString()
+        File report = new File(reportDir.getOrElse(new File(root, 'build/client-tests/' + id).path)).canonicalFile
+        Files.createDirectories(report.parentFile.toPath())
+        Files.createDirectory(report.toPath())
+        File log = new File(report, 'launch.log')
+        File status = new File(report, 'horizonqa-result.json')
+        Map summary = [exitCode: 2, timedOut: false, forcedTermination: false,
+            reportDir: report.path, gameDir: new File(report, 'game').path, launchId: id,
+            statusFile: status.path, launchLog: log.path]
+        Map<Long, ProcessHandle> owned = [:]
+        Process worker = null
+        FileChannel preparationChannel = null
+        FileLock preparationLock = null
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeout)
+        try {
+            File lockFile = new File(root, '.gradle/horizonqa-client-preparation.lock')
+            Files.createDirectories(lockFile.parentFile.toPath())
+            preparationChannel = FileChannel.open(lockFile.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
+            while (preparationLock == null && System.nanoTime() < deadline) {
+                try { preparationLock = preparationChannel.tryLock() }
+                catch (OverlappingFileLockException ignored) { /* Another task in this JVM owns preparation. */ }
+                if (preparationLock == null) Thread.sleep(100)
+            }
+            if (preparationLock == null) {
+                summary.timedOut = true
+                throw new GradleException('Timed out waiting for client build preparation: ' + root)
+            }
+            List<String> command = [executable(javaHome.get(), 'java'), '-cp',
+                new File(root, 'gradle/wrapper/gradle-wrapper.jar').path,
+                'org.gradle.wrapper.GradleWrapperMain', clientTask.get(), '--no-daemon', '--console=plain',
+                '--mcJvmArgs=-Dhorizonqa.mode=ci', '--mcJvmArgs=-Dhorizonqa.client=true',
+                '--mcJvmArgs=-Dhorizonqa.world=normal', '--mcJvmArgs=-Dhorizonqa.tests=' + tests.get(),
+                '--mcJvmArgs=-Dhorizonqa.reportDir=' + report.path, '--mcJvmArgs=-Dhorizonqa.launchId=' + id,
+                '--mcArgs=--width', '--mcArgs=1280', '--mcArgs=--height', '--mcArgs=720',
+                '--init-script', isolationScript.get(), '-PhorizonQaClientTask=' + clientTask.get(),
+                '-PhorizonQaClientReportDir=' + report.path]
+            if (horizonQaJar.isPresent()) command.add('-PhorizonQaJar=' + horizonQaJar.get())
+            if (gradleArguments.get().any { it == '--daemon' || it == '-Dorg.gradle.daemon=true' }) {
+                throw new GradleException('The supervised build must use --no-daemon')
+            }
+            command.addAll(gradleArguments.get())
+            worker = new ProcessBuilder(command).directory(root).redirectErrorStream(true).redirectOutput(log).start()
+            owned.put(worker.pid(), worker.toHandle())
+            while (worker.isAlive() && System.nanoTime() < deadline) {
+                collectDescendants(owned)
+                if (preparationLock != null && new File(report, 'client-classpath-ready').isFile()) {
+                    preparationLock.release()
+                    preparationLock = null
+                }
+                worker.waitFor(100, TimeUnit.MILLISECONDS)
+            }
+            collectDescendants(owned)
+            summary.timedOut = worker.isAlive()
+            if (summary.timedOut || owned.values().any { it.isAlive() }) {
+                long shutdownDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(grace)
+                if (summary.timedOut) {
+                    new File(report, 'stop-client').createNewFile()
+                    dumpClientThreads(owned, id, report, javaHome.get())
+                }
+                while (owned.values().any { it.isAlive() } && System.nanoTime() < shutdownDeadline) {
+                    collectDescendants(owned)
+                    Thread.sleep(100)
+                }
+                summary.forcedTermination = terminate(owned)
+            }
+            if (!summary.timedOut && !summary.forcedTermination && status.isFile()) {
+                def result = new JsonSlurper().parse(status, 'UTF-8')
+                if (result instanceof Map && result.schemaVersion == 5 && result.exitCode in [0, 1, 2]
+                    && result.status == [0: 'passed', 1: 'failed', 2: 'error'][result.exitCode]
+                    && result.tests instanceof List && result.issues instanceof List) {
+                    summary.exitCode = result.exitCode == 0 && worker.exitValue() != 0 ? 2 : result.exitCode
+                }
+            }
+        } finally {
+            try {
+                summary.forcedTermination = terminate(owned) || summary.forcedTermination
+            } finally {
+                try {
+                    if (preparationLock != null) preparationLock.release()
+                    if (preparationChannel != null) preparationChannel.close()
+                } finally {
+                    new File(report, 'launch-result.json').setText(JsonOutput.prettyPrint(JsonOutput.toJson(summary)) + '\n', 'UTF-8')
+                    logger.lifecycle('Client launch result: {}', JsonOutput.toJson(summary))
+                }
+            }
+        }
+        if (summary.exitCode != 0) throw new GradleException('Client tests exited with ' + summary.exitCode + ', see ' + report)
+    }
+
+    private static long positiveSeconds(String value) {
+        long seconds = Long.parseLong(value)
+        if (seconds <= 0 || seconds > 86400) throw new GradleException('Timeout must be between 1 and 86400 seconds')
+        return seconds
+    }
+
+    private static String executable(String home, String name) {
+        return new File(home, 'bin/' + name + (System.getProperty('os.name').startsWith('Windows') ? '.exe' : '')).path
+    }
+
+    private static void collectDescendants(Map<Long, ProcessHandle> owned) {
+        // Retain observed handles when a parent exits. Never discover processes by executable name.
+        new ArrayList<ProcessHandle>(owned.values()).each { parent ->
+            def descendants = parent.descendants()
+            try { descendants.forEach { child -> owned.put(child.pid(), child) } }
+            finally { descendants.close() }
+        }
+    }
+
+    private static void dumpClientThreads(Map<Long, ProcessHandle> owned, String id, File report, String home) {
+        String marker = '-Dhorizonqa.launchId=' + id
+        def clients = owned.values().findAll { handle ->
+            handle.isAlive() && Arrays.asList(handle.info().arguments().orElse(new String[0])).contains(marker)
+        }
+        if (clients.size() != 1) {
+            new File(report, 'threads-error.txt').setText(
+                'Thread dump skipped: available JVM process metadata did not identify exactly one owned client.\n', 'UTF-8')
+            return
+        }
+        File jcmd = new File(executable(home, 'jcmd'))
+        if (!jcmd.isFile()) {
+            new File(report, 'threads-error.txt').setText('Thread dump skipped: host JDK has no jcmd executable.\n', 'UTF-8')
+            return
+        }
+        Process dump = null
+        try {
+            dump = new ProcessBuilder(jcmd.path, Long.toString(clients[0].pid()), 'Thread.print')
+                .redirectOutput(new File(report, 'threads.txt'))
+                .redirectError(new File(report, 'threads-error.txt')).start()
+            if (!dump.waitFor(5, TimeUnit.SECONDS)) dump.destroyForcibly()
+        } catch (IOException failure) {
+            new File(report, 'threads-error.txt').append(failure.toString() + '\n', 'UTF-8')
+        } finally {
+            if (dump != null && dump.isAlive()) {
+                dump.destroyForcibly()
+                dump.waitFor(5, TimeUnit.SECONDS)
+            }
+        }
+    }
+
+    private static boolean terminate(Map<Long, ProcessHandle> owned) {
+        collectDescendants(owned)
+        def alive = owned.values().findAll { it.isAlive() }.reverse()
+        alive.each { it.destroyForcibly() }
+        alive.each { handle ->
+            try { handle.onExit().get(5, TimeUnit.SECONDS) }
+            catch (java.util.concurrent.TimeoutException ignored) {
+                throw new GradleException('Owned process did not terminate: ' + handle.pid())
+            }
+        }
+        return !alive.isEmpty()
+    }
+}
+
+tasks.register('runClientTests', RunClientTests) {
+    group = 'verification'
+    description = 'Run an isolated Minecraft client with a bounded process lifetime'
+    tests.convention(providers.gradleProperty('horizonQaTests'))
+    projectRoot.convention(providers.gradleProperty('horizonQaProjectRoot').orElse(layout.projectDirectory.dir('../..').asFile.absolutePath))
+    clientTask.convention(providers.gradleProperty('horizonQaClientTask').orElse(':examples:runClient'))
+    reportDir.convention(providers.gradleProperty('horizonQaClientReportDir'))
+    timeoutSeconds.convention(providers.gradleProperty('horizonQaTimeoutSeconds').orElse('600'))
+    shutdownSeconds.convention(providers.gradleProperty('horizonQaShutdownSeconds').orElse('20'))
+    horizonQaJar.convention(providers.gradleProperty('horizonQaJar'))
+    gradleArguments.convention([])
+    isolationScript.set(layout.projectDirectory.file('../client-test-isolation.init.gradle').asFile.absolutePath)
+    javaHome.set(System.getProperty('java.home'))
+}
