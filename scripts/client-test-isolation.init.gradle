@@ -1,0 +1,64 @@
+// Each automated client owns its game directory and a snapshot of this build's project outputs.
+// RFG derives --gameDir from workingDir and uses the JavaExec classpath.
+
+interface ClientIsolationServices {
+    @javax.inject.Inject
+    org.gradle.api.file.FileSystemOperations getFileSystemOperations()
+
+    @javax.inject.Inject
+    org.gradle.api.model.ObjectFactory getObjects()
+}
+gradle.projectsEvaluated {
+    def requestedTask = gradle.startParameter.projectProperties['horizonQaClientTask']
+    def reportPath = gradle.startParameter.projectProperties['horizonQaClientReportDir']
+    // Gradle also applies init scripts to included plugin builds, which have no client launch request.
+    if (!requestedTask && !reportPath) return
+    if (!requestedTask || !reportPath) {
+        throw new GradleException('Client isolation requires a task and report directory')
+    }
+    def taskPath = requestedTask.startsWith(':') ? requestedTask : ':' + requestedTask
+    def clientTask = gradle.rootProject.tasks.getByPath(taskPath)
+    if (!clientTask.hasProperty('cmdlineJvmArgs') || !clientTask.hasProperty('assetsDirectory')) {
+        throw new GradleException('Client isolation requires an RFG RunMinecraftTask: ' + taskPath)
+    }
+    def buildRoots = gradle.rootProject.allprojects.collect {
+        it.layout.buildDirectory.get().asFile.canonicalFile
+    }
+    def services = gradle.rootProject.objects.newInstance(ClientIsolationServices)
+    clientTask.doFirst { task ->
+        // Dependencies have finished. Resolve before replacing the collection so their build ordering is retained.
+        def snapshotRoot = new File(reportPath, 'classpath')
+        java.nio.file.Files.createDirectories(snapshotRoot.parentFile.toPath())
+        java.nio.file.Files.createDirectory(snapshotRoot.toPath())
+        def originalClasspath = task.classpath.files.toList()
+        def isolatedClasspath = []
+        int copiedEntries = 0
+        originalClasspath.eachWithIndex { source, index ->
+            if (!buildRoots.any { source.canonicalFile.toPath().startsWith(it.toPath()) }) {
+                isolatedClasspath.add(source)
+                return
+            }
+            def snapshot = new File(snapshotRoot, index + '/' + source.name)
+            copiedEntries++
+            if (source.isDirectory()) {
+                services.fileSystemOperations.copy {
+                    from source
+                    into snapshot
+                }
+            } else if (source.isFile()) {
+                java.nio.file.Files.createDirectories(snapshot.parentFile.toPath())
+                java.nio.file.Files.copy(source.toPath(), snapshot.toPath())
+            }
+            // Absent optional output directories remain absent even if a later build creates them.
+            isolatedClasspath.add(snapshot)
+        }
+        task.setClasspath(services.objects.fileCollection().from(isolatedClasspath))
+        task.logger.lifecycle('Client classpath snapshot ready: {} project entries in {}', copiedEntries, snapshotRoot)
+        task.workingDir = new File(reportPath, 'game')
+        java.nio.file.Files.createDirectories(task.workingDir.toPath())
+        new File(task.workingDir, 'options.txt').setText(
+            'soundCategory_master:0.5\nsoundCategory_music:0.0\nsoundCategory_weather:0.0\n', 'UTF-8')
+        // The supervisor can let another build prepare now that this launch owns its project outputs.
+        java.nio.file.Files.createFile(new File(reportPath, 'client-classpath-ready').toPath())
+    }
+}
