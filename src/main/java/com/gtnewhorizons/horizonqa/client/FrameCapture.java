@@ -24,10 +24,21 @@ public final class FrameCapture {
         this.directory = directory;
     }
 
+    public static void validateCheckpoint(String checkpoint) {
+        if (checkpoint == null || !checkpoint.matches("[a-zA-Z0-9][a-zA-Z0-9._-]*")) {
+            throw new IllegalArgumentException("Checkpoint must be a simple artifact name");
+        }
+    }
+
     public CompletableFuture<File> capture(String checkpoint) {
         Minecraft mc = Minecraft.getMinecraft();
-        int width = mc.displayWidth;
-        int height = mc.displayHeight;
+        return capture(checkpoint, mc.displayWidth, mc.displayHeight);
+    }
+
+    /** Reads the currently bound completed framebuffer using its actual pixel dimensions. */
+    public CompletableFuture<File> capture(String checkpoint, int width, int height) {
+        validateCheckpoint(checkpoint);
+        if (width <= 0 || height <= 0) throw new IllegalArgumentException("Framebuffer dimensions must be positive");
         IntBuffer pixels = BufferUtils.createIntBuffer(width * height);
         GL11.glReadPixels(0, 0, width, height, GL12.GL_BGRA, GL12.GL_UNSIGNED_INT_8_8_8_8_REV, pixels);
         return CompletableFuture.supplyAsync(() -> {

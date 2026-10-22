@@ -1,6 +1,7 @@
 package com.gtnewhorizons.horizonqa.examples.tests;
 
 import java.awt.Rectangle;
+import java.util.concurrent.CompletionException;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
@@ -73,8 +74,10 @@ public final class ClientWheelTests {
                     c -> c.screen(WheelScreen.class)
                         .target())
                     .handle((ignored, error) -> {
-                        if (!(error instanceof IllegalStateException)
-                            || !"Intentional wheel handler failure".equals(error.getMessage())) {
+                        Throwable cause = error;
+                        while (cause instanceof CompletionException) cause = cause.getCause();
+                        if (!(cause instanceof IllegalStateException)
+                            || !"Intentional wheel handler failure".equals(cause.getMessage())) {
                             throw new AssertionError("Original wheel failure was not preserved", error);
                         }
                         return null;
