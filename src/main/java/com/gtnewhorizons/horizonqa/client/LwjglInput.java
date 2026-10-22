@@ -15,8 +15,10 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.InputImplementation;
 
-/** LWJGL 2.9 event and polled-state injection for real screen dispatch, without native cursor movement. */
+/** Real screen dispatch through LWJGL 2.9 buffers or lwjgl3ify SDL events, without native cursor movement. */
 public final class LwjglInput {
+
+    private static final boolean USES_SDL = detectSdl();
 
     private static boolean hasPointer;
     private static int pointerX;
@@ -27,8 +29,26 @@ public final class LwjglInput {
 
     private LwjglInput() {}
 
+    /** Detects the optional runtime without loading any SDL adapter classes. */
+    public static boolean usesSdl() {
+        return USES_SDL;
+    }
+
+    private static boolean detectSdl() {
+        try {
+            Class.forName("org.lwjglx.Lwjgl3ifyEventLoop", false, LwjglInput.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
     /** Discards system mouse input at the native boundary, preserving injected events and polled state. */
     public static void isolateMouse() {
+        if (usesSdl()) {
+            SdlInput.begin();
+            return;
+        }
         if (nativeMouse != null) return;
         InputImplementation original = (InputImplementation) get(Mouse.class, "implementation");
         IntBuffer coordinates = BufferUtils.createIntBuffer(3);
@@ -71,6 +91,10 @@ public final class LwjglInput {
 
     /** Restores native input after the automated session has drained its client work. */
     public static void restoreMouse() {
+        if (usesSdl()) {
+            SdlInput.end();
+            return;
+        }
         if (nativeMouse == null) return;
         set(Mouse.class, "implementation", nativeMouse);
         nativeMouse = null;
@@ -78,6 +102,13 @@ public final class LwjglInput {
 
     public static void move(GuiScreen screen, int x, int y) {
         Minecraft mc = Minecraft.getMinecraft();
+        if (usesSdl()) {
+            pointerX = sdlX(screen, x);
+            pointerY = sdlY(screen, y);
+            hasPointer = true;
+            SdlInput.move(SdlInput.mainWindowId(), pointerX, pointerY);
+            return;
+        }
         pointerX = x * mc.displayWidth / screen.width;
         pointerY = (screen.height - y - 1) * mc.displayHeight / screen.height;
         hasPointer = true;
@@ -85,6 +116,10 @@ public final class LwjglInput {
     }
 
     public static void applyPointer() {
+        if (usesSdl()) {
+            SdlInput.applyMainState();
+            return;
+        }
         if (!hasPointer) return;
         set(Mouse.class, "x", pointerX);
         set(Mouse.class, "y", pointerY);
@@ -97,11 +132,16 @@ public final class LwjglInput {
     }
 
     public static void mouse(GuiScreen screen, int x, int y, int button, boolean down) {
+        if (usesSdl()) {
+            SdlInput.mouse(SdlInput.mainWindowId(), sdlX(screen, x), sdlY(screen, y), button, down);
+            handleInput(screen);
+            return;
+        }
         Minecraft mc = Minecraft.getMinecraft();
         int rawX = x * mc.displayWidth / screen.width;
         int rawY = (screen.height - y - 1) * mc.displayHeight / screen.height;
         mouseEvent(rawX, rawY, button, down);
-        screen.handleInput();
+        handleInput(screen);
     }
 
     /** Starts a held gesture whose polled state survives native input polling between frames. */
@@ -116,8 +156,12 @@ public final class LwjglInput {
     /** Delivers native motion with the existing button still held. */
     public static void dragMove(GuiScreen screen, int x, int y) {
         move(screen, x, y);
+        if (usesSdl()) {
+            handleInput(screen);
+            return;
+        }
         writeMouseEvent(pointerX, pointerY, -1, false, 0);
-        screen.handleInput();
+        handleInput(screen);
     }
 
     public static boolean isDragging() {
@@ -131,16 +175,26 @@ public final class LwjglInput {
 
     /** Supplies a configured Minecraft binding for consumption by the normal input loop. */
     public static void binding(int key, boolean down) {
+        if (usesSdl()) {
+            if (key < 0) SdlInput.mouse(SdlInput.mainWindowId(), pointerX, pointerY, key + 100, down);
+            else SdlInput.key(SdlInput.mainWindowId(), key, '\0', down);
+            return;
+        }
         if (key < 0) mouseEvent(Mouse.getX(), Mouse.getY(), key + 100, down);
         else keyEvent(key, '\0', down);
     }
 
     /** Delivers a single native wheel event and matching polled wheel delta to the real screen. */
     public static void scroll(GuiScreen screen, int x, int y, int wheelDelta) {
+        if (usesSdl()) {
+            SdlInput.scroll(SdlInput.mainWindowId(), sdlX(screen, x), sdlY(screen, y), wheelDelta);
+            handleInput(screen);
+            return;
+        }
         move(screen, x, y);
         set(Mouse.class, "dwheel", wheelDelta);
         writeMouseEvent(pointerX, pointerY, -1, false, wheelDelta);
-        screen.handleInput();
+        handleInput(screen);
     }
 
     private static void mouseEvent(int rawX, int rawY, int button, boolean down) {
@@ -168,8 +222,13 @@ public final class LwjglInput {
     }
 
     public static void key(GuiScreen screen, int key, char character, boolean down) {
+        if (usesSdl()) {
+            SdlInput.key(SdlInput.mainWindowId(), key, character, down);
+            handleInput(screen);
+            return;
+        }
         keyEvent(key, character, down);
-        screen.handleInput();
+        handleInput(screen);
     }
 
     private static void keyEvent(int key, char character, boolean down) {
@@ -189,11 +248,28 @@ public final class LwjglInput {
         heldButton = -1;
         dragScreen = null;
         KeyBinding.unPressAllKeys();
+        if (usesSdl()) {
+            SdlInput.release(SdlInput.mainWindowId());
+            return;
+        }
         set(Mouse.class, "dwheel", 0);
         clear(buffer(Mouse.class, "buttons"));
         clear(buffer(Keyboard.class, "keyDownBuffer"));
         buffer(Mouse.class, "readBuffer").limit(0);
         buffer(Keyboard.class, "readBuffer").limit(0);
+    }
+
+    private static void handleInput(GuiScreen screen) {
+        if (usesSdl()) SdlInput.withMainKeyboard(screen::handleInput);
+        else screen.handleInput();
+    }
+
+    private static int sdlX(GuiScreen screen, int x) {
+        return Math.round(x * SdlInput.mainWidth() / (float) screen.width);
+    }
+
+    private static int sdlY(GuiScreen screen, int y) {
+        return Math.round(y * SdlInput.mainHeight() / (float) screen.height);
     }
 
     private static void clear(ByteBuffer buffer) {
