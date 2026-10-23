@@ -1,0 +1,100 @@
+// Run with the repository init script. This task verifies its JavaExec configuration without launching a JVM.
+def fixtureDirectory = file(providers.gradleProperty('fixtureDirectory').get())
+layout.buildDirectory = new File(fixtureDirectory, 'project-output')
+project(':child').layout.buildDirectory = new File(fixtureDirectory, 'child-output')
+
+def jar = new File(layout.buildDirectory.get().asFile, 'libs/mod-dev.jar')
+def classes = new File(layout.buildDirectory.get().asFile, 'classes/main')
+def resources = new File(project(':child').layout.buildDirectory.get().asFile, 'resources/main')
+def otherJar = new File(project(':child').layout.buildDirectory.get().asFile, 'libs/mod-dev.jar')
+def absent = new File(layout.buildDirectory.get().asFile, 'resources/absent')
+def cached = new File(fixtureDirectory, 'dependency-cache/cached.jar')
+def prefixSibling = new File(fixtureDirectory, 'project-output-unrelated/external.jar')
+def inputsInOrder = [cached, jar, classes, otherJar, resources, absent, prefixSibling]
+def reportDirectory = file(providers.gradleProperty('horizonQaClientReportDir').get())
+if (reportDirectory.canonicalFile != new File(fixtureDirectory, 'report').canonicalFile) {
+    throw new GradleException('The fixture only resets its own <fixtureDirectory>/report directory')
+}
+interface FixtureServices {
+    @javax.inject.Inject
+    org.gradle.api.file.FileSystemOperations getFileSystemOperations()
+}
+def fileOperations = objects.newInstance(FixtureServices).fileSystemOperations
+
+def prepareOutputs = tasks.register('prepareOutputs') {
+    outputs.files(jar, otherJar, cached, prefixSibling)
+    outputs.dirs(classes, resources)
+    outputs.upToDateWhen { false }
+    doLast {
+        // Recreate only fixture-owned data so an identical command can reuse the configuration cache.
+        fileOperations.delete { spec -> spec.delete(reportDirectory, absent) }
+        [jar, otherJar, cached, prefixSibling].eachWithIndex { target, index ->
+            target.parentFile.mkdirs()
+            target.text = 'original-' + index
+        }
+        new File(classes, 'nested').mkdirs()
+        new File(classes, 'nested/RecipeSnapshot.class').text = 'original-class'
+        resources.mkdirs()
+        new File(resources, 'fixture.txt').text = 'original-resource'
+    }
+}
+
+abstract class VerifyClientIsolation extends JavaExec {
+    @Input
+    List<String> originalPaths
+    @Input
+    String expectedGamePath
+    @Internal
+    File argumentsWorkingDir
+    @Internal
+    String cmdlineJvmArgs = ''
+    @Internal
+    File assetsDirectory
+
+    @TaskAction
+    @Override
+    void exec() {
+        def inputsInOrder = originalPaths.collect { new File(it) }
+        def actual = classpath.files.toList()
+        assert actual.size() == inputsInOrder.size()
+        assert actual[0] == inputsInOrder[0]
+        assert actual[6] == inputsInOrder[6]
+        assert argumentsWorkingDir == workingDir
+        assert workingDir == new File(expectedGamePath)
+        assert new File(workingDir, 'options.txt').text.contains('soundCategory_master:0.5')
+        [1, 2, 3, 4, 5].each { index ->
+            assert actual[index] != inputsInOrder[index]
+            assert actual[index].name == inputsInOrder[index].name
+            assert actual[index].parentFile.name == String.valueOf(index)
+        }
+        assert actual[1].text == 'original-0'
+        assert actual[3].text == 'original-1'
+        assert new File(actual[2], 'nested/RecipeSnapshot.class').text == 'original-class'
+        assert new File(actual[4], 'fixture.txt').text == 'original-resource'
+        assert !actual[5].exists()
+
+        inputsInOrder[1].text = 'rebuilt-jar'
+        new File(inputsInOrder[2], 'nested/RecipeSnapshot.class').delete()
+        new File(inputsInOrder[4], 'fixture.txt').text = 'rebuilt-resource'
+        inputsInOrder[5].mkdirs()
+        new File(inputsInOrder[5], 'late.txt').text = 'late-output'
+
+        assert actual[1].text == 'original-0'
+        assert new File(actual[2], 'nested/RecipeSnapshot.class').text == 'original-class'
+        assert new File(actual[4], 'fixture.txt').text == 'original-resource'
+        assert !actual[5].exists()
+        println 'Client isolation fixture passed: order, dependency execution, project outputs, external cache, late rebuild'
+    }
+}
+
+tasks.register('verifyIsolation', VerifyClientIsolation) {
+    dependsOn prepareOutputs
+    classpath = files(inputsInOrder)
+    mainClass = 'NotLaunched'
+    assetsDirectory = fixtureDirectory
+    originalPaths = inputsInOrder.collect { it.absolutePath }
+    expectedGamePath = new File(reportDirectory, 'game').absolutePath
+    doFirst('setup late-binding arguments') { task ->
+        task.argumentsWorkingDir = task.workingDir
+    }
+}

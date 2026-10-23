@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.After;
 import org.junit.Test;
@@ -210,6 +211,110 @@ public class GameTestRunnerTest {
         assertEquals("boom", failure.getMessage());
         assertFalse(GameTestRunner.isBatchActive());
         assertTrue(new GameTestRunner().tryStart(GameTestRunner.Kind.INTERACTIVE, () -> {}));
+    }
+
+    @Test
+    public void abortRetainsOwnershipUntilAsynchronousCleanupSettles() throws Exception {
+        GameTestDefinition definition = new GameTestDefinition(
+            "horizonqatest:Runner.pending",
+            GameTestRunnerTest.class.getMethod("emptyTest", GameTestHelper.class),
+            "",
+            20,
+            "",
+            true,
+            0);
+        GameTestInstance instance = new GameTestInstance(definition, 0, 0, 0);
+        CompletableFuture<Void> clientCleanup = new CompletableFuture<>();
+        List<String> events = new ArrayList<>();
+        instance.addAsyncCleanup(10, () -> {
+            events.add("client cleanup requested");
+            return clientCleanup;
+        });
+        instance.addCleanup(() -> events.add("server cleanup"));
+        instance.start(null);
+        GameTestRunner runner = new GameTestRunner();
+        assertTrue(runner.tryStart(GameTestRunner.Kind.BATCH, () -> runner.addInstance(instance)));
+
+        runner.abortIfActive("cancelled", null, () -> {});
+
+        assertTrue(GameTestRunner.isBatchActive());
+        assertFalse(new GameTestRunner().tryStart(GameTestRunner.Kind.INTERACTIVE, () -> {}));
+        tick();
+        assertEquals(Collections.singletonList("client cleanup requested"), events);
+        clientCleanup.complete(null);
+        tick();
+        assertEquals(Arrays.asList("client cleanup requested", "server cleanup"), events);
+        assertFalse(GameTestRunner.isBatchActive());
+        tick();
+        assertEquals(2, events.size());
+    }
+
+    public static void emptyTest(GameTestHelper helper) {}
+
+    @Test
+    public void shutdownDuringCleanupRecordsInterruptionWithoutCompletingTheClientFuture() throws Exception {
+        GameTestDefinition definition = new GameTestDefinition(
+            "horizonqatest:Runner.cleaning",
+            GameTestRunnerTest.class.getMethod("emptyTest", GameTestHelper.class),
+            "",
+            20,
+            "",
+            true,
+            0);
+        GameTestInstance instance = new GameTestInstance(definition, 0, 0, 0);
+        CompletableFuture<Void> clientCleanup = new CompletableFuture<>();
+        int[] serverCleanup = { 0 };
+        instance.addAsyncCleanup(10, () -> clientCleanup);
+        instance.addCleanup(() -> serverCleanup[0]++);
+        instance.start(null);
+        GameTestRunner runner = new GameTestRunner();
+        assertTrue(runner.tryStart(GameTestRunner.Kind.BATCH, () -> runner.addInstance(instance)));
+        instance.succeed();
+
+        GameTestRunner.shutdown();
+
+        assertFalse(GameTestRunner.isBatchActive());
+        assertFalse(clientCleanup.isDone());
+        assertTrue(instance.isDone());
+        assertEquals(GameTestStatus.ERROR, instance.getStatus());
+        assertEquals(
+            "CLEANUP_INTERRUPTED",
+            ((GameTestInfrastructureException) instance.getCleanupFailureCause()).kind());
+        assertEquals(1, serverCleanup[0]);
+        clientCleanup.complete(null);
+        tick();
+        assertEquals(1, serverCleanup[0]);
+    }
+
+    @Test
+    public void abortDuringExistingCleanupWaitsBeforeItsCompletionCallback() throws Exception {
+        GameTestDefinition definition = new GameTestDefinition(
+            "horizonqatest:Runner.cleaning",
+            GameTestRunnerTest.class.getMethod("emptyTest", GameTestHelper.class),
+            "",
+            20,
+            "",
+            true,
+            0);
+        GameTestInstance instance = new GameTestInstance(definition, 0, 0, 0);
+        CompletableFuture<Void> clientCleanup = new CompletableFuture<>();
+        List<String> events = new ArrayList<>();
+        instance.addAsyncCleanup(10, () -> clientCleanup);
+        instance.addCleanup(() -> events.add("server cleanup"));
+        instance.start(null);
+        GameTestRunner runner = new GameTestRunner();
+        assertTrue(runner.tryStart(GameTestRunner.Kind.BATCH, () -> runner.addInstance(instance)));
+        instance.succeed();
+
+        runner.abortIfActive("cancelled", null, () -> events.add("abort completed"));
+        tick();
+
+        assertTrue(GameTestRunner.isBatchActive());
+        assertTrue(events.isEmpty());
+        clientCleanup.complete(null);
+        tick();
+        assertEquals(Arrays.asList("server cleanup", "abort completed"), events);
+        assertFalse(GameTestRunner.isBatchActive());
     }
 
     @Test

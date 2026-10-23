@@ -5,7 +5,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
@@ -171,6 +173,25 @@ public class GameTestHelper {
     /** Register {@code callback} to run once when this test ends, regardless of outcome. */
     public void afterTest(Runnable callback) {
         instance.addCleanup(callback);
+    }
+
+    /**
+     * Registers one asynchronous teardown, awaited before ordinary cleanup callbacks and the next test.
+     * Completion is consumed on the server thread. Failure or budget exhaustion makes the result an error.
+     */
+    public void afterTestAsync(int maxTicks, Supplier<? extends CompletionStage<?>> callback) {
+        instance.addAsyncCleanup(maxTicks, callback);
+    }
+
+    /** Stable selected test id, including the parameter case suffix when present. */
+    public String getTestId() {
+        return instance.getDefinition()
+            .getTestId();
+    }
+
+    /** Adds a diagnostic line to this test's report. Call only from the server test thread. */
+    public void recordDiagnostic(String message) {
+        instance.addDiagnostic(message);
     }
 
     /**

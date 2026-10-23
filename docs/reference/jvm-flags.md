@@ -15,6 +15,10 @@ Repeat `--mcJvmArgs` for each JVM argument. RFG exposes it as a Gradle collectio
 
 Passing `-Dhorizonqa.mode=ci` directly to Gradle sets the property on the Gradle daemon, where the server never sees it.
 
+## `horizonqa.client.sound`
+
+Automatic client sessions enabled by `-Dhorizonqa.client=true` silence all sound categories by default. Set `-Dhorizonqa.client.sound=true` to use the configured sound levels. The override applies to effective playback levels, including startup, and does not change saved user options or normal interactive gameplay. Pass each property through a separate `--mcJvmArgs` when invoking `runClient`.
+
 ## `horizonqa.mode`
 
 | Property         | Values                         | Default       |
@@ -207,16 +211,17 @@ Recommended CI and manual-report forms:
 
 ## Status JSON
 
-The status JSON is a concise machine-readable summary. Schema version `3` contains:
+The status JSON is a machine-readable summary. Schema version `5` contains:
 
 | Top-level field | Meaning                                                                        |
 |-----------------|--------------------------------------------------------------------------------|
-| `schemaVersion` | Integer schema version, currently `3`                                          |
+| `schemaVersion` | Integer schema version, currently `5`                                          |
 | `status`        | `passed`, `failed`, or `error`                                                 |
 | `exitCode`      | Process exit code Horizon-QA requests                                          |
 | `configuration` | Effective property values and defaults                                         |
 | `counts`        | Aggregate selected, passed, failed, timeout, skipped, optional, issue, and JUnit counts |
-| `reports`       | JUnit and status report paths                                                  |
+| `reports`       | JUnit and status JSON report paths                               |
+| `wallTimeSeconds`, `timing` | Observed suite wall duration and measurement state, independent of summed test durations |
 | `issues`        | Infrastructure/configuration/selection/reporting issues                        |
 | `tests`         | Per-test status, optional report output, and optional failure details           |
 
@@ -225,6 +230,8 @@ Test entries contain `id`, `classname`, `name`, `status`, `required`, `ticks`, `
 for a parameterized case, optional `output` for parameter, warning, and event-log lines, optional
 `blockedByIssueId`, optional `failure`, or `skipReason` / `skipType` when `status` is `skipped`. The `output` field
 is omitted when empty.
+
+Each test also contains `wallTimeSeconds`, `timing` with total/execution/cleanup intervals, and structured `steps`. Existing `timeSeconds` remains simulated time (`ticks / 20`). Measured wall time is independent of acceleration. An unavailable interval is `null` with state `unavailable`, and an interrupted measurement is marked `partial`. See [wall-time reports](../guide/ci.md#wall-time-measurement-and-progress) for step fields, measurement boundaries and progress output. JUnit `time` now uses measured wall time.
 
 ## Exit codes
 
