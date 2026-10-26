@@ -20,4 +20,5 @@ plugins {
     id("com.gtnewhorizons.gtnhsettingsconvention") version("2.0.27")
 }
 
+rootProject.name = "Horizon-QA"
 include(":examples")
