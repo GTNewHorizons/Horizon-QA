@@ -328,4 +328,4 @@ instructions above instead.
 
 ## Client automation
 
-Use the [client test guide](client-tests.md) to author real-client scenarios and run them through the existing Gradle task. Integrated clients use the same selectors, result protocol and required/optional failure policy described on this page.
+Use the [client test guide](client-tests.md) to author real-client scenarios and the [portable client tools](client-tools.md) to launch and verify them. Integrated clients use the same selectors, result protocol and required/optional failure policy described on this page.

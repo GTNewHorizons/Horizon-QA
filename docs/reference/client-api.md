@@ -5,7 +5,7 @@ description: Look up scenario, live-target, window and low-level client contract
 
 # Client API
 
-Client types live in `com.gtnewhorizons.horizonqa.api.client`. Use the [client test guide](../guide/client-tests.md) for examples and its [direct Gradle command](../guide/client-tests.md#run-through-gradle) to run them. Javadoc contains every overload.
+Client types live in `com.gtnewhorizons.horizonqa.api.client`. Use the [client test guide](../guide/client-tests.md) for examples and [portable tools](../guide/client-tools.md) for launch and verification. Javadoc contains every overload.
 
 ## Sessions and target observations
 
