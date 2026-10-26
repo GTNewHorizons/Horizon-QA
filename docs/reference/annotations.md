@@ -48,6 +48,9 @@ Marks a class containing one or more `@GameTest` methods.
 | `value`           | `String`   | *(required)* | Namespace for test ids and template lookups (typically the mod id) |
 | `templatePrefix`  | `String`   | `""`         | Prepended to relative template paths declared on `@GameTest`       |
 | `requiredMods`    | `String[]` | `{}`         | Mod ids that must be loaded before this holder is inspected        |
+| `clientOnly`      | `boolean`  | `false`      | Load only in explicitly enabled integrated-client test runs |
+
+Dedicated servers filter client-only holders from ASM before class loading. An explicitly enabled integrated client discovers both common and client-only holders and executes selected tests serially. Existing common tests keep their original IDs, parameters, templates, batches and hooks. See [Automated client tests](../guide/client-tests.md).
 
 Holder `value` must match `[a-z0-9_.-]+`. `templatePrefix` cannot begin or end with `/`, contain `//`, or contain the substring `..`.
 

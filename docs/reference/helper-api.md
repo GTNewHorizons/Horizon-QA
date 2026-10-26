@@ -34,6 +34,13 @@ Use `pos("label")` when a position must be stored or passed to another API. Use 
 | `TickCallbackHandle onEachTickDisabled(String, Runnable)` | Register a named callback for a later sequence window |
 | `startSequence()` | Build one ordered sequence of START/END actions and waits |
 | `afterTest(Runnable)` | Register cleanup that runs on pass, skip, failure, timeout, or error |
+| `afterTestAsync(int, Supplier<? extends CompletionStage<?>>)` | Register one bounded asynchronous teardown before ordinary cleanup |
+| `getTestId()` | Obtain the selected test id including its parameter case suffix |
+| `recordDiagnostic(String)` | Append a report line from the server test thread |
+
+For [client scenarios](../guide/client-tests.md), use `ClientTest.scenario(helper)` to create a fluent chain backed by one existing sequence and one client session. It owns the asynchronous teardown slot. Do not also call `startSequence()` or attach a second client session for that test. Register client cleanup with `scenario.afterTest(c -> ...)`. Ordinary `helper.afterTest(...)` cleanup remains on the server thread after client teardown.
+
+An asynchronous teardown budget limits the runner's wait. Timeout or shutdown cancels only that wait, preserving the stage returned by the callback so its owner can still finish releasing resources. A cleanup timeout remains an infrastructure error and prevents the next case from starting.
 
 See [Sequences and timing](../guide/sequences.md) for phase ordering and bounded waits.
 
@@ -44,6 +51,11 @@ position while reports identify the named callback. Call `disable()` to pause th
 resume it, or `remove()` to unregister it permanently. These operations are idempotent; enabling or
 disabling a removed handle has no effect. Actual registration and state changes appear in the test event
 log. See [Scoped sequence windows](../guide/negative-tests.md#scoped-sequence-windows).
+
+## Client scenarios
+
+Use `ClientTest.scenario(helper)` for an ordered client scenario backed by this helper's sequence and cleanup lifecycle.
+See the [client API reference](client-api.md) for methods and observation contexts, and the [client test guide](../guide/client-tests.md) for authoring, input, windows and runnable examples.
 
 ## General assertions
 
@@ -119,6 +131,8 @@ Entity positions and bounding boxes are test-local. Spawned fake players should 
 When using `getWorld()`, convert a local position exactly once with `helper.absolute(...)`.
 
 ## Diagnostics and GTNH
+
+Elapsed time is measured automatically by the runner and sequence. No per-test stopwatch is needed. `GameTestInstance.timing()` returns immutable total/execution/cleanup observations, and `stepResults()` returns structured step measurements. The same data reaches JSON and JUnit through `CaseResult` and `RunResult`. Authoring adapters can describe the newly registered step through `GameTestSequence.describeLastStep(operation, executionSide)` before execution. The client scenario does this automatically. See [timing reports](../guide/ci.md#wall-time-measurement-and-progress).
 
 `getRecorder()` returns the typed per-test event log. Use it when an assertion naturally depends on history, such as the number of completed recipes.
 
