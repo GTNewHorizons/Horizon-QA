@@ -19,6 +19,7 @@ import com.gtnewhorizons.horizonqa.api.client.ClientTest;
 import com.gtnewhorizons.horizonqa.client.ClientTaskQueue.Phase;
 import com.gtnewhorizons.horizonqa.client.ClientTestRuntime;
 import com.gtnewhorizons.horizonqa.client.LwjglInput;
+import com.gtnewhorizons.horizonqa.client.SdlInput;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -86,7 +87,9 @@ public abstract class MixinMinecraft {
     private void horizonqa$gameLoop(Operation<Void> original) {
         try {
             LwjglInput.applyPointer();
-            original.call();
+            if (HorizonQAProperties.clientTestsEnabled() && LwjglInput.usesSdl()) {
+                SdlInput.withMainKeyboard(original::call);
+            } else original.call();
         } catch (RuntimeException | Error error) {
             if (!ClientTest.failActive(error)) throw error;
             try {
