@@ -100,11 +100,13 @@ Relative paths resolve from the Minecraft server process working directory, whic
 |--------------|----------------------------------------|
 | `classname`  | Test ID prefix, for example `mymod:AssemblerTests` |
 | `name`       | Method name, with `[caseName]` for a parameterized case |
-| `time`       | Duration in seconds (`testTicks / 20`) |
+| `time`       | Measured monotonic wall duration in seconds, including cleanup for a test |
 
 Required assertion failures and timeouts are emitted as `<failure>`. Infrastructure problems known before JUnit writing, such as cleanup, template, configuration, selection, and report-path failures, are emitted as `<error>`. Optional failures and intentional skips are emitted as `<skipped>` so JUnit publishers can show them without failing the suite aggregate. Intentional skips put their reason in the element's `message` attribute.
 
-Reports are attempted once in order: console, status JSON, then JUnit XML. A report-sink failure is added to the run result for later sinks and the process exit code, so JUnit describes any console or status-reporting failure. If JUnit itself fails, no JUnit artifact can describe that failure.
+Reports are attempted once in order: console, status JSON, then JUnit XML. A report-sink failure is added to the run result for later sinks and the process exit code, so JUnit describes any earlier reporting failure. If JUnit itself fails, no JUnit artifact can describe that failure.
+
+JUnit uses actual elapsed time rather than `ticks / 20`. Its suite time is measured independently and is not the sum of test durations. Unavailable measurements use `time="0.000"` with an explicit `wallTimeState=unavailable` marker. This placeholder does not mean an observed zero-duration test. Partial measurements retain their state in report metadata.
 
 Parameterized cases include a `parameters=[…]` line in `<system-out>`. When event recording is enabled, each
 `<testcase>` may also include ordered `[t=NNN] [category] summary` lines there. The server console prints a compact
@@ -118,13 +120,15 @@ Disable event recording only for performance investigations:
 
 ## Status JSON schema
 
-`horizonqa-result.json` is the compact automation surface. Schema version `3` has this top-level shape:
+`horizonqa-result.json` is the automation surface. Schema version `5` has this top-level shape:
 
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 5,
   "status": "passed",
   "exitCode": 0,
+  "wallTimeSeconds": 12.5,
+  "timing": { "wallTimeSeconds": 12.5, "state": "complete" },
   "configuration": {
     "mode": "ci",
     "rawMode": "ci",
@@ -175,9 +179,23 @@ Each `issues[]` entry contains `id`, `kind`, `source`, `name`, `message`, `fatal
 optional `parameters` for a parameterized case, optional `output` lines, optional `blockedByIssueId`, optional
 `failure` details, or `skipReason` / `skipType` for an intentional skip.
 
-Schema version `3` adds the per-test `output` array. It contains the same parameter, warning, and ordered event
+Schema version `4` adds monotonic timings and structured steps. Existing per-test `timeSeconds` still means simulated seconds (`ticks / 20`). Use `wallTimeSeconds` for occupied real time. Schema version `3` added the per-test `output` array. It contains the same parameter, warning, and ordered event
 lines used for JUnit `<system-out>`; the field is omitted when there is no output. Schema version `2` added the
 `skipped` count, the per-test `skipped` status, and `skipReason` / `skipType`.
+
+## Wall-time measurement and progress
+
+Timing is automatic for every test and declared sequence step, including `thenIdle`, unlabeled steps, queued client work, rendered captures and repeated assertions. Timing starts when a step becomes active, not while Java builds the scenario. An asynchronous step includes time waiting for its target thread and completion. A retrying wait has one interval covering all attempts. Diagnostic event recording can be disabled without disabling these measurements.
+
+Each case includes `timing.total`, `timing.execution` and `timing.cleanup`. Each interval has `wallTimeSeconds` and a `state`: `unavailable`, `running`, `complete` or `partial`. `unavailable` uses JSON `null`, not an invented zero. Execution starts when the test method is invoked. Cleanup includes the existing asynchronous and synchronous teardown. Fixture placement before invocation and client/bootstrap loading do not have separate measurements in this version and are explicitly marked unavailable. The suite interval includes the reported run's preparation and hooks through its completion, excluding report file writing.
+
+`tests[].steps[]` includes `index`, `label`, `kind`, `phase`, `status`, `attempts`, `simulationTicks`, `requestedMultiplier`, `operation`, `executionSide`, `source`, `wallTimeSeconds` and `timing`. Steps not reached remain `PENDING` and unmeasured. An active step interrupted by test termination is `INTERRUPTED` with a partial interval. A callback that completes with failure is `FAILED` with an ended measurement, not a successful outcome. Running observations remain explicitly `RUNNING`.
+
+The fluent client wrappers supply operation and execution-side metadata automatically, for example `CLICK`/`CLIENT`, `CAPTURE`/`CLIENT` and `SERVER_WAIT`/`SERVER`. Generic low-level operations use `GENERAL`, and an arbitrary asynchronous callback uses `UNKNOWN` for its execution side. Metadata never comes from parsing labels. Requested multiplier describes the step's request, not a measured speed ratio or an assertion that every tick ran at that rate.
+
+Timing data is included in the status JSON at suite, test and step level. These measurements describe occupied wall time, not CPU time. Overlapping tests and nested intervals must not be added together to estimate suite duration. Simulation ticks and elapsed time stay separate even during acceleration.
+
+While a reported run is active, the console prints progress at most once every two seconds: completed position, total tests, a current test, active or pending step, and elapsed time. Concurrent server tests also show the active count. The client displays the same safely published text in its window title and restores the previous title when the run ends. The title updates on the client thread and does not change screenshots or GUI contents. A frozen process cannot refresh this status. Graceful aborts report partial work, while a forced process termination cannot promise a final report.
 
 Status values are:
 
@@ -250,8 +268,7 @@ Setup-blocked cases remain `notStarted` with `blockedByIssueId`; they are not in
 
 If the server stops or reported execution aborts before completion, active cases become `error` with failure type
 `EXECUTION_ABORTED`. Selected cases that did not start remain `notStarted` and reference the fatal run-level abort issue.
-The run still attempts batch and instance cleanup, writes its reports, and exits with infrastructure status `2`; a
-server-stopping callback never starts a second process exit.
+While server ticks remain available, cancellation retains runner ownership until asynchronous instance cleanup finishes, then runs batch cleanup and writes the reports. An external client deadline only requests cancellation. The server thread owns cleanup and report publication. If the server is already stopping or has crashed, unfinished asynchronous cleanup is reported as `CLEANUP_INTERRUPTED` because its callbacks can no longer be drained through normal ticks. Synchronous cleanup is still attempted once. The run exits with infrastructure status `2`, and a server-stopping callback never starts a second process exit.
 
 ## GitHub Actions handling
 
@@ -308,3 +325,7 @@ read TEST-horizonqa.xml → identify failed test ID → runServer (interactive)
 `/horizonqa runfailed` repeats failures remembered in the current runtime; it does not
 read a downloaded CI report. If batch hooks matter, use the manual Reported Run
 instructions above instead.
+
+## Client automation
+
+Use the [client test guide](client-tests.md) to author real-client scenarios and run them through the existing Gradle task. Integrated clients use the same selectors, result protocol and required/optional failure policy described on this page.

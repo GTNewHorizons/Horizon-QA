@@ -29,6 +29,8 @@ sonar {
 // Configure Javadoc task to prevent GitHub Actions from failing
 tasks.withType<Javadoc>().configureEach {
     val javadocOptions = options as StandardJavadocDocletOptions
+    // Resolve dependencies from bytecode even when their API JARs also contain Java sources
+    javadocOptions.addStringOption("sourcepath", sourceSets.main.get().allJava.srcDirs.joinToString(File.pathSeparator) { it.absolutePath })
 
     // Prevent the build from failing due to missing/incomplete Javadocs
     javadocOptions.addStringOption("Xdoclint:none", "-quiet")

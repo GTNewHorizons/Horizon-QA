@@ -28,6 +28,28 @@ import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
 
 public class ReporterOutputTest {
 
+    @Test
+    public void missingModFamilyRetainsHolderAndUnresolvedParameterIdentity() {
+        GameTestDefinition definition = GameTestDefinition.parameterizedSkippedAtDiscovery(
+            "mod:Suite.acceptsVoltage",
+            "example.Suite",
+            "",
+            20,
+            "",
+            true,
+            0,
+            "Missing required mod");
+        CaseResult resultCase = CaseResult.skipped(definition, "Missing required mod", CaseResult.MISSING_REQUIRED_MOD);
+
+        assertTrue(
+            resultCase.outputLines()
+                .contains("holderClass=example.Suite"));
+        assertTrue(
+            resultCase.outputLines()
+                .contains("unresolvedCaseFamily=true"));
+        assertEquals("mod:Suite.acceptsVoltage", resultCase.id());
+    }
+
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -90,6 +112,9 @@ public class ReporterOutputTest {
         assertEquals("mod:Suite", resultCase.classname());
         assertEquals("acceptsVoltage[tier.4]", resultCase.name());
         assertEquals("[32, LV]", resultCase.parameterSummary());
+        assertTrue(
+            resultCase.outputLines()
+                .contains("holderClass=" + ParameterizedDefinitions.class.getName()));
 
         RunResult result = RunResult
             .completedCases("ci", Collections.singletonList(resultCase), Collections.emptyList(), "TEST.xml");
@@ -181,7 +206,7 @@ public class ReporterOutputTest {
         StatusJsonReporter.write(result, output);
 
         String json = read(output);
-        assertTrue(json.contains("\"schemaVersion\": 3"));
+        assertTrue(json.contains("\"schemaVersion\": 5"));
         assertTrue(json.contains("\"status\": \"error\""));
         assertTrue(json.contains("\"exitCode\": 2"));
         assertTrue(json.contains("\"configuration\": {"));

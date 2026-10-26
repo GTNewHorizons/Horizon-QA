@@ -3,10 +3,14 @@ package com.gtnewhorizons.horizonqa.internal;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
@@ -16,6 +20,75 @@ import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.RunResult;
 
 public class GameTestInstanceCleanupTest {
+
+    @Test
+    public void fatalAsynchronousCleanupRestoresServerStateAndRethrowsOriginalError() throws Exception {
+        GameTestInstance instance = instance("mod:CleanupTests.succeeds", "succeeds");
+        CompletableFuture<Void> cleanup = new CompletableFuture<>();
+        AtomicInteger restorations = new AtomicInteger();
+        InternalError fatal = new InternalError("asynchronous cleanup failed fatally");
+        instance.addAsyncCleanup(3, () -> cleanup);
+        instance.addCleanup(restorations::incrementAndGet);
+        instance.start(null);
+        cleanup.completeExceptionally(fatal);
+
+        assertSame(fatal, assertThrows(InternalError.class, instance::tickEnd));
+        assertEquals(1, restorations.get());
+        assertTrue(instance.isDone());
+        assertEquals(GameTestStatus.ERROR, instance.getStatus());
+        assertSame(fatal, instance.getCleanupFailureCause());
+    }
+
+    @Test
+    public void fatalRestorationStillFinalizesTheInstanceAndRunsRemainingCleanup() throws Exception {
+        GameTestInstance instance = instance("mod:CleanupTests.succeeds", "succeeds");
+        InternalError fatal = new InternalError("server restoration failed fatally");
+        AtomicInteger restorations = new AtomicInteger();
+        instance.addCleanup(() -> { throw fatal; });
+        instance.addCleanup(restorations::incrementAndGet);
+
+        assertSame(fatal, assertThrows(InternalError.class, () -> instance.start(null)));
+        assertEquals(1, restorations.get());
+        assertTrue(instance.isDone());
+        assertEquals(GameTestStatus.ERROR, instance.getStatus());
+        assertSame(fatal, instance.getCleanupFailureCause());
+    }
+
+    @Test
+    public void asynchronousTeardownCompletesBeforeServerCleanupAndResult() throws Exception {
+        GameTestInstance instance = instance("mod:CleanupTests.cleanupFails", "cleanupFails");
+        CompletableFuture<Void> clientTeardown = new CompletableFuture<>();
+        AtomicInteger cleaned = new AtomicInteger();
+        instance.addAsyncCleanup(3, () -> clientTeardown);
+        instance.addCleanup(cleaned::incrementAndGet);
+        instance.start(null);
+        assertFalse(instance.isDone());
+        assertEquals(0, cleaned.get());
+        clientTeardown.complete(null);
+        assertFalse(instance.isDone());
+        assertEquals(0, cleaned.get());
+        instance.tickEnd();
+        assertTrue(instance.isDone());
+        assertEquals(1, cleaned.get());
+    }
+
+    @Test
+    public void unresponsiveTeardownProducesInfrastructureFailure() throws Exception {
+        GameTestInstance instance = instance("mod:CleanupTests.cleanupFails", "cleanupFails");
+        CompletableFuture<Void> physicalCleanup = new CompletableFuture<>();
+        instance.addAsyncCleanup(2, () -> physicalCleanup);
+        instance.start(null);
+        instance.tickEnd();
+        assertFalse(instance.isDone());
+        instance.tickEnd();
+        assertTrue(instance.isDone());
+        assertEquals(GameTestStatus.ERROR, instance.getStatus());
+        assertFalse(physicalCleanup.isDone());
+        assertTrue(
+            instance.getCleanupFailureCause()
+                .getMessage()
+                .contains("within 2 ticks"));
+    }
 
     @Test
     public void cleanupAssertionErrorBecomesInfrastructureErrorCase() throws Exception {
@@ -67,6 +140,9 @@ public class GameTestInstanceCleanupTest {
         assertEquals(CaseResult.Status.ERROR, resultCase.status());
         assertEquals(CaseResult.CLEANUP_ERROR, resultCase.failureType());
         assertEquals("cleanup broke after assertion", resultCase.failureMessage());
+        assertTrue(
+            resultCase.failureTrace()
+                .contains("assertion broke"));
         assertTrue(outputContains(resultCase, "Assertion failed"));
         assertTrue(outputContains(resultCase, "assertion broke"));
         assertFalse(resultCase.failedRequiredCase());
@@ -116,6 +192,10 @@ public class GameTestInstanceCleanupTest {
     }
 
     public static final class TestDefinitions {
+
+        public static void succeeds(GameTestHelper helper) {
+            helper.succeed();
+        }
 
         public static void cleanupFails(GameTestHelper helper) {
             helper.afterTest(() -> { throw new AssertionError("cleanup broke"); });

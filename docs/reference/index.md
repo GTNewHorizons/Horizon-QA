@@ -12,6 +12,9 @@ Use these pages when you know what you need to look up. For a task-oriented expl
 [Core helper API](helper-api.md)
 : Look up coordinates, completion, assertions, blocks, inventories, fluids, entities, and world controls.
 
+[Client API](client-api.md)
+: Look up client sessions, reusable window targets, scenario operations and low-level input.
+
 [Annotations](annotations.md)
 : Review `@GameTest`, `@GameTestHolder`, batch hooks, validation rules, and stability markers.
 
