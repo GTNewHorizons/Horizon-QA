@@ -49,6 +49,7 @@ public final class ClientTest {
     private Thread clientThread;
     private String waitingForInput = "";
     private long renderedFrames;
+    private final java.util.Map<Integer, ClientWindow> additionalWindows = new java.util.LinkedHashMap<>();
     private final ClientWindow mainWindow = new ClientWindow(
         this,
         operations,
@@ -230,6 +231,17 @@ public final class ClientTest {
         return mainWindow;
     }
 
+    /** Binds an existing Offscreen window by SDL ID. Call on the client thread after opening it */
+    public ClientWindow offscreenWindow(int windowId) {
+        requireClientThread();
+        return additionalWindows.computeIfAbsent(
+            windowId,
+            id -> new ClientWindow(
+                this,
+                operations,
+                new com.gtnewhorizons.horizonqa.client.OffscreenWindowDriver(id, frames, diagnostics)));
+    }
+
     public CompletableFuture<Void> click(int button, Function<ClientTest, Point> target) {
         return mainWindow.click(button, w -> target.apply(this));
     }
@@ -343,6 +355,8 @@ public final class ClientTest {
     private void beginCleanup() {
         if (!waitingForInput.isEmpty()) diagnostics.add(waitingForInput);
         diagnostics.add(mainWindow.diagnostic());
+        additionalWindows.values()
+            .forEach(window -> diagnostics.add(window.diagnostic()));
         finalCapture = CompletableFuture.completedFuture(null);
         GuiScreen screen = Minecraft.getMinecraft().currentScreen;
         diagnostics.add(
@@ -359,6 +373,12 @@ public final class ClientTest {
         }
         List<Runnable> teardownActions = new ArrayList<>();
         teardownActions.add(LwjglInput::end);
+        for (ClientWindow window : additionalWindows.values()) {
+            teardownActions.add(window::release);
+        }
+        if (!additionalWindows.isEmpty()) {
+            teardownActions.add(com.gtnewhorizons.horizonqa.client.OffscreenWindowDriver::releaseAll);
+        }
         teardownActions.addAll(cleanup);
         teardownActions.add(
             () -> Minecraft.getMinecraft()
