@@ -1,11 +1,11 @@
 ---
 title: Client tests
-description: Author real-client scenarios with live targets, native input and bounded cleanup.
+description: Author real-client scenarios with live targets, native input, multiple windows and bounded cleanup.
 ---
 
 # Client tests
 
-Client tests run a real Minecraft 1.7.10 client and integrated server. They need a working graphics context. The default LWJGL 2 profile runs Minecraft on Java 8.
+Client tests run a real Minecraft 1.7.10 client and integrated server. They need a working graphics context. The default LWJGL 2 profile runs Minecraft on Java 8. An SDL lwjgl3ify profile uses the Java version required by that runtime.
 
 Use `@GameTestHolder(value = "mymod", clientOnly = true)` for a holder that requires client classes. Its methods still receive `GameTestHelper` and run on the server thread. An integrated client can also execute ordinary holders without wrappers. Select their original test IDs to retain parameters, templates, batches and hooks. Normal server discovery filters client-only holders from Forge ASM metadata before class loading. Explicitly selecting an unavailable client test on a dedicated server produces a selection error, not a skipped pass.
 
@@ -50,7 +50,7 @@ Use the existing RFG task (`gradlew.bat` on Windows), with each JVM property pas
 
 Automatic clients are fully silent by default. To use configured sound levels with `runClient`, use `--mcJvmArgs=-Dhorizonqa.client.sound=true`. The mute overrides effective sound levels from startup without changing saved audio options. It has no effect on a normal interactive client.
 
-Automatic client sessions discard physical keyboard input and mouse movement, clicks and wheel input before they reach the game's event queues and polled state. Synthetic HQA keys, text, clicks, drags and scrolling continue through the usual game handlers. Native window controls and operating-system shortcuts are not blocked. Manual laboratory gameplay remains normally controllable. `ClientIsolationTests` exercises the LWJGL2 devices with noisy native input sources and verifies that synthetic presses and releases survive polling and that restoring native input removes the isolation.
+Automatic client sessions discard physical keyboard input and mouse movement, clicks and wheel input before they reach the game's event queues and polled state. Synthetic HQA keys, text, clicks, drags and scrolling continue through the usual game handlers. Native window controls and operating-system shortcuts are not blocked. Manual laboratory gameplay remains normally controllable. `ClientIsolationTests` exercises the LWJGL2 devices with noisy native input sources and verifies that synthetic presses and releases survive polling and that restoring native input removes the isolation. `ClientSdlIsolationTests` supplies SDL events and native polled key state to verify isolation under lwjgl3ify.
 
 Saving options during a test preserves configured sound levels. Finishing the run removes the in-memory mute override. Setting `horizonqa.client.sound=true` uses the configured level for every sound category.
 
@@ -186,7 +186,63 @@ For a race fixture that must resize during an already pending click, use `Client
 
 ClientTest has no separate render-callback registry. Register a one-shot `TickEvent.RenderTickEvent` listener on `FMLCommonHandler.instance().bus()` from a `scenario.client` setup action and unregister it with `c.afterTest(() -> bus.unregister(listener))`. At render END, observe that the target has been positioned, request the resize once, and let normal window events update the game. Keep click readiness false until that request has been sent and the new dimensions and actual hit test are ready. This exercises resize between positioning and dispatch without changing the queue's serial execution.
 
-The default input backend is LWJGL 2.9. Horizon supplies both queued events and polled button/key state, plus event and polled cursor coordinates. A click waits for a normal rendered frame at the target before pressing, so libraries that record hover coordinates during rendering observe the new pointer. Normal `GuiScreen.handleInput` dispatch invokes the screen lifecycle. There is no OS mouse automation and no direct widget business callback. Unsupported LWJGL layouts fail explicitly. Complete clicks, Shift-clicks, scrolling, straight drags and individual keys with typed characters are supported. Whole-string entry and arbitrary held-key gestures are outside this version.
+The default input backend is LWJGL 2.9. Horizon supplies both queued events and polled button/key state, plus event and polled cursor coordinates. With the supported SDL lwjgl3ify runtime installed, Horizon instead sends SDL events and maintains the shim state needed by the main window. A click waits for a normal rendered frame at the target before pressing, so libraries that record hover coordinates during rendering observe the new pointer. Normal `GuiScreen.handleInput` dispatch invokes the screen lifecycle. There is no OS mouse automation and no direct widget business callback. Unsupported LWJGL layouts fail explicitly. Complete clicks, Shift-clicks, scrolling, straight drags and individual keys with typed characters are supported. Whole-string entry and arbitrary held-key gestures are outside this version.
+
+## Multiple windows and optional Offscreen support
+
+Use `ClientTest.mainWindow()` for the Minecraft window and `ClientTest.offscreenWindow(int windowId)` for an existing Offscreen window. Both return `ClientWindow`. Bind an additional window on the client thread after the consumer has opened it and obtained its SDL window ID. A handle retains that window's identity. It does not silently switch to another window after closure.
+
+Offscreen is optional. Ordinary client and dedicated-server runs do not require it. The additional-window backend targets Offscreen 0.3 with the SDL runtime from lwjgl3ify 3.0.25. A profile using it must supply those runtime mods, their native libraries and the compatible Java runtime. HQA does not install Offscreen or change the consumer's runtime profile. A missing or incompatible integration fails when the test tries to bind it.
+
+All windows belong to the same client session and use its existing ordered queue. Use `scenario.async` to await window operations and `scenario.awaitAsync` to retry observable assertions. Those callbacks begin on the server thread. Read GUI state only inside `ClientWindow.run`, a target resolver or another queued client operation.
+
+A named target can be reused by the scenario's main window and an already bound `ClientWindow extraWindow`:
+
+```java
+ClientTarget save = ClientTarget.of("editor.save",
+    window -> findSaveButton(window.screen()));
+scenario.click(save)
+    .async("save from the auxiliary editor", client -> extraWindow.click(0, save));
+```
+
+`findSaveButton` is a consumer lookup returning a live `ClickTarget`. Each lookup receives the window being operated on. A target does not retain the main screen or a particular window handle.
+
+See the [client API reference](../reference/client-api.md#window-operations) for these method contracts.
+
+Offscreen input enters SDL's routing filter with the selected window ID. HQA does not invoke button actions directly. The Offscreen capture hook reads that window's completed framebuffer. A frame rendered by the main game does not satisfy an additional window's frame wait. Use distinct checkpoint names when comparing windows in the report.
+
+Input completion alone does not prove that an additional window consumed an event or changed gameplay state. Follow input with `awaitAsync` and a queued assertion on the expected view, then assert server state separately when the operation changes gameplay. Keep semantic target lookup scoped to the bound window. Do not use `Minecraft.currentScreen` to find an additional window's controls.
+
+Open only fixtures owned by the test and register their cleanup during the same client callback as creation. `offscreenWindow(id)` binds an existing window but does not create it or establish that the test owns it. Explicit `close()` is an operation to await in the scenario. Cleanup callbacks must close their owned fixture through the consumer's synchronous API because ordinary queue submission is closed during teardown. Main-window resize retains its normal automatic restoration. Close test-owned additional windows rather than leaving resized windows behind.
+
+The runnable example is `horizonqaexamples:ClientWindowTests.offscreenWindowKeepsMainUsable`. It opens two real `GuiScreen` instances with separate button counters, clicks and captures both, resizes and clicks the Offscreen view, closes it and verifies that the original main screen still accepts clicks. It skips broad selections to avoid opening an unexpected native window. Select the exact ID, either alone or in a comma-separated list of exact IDs. Selecting it without Offscreen fails with a prerequisite diagnostic.
+
+The exact-ID examples `horizonqaexamples:ClientWindowTests.offscreenClickFailureIsReported` and `horizonqaexamples:ClientWindowTests.offscreenKeyFailureIsReported` intentionally change fixture state and then throw from a hosted handler. Each must produce an optional failure retaining the original exception, not a passed test. The process still exits zero for optional failures, so inspect the case status and exception in the report when verifying these examples.
+
+Supply an Offscreen 0.3 alpha dev JAR and select the example's opt-in Java 21 SDL profile:
+
+```sh
+./gradlew :examples:runClient17 \
+    -PoffscreenJar=/absolute/path/to/offscreen-0.3-alpha-dev.jar \
+    --mcJvmArgs=-Dhorizonqa.client=true \
+    --mcJvmArgs=-Dhorizonqa.mode=ci \
+    --mcJvmArgs=-Dhorizonqa.world=normal \
+    --mcJvmArgs=-Dhorizonqa.tests=horizonqaexamples:ClientWindowTests.offscreenWindowKeepsMainUsable
+```
+
+The `offscreenJar` property adds that local file only to the examples runtime, pins lwjgl3ify 3.0.25 across its normal and patch dependencies, and selects Java 21 without hotswap for `runClient17`. No Offscreen binary is committed or published by HQA. The stock `:examples:runClient` profile remains the LWJGL 2 lane. The profile does not download the Offscreen artifact. Use `gradlew.bat` on Windows and quote the complete `-PoffscreenJar=...` argument when its path contains spaces.
+
+These scenarios verify event routing, independent GUI state, rendering and native resize. They do not automate OS focus changes, moving a window between monitors, mixed-DPI transitions or minimizing and restoring windows. Those require a real desktop integration check. Keep both windows rendering during unattended tests. The existing main-window key API preserves the supplied character after SDL routing. Printable characters also enter lwjgl3ify's public text-event channel, which its text fields require, without creating another legacy key press. The new Offscreen key API accepts only a character matching what Offscreen 0.3 derives from that native key and its modifiers. A mismatch fails before input is queued, rather than silently entering another character or duplicating Unicode input. Use matching native key/character pairs for additional windows. IME input is not covered by this API. Main-window resize dimensions are framebuffer pixels. Offscreen resize dimensions are logical SDL window units. An exact main-window pixel size that cannot be represented at the current pixel scale fails with a diagnostic.
+
+Use `shiftClick` for interactions such as NEI's modifier-assisted recipe transfer. Shift press is dispatched through the real screen keyboard path and is visible through `Keyboard.isKeyDown` and `GuiScreen.isShiftKeyDown` during both mouse callbacks. The helper dispatches Shift release after the mouse release and clears held input even if a callback throws. It does not change NEI preferences or invoke recipe-transfer handlers directly.
+
+Offscreen modifier clicks require the additional window to have native input focus. Horizon checks this precondition before sending Shift or a mouse press and reports a clear failure when focus is elsewhere. It does not silently perform an unmodified click or steal OS focus. Ordinary pointer clicks can still target an inactive Offscreen window.
+
+Offscreen's adapter determines which GUI callbacks receive input. In 0.3, `VanillaUI` does not forward drag to `GuiScreen.mouseClickMove` or wheel input to `GuiScreen.handleMouseInput`. Polling-driven gestures can observe the held button during that window's update and rendering. The MUI2 adapter implements drag and scrolling callbacks. HQA sends the real SDL events and does not add callbacks missing from the production host.
+
+The exact-ID example `horizonqaexamples:ClientWindowTests.offscreenDragKeepsInputScoped` checks held-button polling over multiple Offscreen frames, the release point, and absence of held input in the main window.
+
+Offscreen 0.3 reduces wheel input consumed in one frame to a single signed notch. Use one `120` or `-120` scroll operation per awaited step when testing it. Native window integration does not change that host behavior.
 
 ## Sending a single key
 
