@@ -7,6 +7,9 @@ plugins {
     id("org.sonarqube") version "7.3.1.8318"
 }
 
+val horizonQaPython = providers.gradleProperty("horizonQaPython")
+    .orElse(if (System.getProperty("os.name").startsWith("Windows")) "python" else "python3")
+
 val hqaTools = tasks.register<Zip>("hqaTools") {
     group = "build"
     description = "Package the portable client supervisor and report verifier"
@@ -35,6 +38,17 @@ plugins.withId("maven-publish") {
         }
     }
 }
+
+val hqaToolsTest = tasks.register<Exec>("hqaToolsTest") {
+    group = "verification"
+    description = "Verify report outcomes and the standalone tools archive"
+    dependsOn(hqaTools)
+    workingDir(rootDir)
+    commandLine(horizonQaPython.get(), "-m", "unittest", "discover", "-s", "tools/tests", "-p", "test_*.py", "-v")
+    doFirst { environment("HQA_TOOLS_ARCHIVE", hqaTools.get().archiveFile.get().asFile.absolutePath) }
+}
+
+tasks.named("check") { dependsOn(hqaToolsTest) }
 
 tasks.jacocoTestReport {
     dependsOn(tasks.test)

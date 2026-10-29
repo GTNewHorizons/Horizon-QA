@@ -11,6 +11,15 @@ dependencies {
     compileOnly("org.lwjgl:lwjgl-sdl:3.4.2")
 }
 
+tasks.register("prepareClientTests") {
+    group = "verification"
+    description = "Prepare the client runtime without starting Minecraft"
+    dependsOn(provider {
+        val client = tasks.named("runClient").get()
+        client.taskDependencies.getDependencies(client)
+    })
+}
+
 // An explicit local artifact enables the native-window example without adding Offscreen to ordinary runs
 providers.gradleProperty("offscreenJar").orNull?.let { path ->
     val offscreenJar = file(path)
