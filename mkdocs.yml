@@ -140,6 +140,7 @@ nav:
       - Client tests: guide/client-tests.md
     - Run and diagnose:
       - CI and JUnit reports: guide/ci.md
+      - Portable client tools: guide/client-tools.md
       - Setup troubleshooting: guide/troubleshooting.md
       - Debugging failed tests: guide/debugging.md
   - Reference:

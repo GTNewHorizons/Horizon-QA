@@ -32,6 +32,9 @@ Use these guides when you are building, running, or investigating Horizon-QA tes
 [CI and JUnit reports](ci.md)
 : Run selected tests in automation and publish JUnit XML, status JSON, and event traces.
 
+[Portable client tools](client-tools.md)
+: Launch isolated clients and verify their JSON/JUnit evidence from a versioned tools archive.
+
 [Setup troubleshooting](troubleshooting.md)
 : Resolve missing commands or tests, template and label errors, absent reports, and unsupported controllers.
 

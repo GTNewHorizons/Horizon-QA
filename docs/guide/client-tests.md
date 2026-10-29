@@ -5,7 +5,7 @@ description: Author real-client scenarios with live targets, native input, multi
 
 # Client tests
 
-Client tests run a real Minecraft 1.7.10 client and integrated server. They need a working graphics context. The default LWJGL 2 profile runs Minecraft on Java 8. An SDL lwjgl3ify profile uses the Java version required by that runtime.
+Client tests run a real Minecraft 1.7.10 client and integrated server. They need a working graphics context. Linux CI uses Xvfb, Mesa software OpenGL and the `xrandr` executable from `x11-xserver-utils`. LWJGL 2 invokes that executable to discover display modes. The launcher runs through Gradle on Windows and Linux, with JDK 17 or newer for build-side process supervision and Python 3.9+ for report verification. The default LWJGL 2 profile runs Minecraft on Java 8. An SDL lwjgl3ify profile uses the Java version required by that runtime.
 
 Use `@GameTestHolder(value = "mymod", clientOnly = true)` for a holder that requires client classes. Its methods still receive `GameTestHelper` and run on the server thread. An integrated client can also execute ordinary holders without wrappers. Select their original test IDs to retain parameters, templates, batches and hooks. Normal server discovery filters client-only holders from Forge ASM metadata before class loading. Explicitly selecting an unavailable client test on a dedicated server produces a selection error, not a skipped pass.
 
@@ -13,7 +13,7 @@ Automatic bootstrap waits for Forge mod loading to complete and starts its scrat
 
 ## Write a client scenario
 
-Use the [direct Gradle command](#run-through-gradle) to run these scenarios. The [client API reference](../reference/client-api.md) provides method lookup. [CI and JUnit reports](ci.md) defines selectors, reports and exit codes.
+Use the [portable client tools](client-tools.md#one-unattended-command) to launch scenarios with bounded process ownership and verified reports. The [client API reference](../reference/client-api.md) provides method lookup. [CI and JUnit reports](ci.md) defines selectors, reports and exit codes.
 
 Use `ClientTest.scenario(helper)` to build the test as one ordered chain:
 
@@ -34,31 +34,36 @@ The target resolver receives the `ClientWindow` being observed. Scenario gesture
 
 Scenario methods register deferred steps on the existing server-owned `GameTestSequence`. Building the chain does not perform input. It creates one client session and one sequence, so do not also call `attach(helper)` or `helper.startSequence()` for that test. Finish registration with `succeed()`.
 
-## Run through Gradle
-
-Use the existing RFG task (`gradlew.bat` on Windows), with each JVM property passed separately:
-
-```sh
-./gradlew :examples:runClient \
-    --mcJvmArgs=-Dhorizonqa.client=true \
-    --mcJvmArgs=-Dhorizonqa.mode=ci \
-    --mcJvmArgs=-Dhorizonqa.world=normal \
-    --mcJvmArgs=-Dhorizonqa.tests=horizonqaexamples:ClientSmokeTests.clickEscapeAndReopen
-```
-
 ## Automated session behavior
 
-Automatic clients are fully silent by default. To use configured sound levels with `runClient`, use `--mcJvmArgs=-Dhorizonqa.client.sound=true`. The mute overrides effective sound levels from startup without changing saved audio options. It has no effect on a normal interactive client.
+The launcher initializes the fresh game's audio settings with master volume at 50%, music at 0% and weather at 0%. Other sound categories keep Minecraft's defaults. These settings belong to the isolated game directory.
+
+Automatic clients are fully silent by default. To use configured sound levels, pass `--gradle-argument=--mcJvmArgs=-Dhorizonqa.client.sound=true` to the portable launcher. With `runClient` directly, use `--mcJvmArgs=-Dhorizonqa.client.sound=true`. The mute overrides effective sound levels from startup without changing saved audio options. It has no effect on a normal interactive client.
 
 Automatic client sessions discard physical keyboard input and mouse movement, clicks and wheel input before they reach the game's event queues and polled state. Synthetic HQA keys, text, clicks, drags and scrolling continue through the usual game handlers. Native window controls and operating-system shortcuts are not blocked. Manual laboratory gameplay remains normally controllable. `ClientIsolationTests` exercises the LWJGL2 devices with noisy native input sources and verifies that synthetic presses and releases survive polling and that restoring native input removes the isolation. `ClientSdlIsolationTests` supplies SDL events and native polled key state to verify isolation under lwjgl3ify.
 
 Saving options during a test preserves configured sound levels. Finishing the run removes the in-memory mute override. Setting `horizonqa.client.sound=true` uses the configured level for every sound category.
 
-Clients use process-local LWJGL input, so inactive windows do not compete for the OS pointer. Keep their windows rendering. Fully minimized windows may stop rendering with some renderer mods, which prevents frame-dependent steps from completing. Separate processes need enough memory and GPU capacity. Direct launches use the working directory configured by RFG. Give simultaneous games distinct working directories and keep their build outputs stable.
+Each scenario can override playback with `sound(true)` or `sound(false)`. Enabling sound uses the configured volumes. Disabling it also stops sounds already playing. Teardown restores the run default, including after failure or cancellation, without saving different volume settings.
+
+Animals and monsters are disabled by default in every dimension of the automated scratch world. Natural spawning is off, and Forge entity-join events reject living mobs from world generation, spawners, explicit test code and mods. Players, dropped items and vehicles remain available. Use `mobs(true)` before a scenario creates or needs a mob. Use `mobs(false)` to disable them again and remove existing mobs in loaded dimensions. Teardown does the same automatically, so an enabled scenario cannot leave live mobs for the next test. These settings do not change ordinary interactive worlds or dedicated-server tests.
+
+```java
+ClientTest.scenario(helper)
+    .sound(true)
+    .mobs(true)
+    .server("create the mob fixture", () -> { /* Spawn the required entity here */ })
+    .awaitServer("observe the result", () -> { /* Assert the tested behavior here */ })
+    .succeed();
+```
+
+See `ClientEnvironmentTests` and `ClientAudioTests` in `examples/` for runnable override, restoration and options-persistence checks.
+
+Clients use process-local LWJGL input, so inactive windows do not compete for the OS pointer. Keep their windows rendering. Fully minimized windows may stop rendering with some renderer mods, which prevents frame-dependent steps from completing. Parallel launches also need enough memory and GPU capacity for each Minecraft process.
 
 The underlying JVM opt-in is `-Dhorizonqa.client=true` together with `-Dhorizonqa.mode=ci` and `-Dhorizonqa.world=normal`. Each property must use its own `--mcJvmArgs`. Existing test selectors apply. Auto-run and shutdown must be enabled and turbo must be 1. The local client bootstrap uses a flat creative world, so void-world overrides and server turbo are rejected. No matching tests is an error even when `horizonqa.allowNoTests=true`.
 
-Bootstrap creates a new `horizonqa-<UUID>` scratch save under the client working directory. It never chooses an existing save. One launch reuses this world and client across the selected scenarios. Scenarios execute serially within their existing batch hooks. Bootstrap requests GUI scale 1, but GUI libraries may apply their own scale, so resolve targets using the active screen's dimensions and live widget geometry. Test mode suppresses the renderer's automatic focus-loss pause without changing the focus-pause setting, so closing a screen cannot reopen the pause menu just because the window is inactive. Test mode also suppresses native cursor grabbing. The client world and integrated server keep ticking and synchronizing even while an explicitly opened pausing screen is visible. The screen remains usable and is not automatically dismissed. The original GUI scale is restored during orderly shutdown. Scratch saves remain under the launch game directory for inspection.
+Bootstrap creates a new `horizonqa-<UUID>` scratch save under the launcher's client working directory. It never chooses an existing save. One launch reuses this world and client across the selected scenarios. Scenarios execute serially within their existing batch hooks. Bootstrap requests GUI scale 1, but GUI libraries may apply their own scale, so resolve targets using the active screen's dimensions and live widget geometry. Test mode suppresses the renderer's automatic focus-loss pause without changing the focus-pause setting, so closing a screen cannot reopen the pause menu just because the window is inactive. Test mode also suppresses native cursor grabbing. The client world and integrated server keep ticking and synchronizing even while an explicitly opened pausing screen is visible. The screen remains usable and is not automatically dismissed. The original GUI scale is restored during orderly shutdown. Scratch saves remain under the launch game directory for inspection.
 
 `ClientPauseTests.inactiveWindowAllowsWorldInputAfterScreenCleanup` exercises an inactive game window with `pauseOnLostFocus=true`, real book input after closing a screen, and explicit pause-menu handling through Escape. Keep the game window visible and focus another application when running this regression. It fails its precondition if the game stays active.
 
@@ -217,20 +222,18 @@ Open only fixtures owned by the test and register their cleanup during the same 
 
 The runnable example is `horizonqaexamples:ClientWindowTests.offscreenWindowKeepsMainUsable`. It opens two real `GuiScreen` instances with separate button counters, clicks and captures both, resizes and clicks the Offscreen view, closes it and verifies that the original main screen still accepts clicks. It skips broad selections to avoid opening an unexpected native window. Select the exact ID, either alone or in a comma-separated list of exact IDs. Selecting it without Offscreen fails with a prerequisite diagnostic.
 
-The exact-ID examples `horizonqaexamples:ClientWindowTests.offscreenClickFailureIsReported` and `horizonqaexamples:ClientWindowTests.offscreenKeyFailureIsReported` intentionally change fixture state and then throw from a hosted handler. Each must produce an optional failure retaining the original exception, not a passed test. The process still exits zero for optional failures, so inspect the case status and exception in the report when verifying these examples.
+The exact-ID examples `horizonqaexamples:ClientWindowTests.offscreenClickFailureIsReported` and `horizonqaexamples:ClientWindowTests.offscreenKeyFailureIsReported` intentionally change fixture state and then throw from a hosted handler. Each must produce an optional failure retaining the original exception, not a passed test. The launcher still exits zero for optional failures, so inspect the case status and exception in the report when verifying these examples.
 
 Supply an Offscreen 0.3 alpha dev JAR and select the example's opt-in Java 21 SDL profile:
 
 ```sh
-./gradlew :examples:runClient17 \
-    -PoffscreenJar=/absolute/path/to/offscreen-0.3-alpha-dev.jar \
-    --mcJvmArgs=-Dhorizonqa.client=true \
-    --mcJvmArgs=-Dhorizonqa.mode=ci \
-    --mcJvmArgs=-Dhorizonqa.world=normal \
-    --mcJvmArgs=-Dhorizonqa.tests=horizonqaexamples:ClientWindowTests.offscreenWindowKeepsMainUsable
+./gradlew -p scripts/client-tests runClientTests \
+    --client-task :examples:runClient17 \
+    --tests horizonqaexamples:ClientWindowTests.offscreenWindowKeepsMainUsable \
+    --gradle-argument=-PoffscreenJar=/absolute/path/to/offscreen-0.3-alpha-dev.jar
 ```
 
-The `offscreenJar` property adds that local file only to the examples runtime, pins lwjgl3ify 3.0.25 across its normal and patch dependencies, and selects Java 21 without hotswap for `runClient17`. No Offscreen binary is committed or published by HQA. The stock `:examples:runClient` profile remains the LWJGL 2 lane. The profile does not download the Offscreen artifact. Use `gradlew.bat` on Windows and quote the complete `-PoffscreenJar=...` argument when its path contains spaces.
+The `offscreenJar` property adds that local file only to the examples runtime, pins lwjgl3ify 3.0.25 across its normal and patch dependencies, and selects Java 21 without hotswap for `runClient17`. No Offscreen binary is committed or published by HQA. The stock `:examples:runClient` profile remains the LWJGL 2 lane. The launcher does not download the Offscreen artifact. Use `gradlew.bat` on Windows and quote the complete `--gradle-argument` when its path contains spaces.
 
 These scenarios verify event routing, independent GUI state, rendering and native resize. They do not automate OS focus changes, moving a window between monitors, mixed-DPI transitions or minimizing and restoring windows. Those require a real desktop integration check. Keep both windows rendering during unattended tests. The existing main-window key API preserves the supplied character after SDL routing. Printable characters also enter lwjgl3ify's public text-event channel, which its text fields require, without creating another legacy key press. The new Offscreen key API accepts only a character matching what Offscreen 0.3 derives from that native key and its modifiers. A mismatch fails before input is queued, rather than silently entering another character or duplicating Unicode input. Use matching native key/character pairs for additional windows. IME input is not covered by this API. Main-window resize dimensions are framebuffer pixels. Offscreen resize dimensions are logical SDL window units. An exact main-window pixel size that cannot be represented at the current pixel scale fails with a diagnostic.
 
@@ -332,7 +335,7 @@ Frame capture reads the completed display framebuffer immediately before Minecra
 
 Existing JUnit XML and status JSON include the scenario, labeled step, tick budget, original exception stack, last screen and artifact paths. A client update/render exception remains the primary failure. If no completed frame exists after that exception, capture is skipped with a diagnostic instead of presenting a partial frame as valid evidence.
 
-A request to open Minecraft's pause menu records the caller stack, previous screen, stored and reported pause state, display activity, logical game focus, focus-pause setting and GUI scale. These diagnostics are captured throughout the client-test run, including before a test attaches. They appear in the client log and in the active case's output when a case exists. An intentional pause-menu test remains valid. An unexpected menu is diagnostic evidence and is not silently closed. `ClientPauseTests.serverInventorySynchronizesWhilePauseMenuRemainsOpen` verifies a real server inventory update while the menu stays open, followed by closing it through Escape input.
+A request to open Minecraft's pause menu records the caller stack, previous screen, stored and reported pause state, display activity, logical game focus, focus-pause setting and GUI scale. These diagnostics are captured throughout the client-test run, including before a test attaches. They appear in the launch log and in the active case's output when a case exists. An intentional pause-menu test remains valid. An unexpected menu is diagnostic evidence and is not silently closed. `ClientPauseTests.serverInventorySynchronizesWhilePauseMenuRemainsOpen` verifies a real server inventory update while the menu stays open, followed by closing it through Escape input.
 
 Ending a test invalidates queued client work immediately. An already claimed action may finish on the client thread. Client teardown then releases input, runs registered client cleanup and closes the screen. Server cleanup and the next test wait for teardown and final artifact writing. Teardown failure or its 100-tick deadline makes the run an infrastructure failure and prevents subsequent client scenarios from starting.
 
@@ -342,12 +345,12 @@ The exact case `horizonqaexamples:ClientLifecycleTests.fatalCleanupRestoresThenP
 
 The session remains active until final capture completes. A render failure after `succeed()` but before teardown finishes changes the result to an infrastructure error and retains the original cause. `ClientLateRenderFailureTests.renderFailureAfterSuccessPreservesCauseAndCleansOnce` exercises this boundary. The three exact `ClientCancellationTests` IDs exercise an external deadline after one passed case, verifying client cleanup, server cleanup and batch cleanup in order, with the final case remaining unstarted. These examples require exact selection because they intentionally terminate their client process with exit code `2`.
 
-An integrated-server tick crash aborts the reported run with exit code `2`, retaining the original cause and the cases already observed. Unloading the test world also ends the client run as an infrastructure failure. These conditions stop further scenarios and close the test client after available cleanup. Ordinary assertion failures still follow the normal required/optional failure policy and allow the next test after successful cleanup.
+An integrated-server tick crash aborts the reported run with exit code `2`, retaining the original cause and the cases already observed. Unloading the test world also ends the client run as an infrastructure failure. These conditions stop further scenarios and close the test client without waiting for the launcher's external deadline. Ordinary assertion failures still follow the normal required/optional failure policy and allow the next test after successful cleanup.
 
 `ClientLifecycleTests.clientLinkageFailureAbortsRun` and `ClientLifecycleTests.worldUnloadAbortsRun` exercise these terminal paths. Run each by its exact full test ID in a separate client process and expect exit code `2`. They skip in broader selections because deliberately terminating the world would prevent the remaining examples from running.
 
 `GameTestHelper.afterTestAsync(maxTicks, supplier)` owns the single asynchronous teardown slot. The client session uses it, so consumers register client cleanup through the scenario's `afterTest(c -> ...)` or the low-level `ClientTest.afterTest` inside a client action. Registration is deferred until the scenario cleanup-registration step executes. If setup captures state for restoration, register its cleanup inside that same client setup callback. Ordinary `helper.afterTest` callbacks continue to run on the server thread after client teardown.
 
-After the reported run ends, final client teardown has a separate five-second wall-clock budget. Expiry records `CLIENT_SHUTDOWN`, performs available client restoration and ends the pending teardown without awaiting more frames or screenshot encoding. The result remains an infrastructure error. Tick budgets cannot detect a frozen game loop. When automating a direct client launch, enforce an external process deadline and retain the process log alongside normal reports.
+After the reported run ends, final client teardown has a separate five-second wall-clock budget. Expiry records `CLIENT_SHUTDOWN`, performs available client restoration and ends the pending teardown without awaiting more frames or screenshot encoding. The result remains an infrastructure error. Tick budgets cannot detect a frozen game loop. Use the bounded launcher for unattended runs and retain `launch-result.json`, `launch.log`, and any thread dump alongside the normal reports.
 
-Client startup failures include the current screen, world/player/server availability and JVM thread stacks in the status JSON and JUnit XML.
+Client startup failures include the current screen, world/player/server availability and JVM thread stacks in the status JSON and JUnit XML. The parallel CI scenario prepares the client runtime with `:examples:prepareClientTests` before starting its overlap deadline, so cold dependency preparation does not consume the time reserved for booting and exercising two clients.
