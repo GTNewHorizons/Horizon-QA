@@ -8,6 +8,7 @@ import java.util.function.Function;
 
 import net.minecraft.client.gui.GuiScreen;
 
+import com.gtnewhorizons.horizonqa.client.ClientTestRuntime;
 import com.gtnewhorizons.horizonqa.client.LwjglWindow;
 import com.gtnewhorizons.horizonqa.internal.GameTestSequence;
 
@@ -55,6 +56,23 @@ public final class ClientScenario {
         checkOpen();
         nextLabel = Objects.requireNonNull(label, "label");
         return this;
+    }
+
+    /**
+     * Enables configured audio levels or silences playback without changing saved options.
+     * Teardown restores the run's default, silent unless horizonqa.client.sound=true was explicitly supplied
+     */
+    public ClientScenario sound(boolean enabled) {
+        return client("sound " + enabled, c -> ClientTestRuntime.setSoundEnabled(enabled));
+    }
+
+    /**
+     * Allows or blocks animals and monsters, including explicit and modded spawns, in the scratch world.
+     * Initially disabled. Disabling also removes existing mobs in loaded dimensions, leaving players and other
+     * entity types untouched. Teardown disables mobs again, including after failure or cancellation
+     */
+    public ClientScenario mobs(boolean enabled) {
+        return server("mobs " + enabled, () -> ClientTestRuntime.setMobsEnabled(enabled));
     }
 
     /** Uses the equipped item through its configured world-input binding */

@@ -26,6 +26,8 @@ A `ClientTarget` resolver receives the window currently being observed and runs 
 
 | Scenario method | Contract |
 |---|---|
+| `sound(enabled)` | Override effective playback on the client thread, restore the run default at teardown, and leave saved volumes intact |
+| `mobs(enabled)` | Allow or block living mobs across scratch-world dimensions on the server thread, remove existing mobs when disabling, and disable again at teardown |
 | `useHeldItem()` | Use the equipped item through its configured world-input binding |
 | `awaitScreen(type)` | Wait until the active screen has the requested type |
 | `click(target)`, `rightClick(target)`, `shiftClick(target)` | Resolve a live target and dispatch a left, right or Shift-left click |

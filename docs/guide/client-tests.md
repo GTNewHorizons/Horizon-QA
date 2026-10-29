@@ -44,6 +44,21 @@ Automatic client sessions discard physical keyboard input and mouse movement, cl
 
 Saving options during a test preserves configured sound levels. Finishing the run removes the in-memory mute override. Setting `horizonqa.client.sound=true` uses the configured level for every sound category.
 
+Each scenario can override playback with `sound(true)` or `sound(false)`. Enabling sound uses the configured volumes. Disabling it also stops sounds already playing. Teardown restores the run default, including after failure or cancellation, without saving different volume settings.
+
+Animals and monsters are disabled by default in every dimension of the automated scratch world. Natural spawning is off, and Forge entity-join events reject living mobs from world generation, spawners, explicit test code and mods. Players, dropped items and vehicles remain available. Use `mobs(true)` before a scenario creates or needs a mob. Use `mobs(false)` to disable them again and remove existing mobs in loaded dimensions. Teardown does the same automatically, so an enabled scenario cannot leave live mobs for the next test. These settings do not change ordinary interactive worlds or dedicated-server tests.
+
+```java
+ClientTest.scenario(helper)
+    .sound(true)
+    .mobs(true)
+    .server("create the mob fixture", () -> { /* Spawn the required entity here */ })
+    .awaitServer("observe the result", () -> { /* Assert the tested behavior here */ })
+    .succeed();
+```
+
+See `ClientEnvironmentTests` and `ClientAudioTests` in `examples/` for runnable override, restoration and options-persistence checks.
+
 Clients use process-local LWJGL input, so inactive windows do not compete for the OS pointer. Keep their windows rendering. Fully minimized windows may stop rendering with some renderer mods, which prevents frame-dependent steps from completing. Parallel launches also need enough memory and GPU capacity for each Minecraft process.
 
 The underlying JVM opt-in is `-Dhorizonqa.client=true` together with `-Dhorizonqa.mode=ci` and `-Dhorizonqa.world=normal`. Each property must use its own `--mcJvmArgs`. Existing test selectors apply. Auto-run and shutdown must be enabled and turbo must be 1. The local client bootstrap uses a flat creative world, so void-world overrides and server turbo are rejected. No matching tests is an error even when `horizonqa.allowNoTests=true`.
