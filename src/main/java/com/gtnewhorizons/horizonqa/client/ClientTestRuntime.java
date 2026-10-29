@@ -1,6 +1,7 @@
 package com.gtnewhorizons.horizonqa.client;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -10,9 +11,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.SoundCategory;
 import net.minecraft.client.gui.GuiMainMenu;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.entity.EntityLiving;
 import net.minecraft.network.NetworkManager;
+import net.minecraft.world.WorldServer;
 import net.minecraft.world.WorldSettings;
 import net.minecraft.world.WorldType;
+import net.minecraftforge.common.DimensionManager;
+import net.minecraftforge.event.entity.EntityJoinWorldEvent;
+import net.minecraftforge.event.world.WorldEvent;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.lwjgl.opengl.Display;
@@ -36,6 +42,8 @@ import io.netty.channel.Channel;
 public final class ClientTestRuntime {
 
     private static volatile boolean running = HorizonQAProperties.clientTestsEnabled();
+    private static volatile boolean soundEnabled = HorizonQAProperties.clientSoundEnabled();
+    private static boolean mobsEnabled;
     // Client-thread diagnostic state, released after client cleanup has drained
     private static NetworkManager startupConnection;
     private final Runnable startTests;
@@ -55,12 +63,51 @@ public final class ClientTestRuntime {
 
     public ClientTestRuntime(Runnable startTests) {
         this.startTests = startTests;
+        soundEnabled = HorizonQAProperties.clientSoundEnabled();
+        mobsEnabled = false;
         running = true;
     }
 
     /** Effective client audio level. The configured value remains available to options persistence */
     public static float soundLevel(SoundCategory category, float configuredLevel) {
-        return running && !HorizonQAProperties.clientSoundEnabled() ? 0.0F : configuredLevel;
+        return running && !soundEnabled ? 0.0F : configuredLevel;
+    }
+
+    /** Internal client-thread override. Saved volume settings remain unchanged */
+    public static void setSoundEnabled(boolean enabled) {
+        soundEnabled = enabled;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (!enabled) mc.getSoundHandler()
+            .stopSounds();
+        mc.getSoundHandler()
+            .setSoundLevel(SoundCategory.MASTER, mc.gameSettings.getSoundLevel(SoundCategory.MASTER));
+    }
+
+    /** Internal server-thread override for the owned scratch world's loaded dimensions */
+    public static void setMobsEnabled(boolean enabled) {
+        mobsEnabled = enabled;
+        for (WorldServer world : DimensionManager.getWorlds()) {
+            world.getGameRules()
+                .setOrCreateGameRule("doMobSpawning", Boolean.toString(enabled));
+            if (!enabled) {
+                for (Object entity : new ArrayList<>(world.loadedEntityList)) {
+                    if (entity instanceof EntityLiving) ((EntityLiving) entity).setDead();
+                }
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public void worldLoad(WorldEvent.Load event) {
+        if (!event.world.isRemote) {
+            event.world.getGameRules()
+                .setOrCreateGameRule("doMobSpawning", Boolean.toString(mobsEnabled));
+        }
+    }
+
+    @SubscribeEvent
+    public void entityJoin(EntityJoinWorldEvent event) {
+        if (!event.world.isRemote && !mobsEnabled && event.entity instanceof EntityLiving) event.setCanceled(true);
     }
 
     /** Records the actual local connection returned by Minecraft's integrated-server bootstrap */
