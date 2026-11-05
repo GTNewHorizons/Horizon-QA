@@ -23,6 +23,7 @@ import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 import com.gtnewhorizons.horizonqa.client.ClientTaskQueue;
 import com.gtnewhorizons.horizonqa.client.ClientTaskQueue.Phase;
+import com.gtnewhorizons.horizonqa.client.ClientTestRuntime;
 import com.gtnewhorizons.horizonqa.client.FrameCapture;
 import com.gtnewhorizons.horizonqa.client.LwjglInput;
 import com.gtnewhorizons.horizonqa.client.LwjglWindow;
@@ -84,6 +85,7 @@ public final class ClientTest {
         if (active != null) throw new IllegalStateException("Another client test still owns the screen");
         ClientTest session = new ClientTest(helper);
         helper.afterTestAsync(100, session::close);
+        helper.afterTest(() -> ClientTestRuntime.setMobsEnabled(false));
         helper.afterTest(() -> session.diagnostics.forEach(helper::recordDiagnostic));
         helper.onEachTick(
             "client lifecycle",
@@ -380,6 +382,7 @@ public final class ClientTest {
             teardownActions.add(com.gtnewhorizons.horizonqa.client.OffscreenWindowDriver::releaseAll);
         }
         teardownActions.addAll(cleanup);
+        teardownActions.add(() -> ClientTestRuntime.setSoundEnabled(HorizonQAProperties.clientSoundEnabled()));
         teardownActions.add(
             () -> Minecraft.getMinecraft()
                 .displayGuiScreen(null));

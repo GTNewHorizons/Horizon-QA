@@ -1,0 +1,425 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import org.gradle.api.tasks.options.Option
+import org.gradle.cli.CommandLineParser
+import java.nio.file.Files
+import java.nio.file.StandardOpenOption
+import java.nio.file.LinkOption
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.FileVisitResult
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.BasicFileAttributes
+import java.nio.channels.FileChannel
+import java.nio.channels.FileLock
+import java.nio.channels.OverlappingFileLockException
+import java.util.concurrent.TimeUnit
+
+// A separate build keeps supervision independent of the target build's task and cache locks
+abstract class RunTests extends DefaultTask {
+    @Input @Option(option = 'tests', description = 'Required Horizon QA test selector')
+    abstract Property<String> getTests()
+    @Internal @Option(option = 'project-root', description = 'Target project directory')
+    abstract Property<String> getProjectRoot()
+    @Input abstract Property<String> getRuntimeTask()
+    @Input abstract Property<Boolean> getClient()
+    @Input @Option(option = 'accept-eula', description = 'Accept the Minecraft EULA for the isolated test server')
+    abstract Property<Boolean> getAcceptEula()
+    @Internal @Option(option = 'report-dir', description = 'New directory for this run')
+    abstract Property<String> getReportDir()
+    @Optional @Input @Option(option = 'retained-runs', description = 'Completed runs to retain per report parent, default 5')
+    abstract Property<String> getRetainedRuns()
+    @Optional @Input @Option(option = 'keep-runtime-files', description = 'Retain the game directory and classpath snapshot until the run expires')
+    abstract Property<Boolean> getKeepRuntimeFiles()
+    @Input @Option(option = 'timeout-seconds', description = 'Deadline including build preparation')
+    abstract Property<String> getTimeoutSeconds()
+    @Input @Option(option = 'shutdown-seconds', description = 'Grace period after requesting shutdown')
+    abstract Property<String> getShutdownSeconds()
+    @Optional @Input @Option(option = 'horizon-qa-jar', description = 'Horizon QA development JAR override')
+    abstract Property<String> getHorizonQaJar()
+    @Input @Option(option = 'gradle-argument', description = 'Additional target Gradle argument, repeatable')
+    abstract ListProperty<String> getGradleArguments()
+    @Input @Option(option = 'python', description = 'Python 3.9+ executable for report verification')
+    abstract Property<String> getPythonExecutable()
+    @Internal abstract Property<String> getIsolationScript()
+    @Internal abstract Property<String> getVerificationScript()
+    @Internal abstract Property<String> getJavaHome()
+
+    @TaskAction
+    void launch() {
+        if (!tests.get().trim()) throw new GradleException('A nonempty --tests selector is required')
+        if (!client.get() && !acceptEula.get())
+            throw new GradleException('Server tests require --accept-eula after accepting https://www.minecraft.net/eula')
+        String role = client.get() ? 'Client' : 'Server'
+        long timeout = positiveSeconds(timeoutSeconds.get())
+        long grace = positiveSeconds(shutdownSeconds.get())
+        double startedAt = System.currentTimeMillis() / 1000.0d
+        File root = new File(projectRoot.get()).canonicalFile
+        Properties storageDefaults = new Properties()
+        File consumerProperties = new File(root, 'gradle.properties')
+        if (consumerProperties.isFile()) consumerProperties.withInputStream { storageDefaults.load(it) }
+        int retained = Integer.parseInt(retainedRuns.getOrElse(storageDefaults.getProperty('horizonQaRetainedRuns', '5')))
+        if (retained < 1) throw new GradleException('retained-runs must be positive')
+        String keepDefault = storageDefaults.getProperty('horizonQaKeepRuntimeFiles', 'false')
+        if (!(keepDefault in ['true', 'false'])) throw new GradleException('horizonQaKeepRuntimeFiles must be true or false')
+        boolean preserveGame = keepRuntimeFiles.getOrElse(Boolean.parseBoolean(keepDefault))
+        String id = UUID.randomUUID().toString()
+        File report = new File(reportDir.getOrElse(new File(root, 'build/horizonqa/' + id).path)).canonicalFile
+        Files.createDirectories(report.parentFile.toPath())
+        Files.createDirectory(report.toPath())
+        File log = new File(report, 'launch.log')
+        File status = new File(report, 'horizonqa-result.json')
+        Map summary = [exitCode: 2, timedOut: false, forcedTermination: false,
+            reportDir: report.path, gameDir: new File(report, 'game').path, launchId: id,
+            statusFile: status.path, launchLog: log.path]
+        Map<Long, ProcessHandle> owned = [:]
+        Process worker = null
+        boolean stopped = false
+        FileChannel preparationChannel = null
+        FileLock preparationLock = null
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeout)
+        try {
+            Map<String, String> managedArguments = [
+                '--mcJvmArgs=-Dhorizonqa.mode': 'ci',
+                '--mcJvmArgs=-Dhorizonqa.client': client.get().toString(),
+                '--mcJvmArgs=-Dhorizonqa.world': client.get() ? 'normal' : 'void',
+                '--mcJvmArgs=-Dhorizonqa.autoRun': 'true',
+                '--mcJvmArgs=-Dhorizonqa.stopServer': 'true',
+                '--mcJvmArgs=-Dhorizonqa.turbo': '1',
+                '--mcJvmArgs=-Dhorizonqa.tests': tests.get(),
+                '--mcJvmArgs=-Dhorizonqa.reportDir': report.path,
+                '--mcJvmArgs=-Dhorizonqa.reportFile': new File(report, 'TEST-horizonqa.xml').path,
+                '--mcJvmArgs=-Dhorizonqa.statusFile': status.path,
+                '--mcJvmArgs=-Dhorizonqa.launchId': id,
+                ("-PhorizonQa${role}Task".toString()): runtimeTask.get(),
+                ("-PhorizonQa${role}ReportDir".toString()): report.path,
+                '-Dorg.gradle.daemon': 'false'
+            ]
+            if (!client.get()) managedArguments['-PhorizonQaAcceptEula'] = 'true'
+            if (horizonQaJar.isPresent()) managedArguments['-PhorizonQaJar'] = horizonQaJar.get()
+            rejectManagedArguments(gradleArguments.get(), managedArguments)
+            File lockFile = new File(root, '.gradle/horizonqa-client-preparation.lock')
+            Files.createDirectories(lockFile.parentFile.toPath())
+            preparationChannel = FileChannel.open(lockFile.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
+            while (preparationLock == null && System.nanoTime() < deadline) {
+                try { preparationLock = preparationChannel.tryLock() }
+                catch (OverlappingFileLockException ignored) { /* Another task in this JVM owns preparation */ }
+                if (preparationLock == null) Thread.sleep(100)
+            }
+            if (preparationLock == null) {
+                summary.timedOut = true
+                throw new GradleException('Timed out waiting for client build preparation: ' + root)
+            }
+            List<String> command = [executable(javaHome.get(), 'java'), '-cp',
+                new File(root, 'gradle/wrapper/gradle-wrapper.jar').path,
+                'org.gradle.wrapper.GradleWrapperMain', runtimeTask.get(), '--no-daemon', '--console=plain',
+                '--init-script', isolationScript.get()]
+            if (client.get()) command.addAll(['--mcArgs=--width', '--mcArgs=1280', '--mcArgs=--height', '--mcArgs=720'])
+            managedArguments.each { name, value -> command.add("${name}=${value}".toString()) }
+            command.addAll(gradleArguments.get())
+            worker = new ProcessBuilder(command).directory(root).redirectErrorStream(true).redirectOutput(log).start()
+            owned.put(worker.pid(), worker.toHandle())
+            while (worker.isAlive() && System.nanoTime() < deadline) {
+                collectDescendants(owned)
+                if (preparationLock != null && new File(report, 'client-classpath-ready').isFile()) {
+                    preparationLock.release()
+                    preparationLock = null
+                }
+                worker.waitFor(100, TimeUnit.MILLISECONDS)
+            }
+            collectDescendants(owned)
+            summary.timedOut = worker.isAlive()
+            if (summary.timedOut || owned.values().any { it.isAlive() }) {
+                long shutdownDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(grace)
+                if (summary.timedOut) {
+                    if (client.get()) new File(report, 'stop-client').createNewFile()
+                    dumpRuntimeThreads(owned, id, report, javaHome.get())
+                }
+                while (owned.values().any { it.isAlive() } && System.nanoTime() < shutdownDeadline) {
+                    collectDescendants(owned)
+                    Thread.sleep(100)
+                }
+                summary.forcedTermination = terminate(owned)
+            }
+            if (!summary.timedOut && !summary.forcedTermination) {
+                Process verification = new ProcessBuilder(pythonExecutable.get(), verificationScript.get(),
+                    report.path, '--tests', tests.get(), '--earliest', Double.toString(startedAt))
+                    .redirectErrorStream(true).redirectOutput(new File(report, 'verification.log')).start()
+                owned.put(verification.pid(), verification.toHandle())
+                if (!verification.waitFor(30, TimeUnit.SECONDS)) {
+                    throw new GradleException('Report verification exceeded 30 seconds: ' + report)
+                }
+                int verifiedExit = verification.exitValue()
+                if (verifiedExit in [0, 1, 2]) {
+                    summary.processExitCode = worker.exitValue()
+                    int expectedWorkerExit = verifiedExit == 0 ? 0 : 1
+                    summary.exitCode = summary.processExitCode == expectedWorkerExit ? verifiedExit : 2
+                }
+            }
+        } finally {
+            try {
+                summary.forcedTermination = terminate(owned) || summary.forcedTermination
+                stopped = true
+                if (!preserveGame) releaseRunData(report)
+            } catch (IOException storageFailure) {
+                summary.exitCode = 2
+                summary.storageError = storageFailure.toString()
+                throw storageFailure
+            } finally {
+                try {
+                    if (preparationLock != null) preparationLock.release()
+                    if (preparationChannel != null) preparationChannel.close()
+                } finally {
+                    new File(report, 'launch-result.json').setText(JsonOutput.prettyPrint(JsonOutput.toJson(summary)) + '\n', 'UTF-8')
+                    logger.lifecycle('Test launch result: {}', JsonOutput.toJson(summary))
+                    if (stopped) {
+                        try { retainCompletedRuns(root, report, id, retained) }
+                        catch (IOException storageFailure) {
+                            summary.exitCode = 2
+                            summary.storageError = storageFailure.toString()
+                            new File(report, 'launch-result.json').setText(JsonOutput.prettyPrint(JsonOutput.toJson(summary)) + '\n', 'UTF-8')
+                            throw storageFailure
+                        }
+                    }
+                }
+            }
+        }
+        if (summary.exitCode != 0) throw new GradleException('Tests exited with ' + summary.exitCode + ', see ' + report)
+    }
+
+    protected void releaseRunData(File report) {
+        ['logs', 'crash-reports'].each { name ->
+            File source = new File(report, 'game/' + name)
+            if (Files.isDirectory(source.toPath(), LinkOption.NOFOLLOW_LINKS)) {
+                Path destination = new File(report, 'diagnostics/' + name).toPath()
+                Files.walkFileTree(source.toPath(), new SimpleFileVisitor<Path>() {
+                    @Override
+                    FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attributes) {
+                        Files.createDirectories(destination.resolve(source.toPath().relativize(directory)))
+                        return FileVisitResult.CONTINUE
+                    }
+
+                    @Override
+                    FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
+                        if (attributes.isRegularFile()) Files.copy(file,
+                            destination.resolve(source.toPath().relativize(file)), StandardCopyOption.REPLACE_EXISTING)
+                        return FileVisitResult.CONTINUE
+                    }
+                })
+            }
+        }
+        deleteRunChild(report, new File(report, 'game'))
+        deleteRunChild(report, new File(report, 'classpath'))
+    }
+
+    protected void retainCompletedRuns(File root, File report, String id, int retained) {
+        File parent = report.parentFile.canonicalFile
+        File pending = new File(report, '.horizonqa-run.pending')
+        pending.setText(JsonOutput.toJson([version: 1, projectRoot: root.path, reportDir: report.path,
+            launchId: id, completedAt: System.currentTimeMillis()]), 'UTF-8')
+        Files.move(pending.toPath(), new File(report, '.horizonqa-run.json').toPath(), StandardCopyOption.ATOMIC_MOVE)
+        File lock = new File(parent, '.horizonqa-retention.lock')
+        FileChannel.open(lock.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE).withCloseable { channel ->
+            FileLock acquired
+            try { acquired = channel.tryLock() }
+            catch (OverlappingFileLockException ignored) { return }
+            // A concurrent collector handles completed runs, otherwise the next invocation collects them
+            if (acquired == null) return
+            try {
+                List candidates = []
+                parent.listFiles().each { candidate ->
+                    if (!Files.isDirectory(candidate.toPath(), LinkOption.NOFOLLOW_LINKS)) return
+                    File marker = new File(candidate, '.horizonqa-run.json')
+                    File resultFile = new File(candidate, 'launch-result.json')
+                    if (!Files.isRegularFile(marker.toPath(), LinkOption.NOFOLLOW_LINKS) ||
+                        !Files.isRegularFile(resultFile.toPath(), LinkOption.NOFOLLOW_LINKS)) return
+                    def metadata
+                    def result
+                    try {
+                        metadata = new JsonSlurper().parse(marker, 'UTF-8')
+                        result = new JsonSlurper().parse(resultFile, 'UTF-8')
+                    } catch (Exception invalid) {
+                        logger.warn('Skipping unreadable run metadata: {}', candidate)
+                        return
+                    }
+                    if (metadata instanceof Map && result instanceof Map &&
+                        metadata.version == 1 && metadata.projectRoot == root.path &&
+                        metadata.reportDir == candidate.canonicalPath && metadata.launchId == result.launchId &&
+                        metadata.completedAt instanceof Number) candidates.add([directory: candidate, metadata: metadata])
+                }
+                candidates.sort { a, b -> b.metadata.completedAt <=> a.metadata.completedAt }
+                    .drop(retained).each { expired ->
+                        if (expired.directory.canonicalFile != report) {
+                            RunTests.deleteRunChild(parent, expired.directory)
+                            logger.lifecycle('Removed expired test run: {}', expired.directory)
+                        }
+                    }
+            } finally {
+                acquired.release()
+            }
+        }
+    }
+
+    private static void deleteRunChild(File parent, File child) {
+        Path path = child.toPath().toAbsolutePath().normalize()
+        if (path.parent != parent.toPath().toAbsolutePath().normalize())
+            throw new IOException('Refusing cleanup outside owned directory: ' + path)
+        if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) return
+        // walkFileTree does not follow symbolic links, including a link at the root
+        Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
+            @Override
+            FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
+                Files.delete(file)
+                return FileVisitResult.CONTINUE
+            }
+
+            @Override
+            FileVisitResult postVisitDirectory(Path directory, IOException error) {
+                if (error != null) throw error
+                Files.delete(directory)
+                return FileVisitResult.CONTINUE
+            }
+        })
+    }
+
+    private static void rejectManagedArguments(List<String> arguments, Map<String, String> managed) {
+        CommandLineParser parser = new CommandLineParser().allowUnknownOptions().allowMixedSubcommandsAndOptions()
+        parser.option('mcJvmArgs').hasArguments()
+        parser.option('mcArgs').hasArguments()
+        parser.option('P', 'project-prop').hasArguments()
+        parser.option('D', 'system-prop').hasArguments()
+        parser.option('daemon')
+        def parsed = parser.parse(arguments)
+        if (parsed.hasOption('daemon')) throw new GradleException('The supervised build must use --no-daemon')
+        parsed.option('mcJvmArgs').values.each { argument ->
+            String name = '--mcJvmArgs=' + argument.split('=', 2)[0]
+            if (managed.containsKey(name)) throw new GradleException('The launcher manages ' + name)
+        }
+        parsed.option('P').values.each { argument ->
+            String name = '-P' + argument.split('=', 2)[0]
+            if (managed.containsKey(name) || name in ['-PhorizonQaClientTask', '-PhorizonQaClientReportDir',
+                '-PhorizonQaServerTask', '-PhorizonQaServerReportDir', '-PhorizonQaAcceptEula'])
+                throw new GradleException('The launcher manages ' + name)
+        }
+        parsed.option('D').values.each { argument ->
+            String[] property = argument.split('=', 2)
+            String name = '-D' + property[0]
+            if (managed.containsKey('--mcJvmArgs=' + name))
+                throw new GradleException('The launcher manages ' + name)
+            if (managed.containsKey(name) && (property.length != 2 || property[1] != managed[name]))
+                throw new GradleException('The launcher manages ' + name)
+        }
+        // RFG derives gameDir from the isolation script's working directory
+        if (parsed.option('mcArgs').values.any { it.split('=', 2)[0] == '--gameDir' })
+            throw new GradleException('The launcher manages --gameDir')
+    }
+
+    private static long positiveSeconds(String value) {
+        long seconds = Long.parseLong(value)
+        if (seconds <= 0 || seconds > 86400) throw new GradleException('Timeout must be between 1 and 86400 seconds')
+        return seconds
+    }
+
+    private static String executable(String home, String name) {
+        return new File(home, 'bin/' + name + (System.getProperty('os.name').startsWith('Windows') ? '.exe' : '')).path
+    }
+
+    private static void collectDescendants(Map<Long, ProcessHandle> owned) {
+        // Retain observed handles when a parent exits. Never discover processes by executable name
+        new ArrayList<ProcessHandle>(owned.values()).each { parent ->
+            def descendants = parent.descendants()
+            try { descendants.forEach { child -> owned.put(child.pid(), child) } }
+            finally { descendants.close() }
+        }
+    }
+
+    private static void dumpRuntimeThreads(Map<Long, ProcessHandle> owned, String id, File report, String home) {
+        String marker = '-Dhorizonqa.launchId=' + id
+        def clients = owned.values().findAll { handle ->
+            handle.isAlive() && Arrays.asList(handle.info().arguments().orElse(new String[0])).contains(marker)
+        }
+        if (clients.size() != 1) {
+            new File(report, 'threads-error.txt').setText(
+                'Thread dump skipped: available JVM process metadata did not identify exactly one owned client.\n', 'UTF-8')
+            return
+        }
+        File jcmd = new File(executable(home, 'jcmd'))
+        if (!jcmd.isFile()) {
+            new File(report, 'threads-error.txt').setText('Thread dump skipped: host JDK has no jcmd executable.\n', 'UTF-8')
+            return
+        }
+        Process dump = null
+        try {
+            dump = new ProcessBuilder(jcmd.path, Long.toString(clients[0].pid()), 'Thread.print')
+                .redirectOutput(new File(report, 'threads.txt'))
+                .redirectError(new File(report, 'threads-error.txt')).start()
+            if (!dump.waitFor(5, TimeUnit.SECONDS)) dump.destroyForcibly()
+        } catch (IOException failure) {
+            new File(report, 'threads-error.txt').append(failure.toString() + '\n', 'UTF-8')
+        } finally {
+            if (dump != null && dump.isAlive()) {
+                dump.destroyForcibly()
+                dump.waitFor(5, TimeUnit.SECONDS)
+            }
+        }
+    }
+
+    private static boolean terminate(Map<Long, ProcessHandle> owned) {
+        collectDescendants(owned)
+        def alive = owned.values().findAll { it.isAlive() }.reverse()
+        alive.each { it.destroyForcibly() }
+        alive.each { handle ->
+            try { handle.onExit().get(5, TimeUnit.SECONDS) }
+            catch (java.util.concurrent.TimeoutException ignored) {
+                throw new GradleException('Owned process did not terminate: ' + handle.pid())
+            }
+        }
+        return !alive.isEmpty()
+    }
+}
+
+abstract class RunClientTests extends RunTests {
+    @Override
+    @Option(option = 'client-task', description = 'Target RFG client task')
+    abstract Property<String> getRuntimeTask()
+}
+
+abstract class RunServerTests extends RunTests {
+    @Override
+    @Option(option = 'server-task', description = 'Target RFG dedicated-server task')
+    abstract Property<String> getRuntimeTask()
+}
+
+tasks.withType(RunTests).configureEach {
+    group = 'verification'
+    description = 'Run an isolated Minecraft test runtime with a bounded process lifetime'
+    tests.convention(providers.gradleProperty('horizonQaTests'))
+    projectRoot.convention(providers.gradleProperty('horizonQaProjectRoot').orElse(layout.projectDirectory.dir('../..').asFile.absolutePath))
+    acceptEula.convention(false)
+    retainedRuns.convention(providers.gradleProperty('horizonQaRetainedRuns'))
+    keepRuntimeFiles.convention(providers.gradleProperty('horizonQaKeepRuntimeFiles').map {
+        if (!(it in ['true', 'false'])) throw new GradleException('horizonQaKeepRuntimeFiles must be true or false')
+        Boolean.parseBoolean(it)
+    })
+    timeoutSeconds.convention(providers.gradleProperty('horizonQaTimeoutSeconds').orElse('600'))
+    shutdownSeconds.convention(providers.gradleProperty('horizonQaShutdownSeconds').orElse('20'))
+    horizonQaJar.convention(providers.gradleProperty('horizonQaJar'))
+    gradleArguments.convention([])
+    pythonExecutable.convention(providers.gradleProperty('horizonQaPython')
+        .orElse(System.getProperty('os.name').startsWith('Windows') ? 'python' : 'python3'))
+    isolationScript.set(layout.projectDirectory.file('../client-test-isolation.init.gradle').asFile.absolutePath)
+    verificationScript.set(layout.projectDirectory.file('../../tools/verify-client-reports.py').asFile.absolutePath)
+    javaHome.set(System.getProperty('java.home'))
+}
+
+tasks.register('runClientTests', RunClientTests) {
+    client.set(true)
+    runtimeTask.convention(providers.gradleProperty('horizonQaClientTask').orElse(':examples:runClient'))
+    reportDir.convention(providers.gradleProperty('horizonQaClientReportDir'))
+}
+
+tasks.register('runServerTests', RunServerTests) {
+    client.set(false)
+    runtimeTask.convention(providers.gradleProperty('horizonQaServerTask').orElse(':examples:runServer'))
+    reportDir.convention(providers.gradleProperty('horizonQaServerReportDir'))
+}

@@ -60,6 +60,16 @@ Modes are presets. Override specific behavior when the workflow needs it:
 
 ## Report files
 
+For isolated dedicated-server runs with automatic cleanup and retention, use the [portable test supervisor](client-tools.md#isolated-dedicated-server-runs):
+
+```sh
+./gradlew -p /path/to/unpacked/scripts/client-tests runServerTests \
+    --project-root "$PWD" --server-task :runServer \
+    --tests mymod:MachineTests --accept-eula
+```
+
+It uses the same storage policy as client tests, including `--keep-runtime-files`, `--retained-runs` and repository defaults. Ordinary direct `runServer` commands below retain their caller-managed working directory.
+
 By default reports are written in the server process working directory:
 
 ```text
@@ -328,4 +338,4 @@ instructions above instead.
 
 ## Client automation
 
-Use the [client test guide](client-tests.md) to author real-client scenarios and run them through the existing Gradle task. Integrated clients use the same selectors, result protocol and required/optional failure policy described on this page.
+Use the [client test guide](client-tests.md) to author real-client scenarios and the [portable client tools](client-tools.md) to launch and verify them. Integrated clients use the same selectors, result protocol and required/optional failure policy described on this page.
