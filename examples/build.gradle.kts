@@ -11,6 +11,15 @@ dependencies {
     compileOnly("org.lwjgl:lwjgl-sdl:3.4.2")
 }
 
+tasks.register("prepareClientTests") {
+    group = "verification"
+    description = "Prepare the client runtime without starting Minecraft"
+    dependsOn(provider {
+        val client = tasks.named("runClient").get()
+        client.taskDependencies.getDependencies(client)
+    })
+}
+
 // Enable native-window examples without adding Offscreen to ordinary runs
 if (providers.gradleProperty("offscreen").isPresent) {
     dependencies {
