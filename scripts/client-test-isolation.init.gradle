@@ -1,4 +1,4 @@
-// Each automated client owns its game directory and a snapshot of this build's project outputs
+// Each supervised test runtime owns its game directory and a snapshot of this build's project outputs
 // RFG derives --gameDir from workingDir and uses the JavaExec classpath
 
 interface ClientIsolationServices {
@@ -9,12 +9,15 @@ interface ClientIsolationServices {
     org.gradle.api.model.ObjectFactory getObjects()
 }
 gradle.projectsEvaluated {
-    def requestedTask = gradle.startParameter.projectProperties['horizonQaClientTask']
-    def reportPath = gradle.startParameter.projectProperties['horizonQaClientReportDir']
+    def properties = gradle.startParameter.projectProperties
+    boolean client = properties.containsKey('horizonQaClientTask')
+    def role = client ? 'Client' : 'Server'
+    def requestedTask = properties["horizonQa${role}Task"]
+    def reportPath = properties["horizonQa${role}ReportDir"]
     // Gradle also applies init scripts to included plugin builds, which have no client launch request
     if (!requestedTask && !reportPath) return
     if (!requestedTask || !reportPath) {
-        throw new GradleException('Client isolation requires a task and report directory')
+        throw new GradleException('Runtime isolation requires a task and report directory')
     }
     def taskPath = requestedTask.startsWith(':') ? requestedTask : ':' + requestedTask
     def clientTask = gradle.rootProject.tasks.getByPath(taskPath)
@@ -56,8 +59,15 @@ gradle.projectsEvaluated {
         task.logger.lifecycle('Client classpath snapshot ready: {} project entries in {}', copiedEntries, snapshotRoot)
         task.workingDir = new File(reportPath, 'game')
         java.nio.file.Files.createDirectories(task.workingDir.toPath())
-        new File(task.workingDir, 'options.txt').setText(
-            'soundCategory_master:0.5\nsoundCategory_music:0.0\nsoundCategory_weather:0.0\n', 'UTF-8')
+        if (client) {
+            new File(task.workingDir, 'options.txt').setText(
+                'soundCategory_master:0.5\nsoundCategory_music:0.0\nsoundCategory_weather:0.0\n', 'UTF-8')
+        } else {
+            if (properties['horizonQaAcceptEula'] != 'true')
+                throw new GradleException('Server isolation requires explicit EULA acceptance')
+            new File(task.workingDir, 'eula.txt').setText('eula=true\n', 'UTF-8')
+            new File(task.workingDir, 'server.properties').setText('online-mode=false\n', 'UTF-8')
+        }
         // The supervisor can let another build prepare now that this launch owns its project outputs
         java.nio.file.Files.createFile(new File(reportPath, 'client-classpath-ready').toPath())
     }

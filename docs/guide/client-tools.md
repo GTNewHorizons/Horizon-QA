@@ -1,20 +1,20 @@
 ---
-title: Portable client tools
-description: Use a pinned client supervisor and validate its report evidence without a source checkout.
+title: Portable test tools
+description: Supervise isolated client and dedicated-server tests with shared cleanup and retention.
 ---
 
-# Portable client tools
+# Portable test tools
 
-The optional `tools` ZIP contains the same client supervisor and report verifier used in this repository.
+The optional `tools` ZIP contains the shared client/server supervisor and report verifier used in this repository.
 Download a pinned Maven artifact `com.github.GTNewHorizons:Horizon-QA:<version>:tools@zip` and unpack it.
 No Horizon-QA source checkout is needed.
-The consumer still supplies its Gradle wrapper, RFG client task, Horizon-QA dependency and test classes.
+The consumer still supplies its Gradle wrapper, RFG runtime task, Horizon-QA dependency and test classes.
 
 ## Launch from a consumer project
 
 Supervision needs JDK 17+ and Python 3.9+ on Windows or Linux.
 Minecraft uses the Java runtime selected by the consumer's RFG task.
-Linux also needs the graphics environment described in [Client testing](client-tests.md).
+Client launches on Linux also need the graphics environment described in [Client testing](client-tests.md). Dedicated servers do not.
 
 Run the consumer's wrapper from its project directory:
 
@@ -67,6 +67,39 @@ Before starting tests, CI prepares the pinned Gradle distribution with `./gradle
 
 
 The pinned Gradle runtime retries transient dependency repository failures up to five attempts, waiting 5, 10, 20 and 40 seconds between attempts. The repository's `gradle.properties` configures this for local builds and CI. Missing artifacts and authentication failures are not retried. Client scenarios are never rerun by this policy, and existing launcher and CI deadlines still apply.
+
+## Isolated dedicated-server runs
+
+Use the same distribution and supervisor for server tests:
+
+```sh
+./gradlew -p /path/to/unpacked/scripts/client-tests runServerTests \
+    --project-root "$PWD" --server-task :runServer \
+    --tests mymod:MachineTests --accept-eula
+```
+
+`--accept-eula` explicitly accepts the [Minecraft EULA](https://www.minecraft.net/eula) for the fresh test server. Without it, the launcher refuses to start a server. The owned game directory receives `eula.txt` and `server.properties` with `online-mode=false`, avoiding RFG's interactive setup prompts. Horizon-QA automatic CI server behavior skips network binding.
+
+Server launches use `horizonqa.client=false`, CI mode, a void world, automatic execution and shutdown. Their default target is `:examples:runServer`, configurable with `--server-task` or `horizonQaServerTask`. `horizonQaServerReportDir` configures their report directory. They share selectors, deadlines, process ownership, verification, storage options and retention with `runClientTests`. Window arguments and audio options apply only to clients. A server that exceeds its external deadline is terminated after the shutdown grace period, without the client's orderly-cancellation marker.
+
+Both supervised tasks default to fresh directories under the consumer's `build/horizonqa/`. Direct RFG `runClient` and `runServer` tasks do not opt into this storage policy. Their existing working directories and worlds remain under the caller's control.
+
+## Storage and retention
+
+The portable launcher removes `game/` and `classpath/` after its owned processes stop, for successful and failed launches alike. JSON/XML reports, screenshots, launch logs and thread dumps remain. Game logs and crash reports are copied to `diagnostics/logs/` and `diagnostics/crash-reports/` before removal. Use `--keep-runtime-files` to retain the full game and classpath for debugging, or `--no-keep-runtime-files` to override a repository default.
+
+By default, only the five most recently completed runs are retained for the same consumer project under the same report parent directory. Older runs are removed in full, including their reports and any retained game. Successful and failed runs share this limit. Set a positive `--retained-runs N` to change it.
+
+A consumer can put defaults in its root `gradle.properties`:
+
+```properties
+horizonQaRetainedRuns=5
+horizonQaKeepRuntimeFiles=false
+```
+
+Launcher options and launcher Gradle properties (`-PhorizonQaRetainedRuns=N`, `-PhorizonQaKeepRuntimeFiles=true`) override consumer defaults. Pass launcher properties directly, rather than through `--gradle-argument`. Group report directories under one parent to share its retention limit.
+
+Retention runs at launch completion and only considers directories with matching launcher ownership metadata and completed launch results. Active runs, other projects and unmarked directories are excluded. Collection is serialized per report parent and never follows symbolic links during removal. Existing unmarked runs are not adopted or deleted. A process killed before completion leaves an unmarked directory for manual inspection. Cleanup errors fail the launch instead of reporting successful storage maintenance.
 
 ## Parallel client launches
 
