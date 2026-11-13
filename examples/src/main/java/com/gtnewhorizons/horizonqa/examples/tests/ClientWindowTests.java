@@ -159,6 +159,23 @@ public final class ClientWindowTests {
                 int id = (Integer) invoke(opened, "getId");
                 window.set(c.offscreenWindow(id));
             })
+            .hover(increment)
+            .async(
+                "hover Offscreen window",
+                c -> window.get()
+                    .hover(increment))
+            .async(
+                "hover rendered without clicking",
+                c -> window.get()
+                    .run(w -> {
+                        CounterScreen screen = w.screen(CounterScreen.class);
+                        if (!screen.hovered || screen.clicks != 0 || screen.pressed || screen.releasedAt != null)
+                            throw new AssertionError("Hover dispatched a mouse button or missed the additional window");
+                    }))
+            .client("main window was not clicked by hover", c -> {
+                if (main.get().clicks != 0 || main.get().pressed || main.get().releasedAt != null)
+                    throw new AssertionError("Hover dispatched a mouse button in the main window");
+            })
             .step("click main window")
             .click(increment)
             .async(

@@ -8,6 +8,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 
+import org.lwjgl.input.Mouse;
+
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
@@ -20,6 +22,26 @@ import com.gtnewhorizons.horizonqa.api.client.ClientTest;
 public final class ClientTargetTests {
 
     private ClientTargetTests() {}
+
+    @GameTest(template = "client_smoke", timeoutTicks = 200)
+    public static void hoverWaitsForMovingTargetWithoutClicking(GameTestHelper helper) {
+        ClientTest.scenario(helper)
+            .client(
+                "open changing hover layout",
+                c -> Minecraft.getMinecraft()
+                    .displayGuiScreen(new MovingScreen(false)))
+            .hover(
+                ClientTarget.of(
+                    "changing-layout.save",
+                    w -> w.screen(MovingScreen.class)
+                        .target()))
+            .client("pointer follows the rendered target without clicking", c -> {
+                MovingScreen screen = c.screen(MovingScreen.class);
+                if (!screen.ready() || screen.clicked || screen.scrolled)
+                    throw new AssertionError("Hover did not preserve the live target without clicking or scrolling");
+            })
+            .succeed();
+    }
 
     @GameTest(template = "client_smoke", timeoutTicks = 200)
     public static void followsButtonAfterLayoutChanges(GameTestHelper helper) {
@@ -138,6 +160,7 @@ public final class ClientTargetTests {
         private GuiButton save;
         private boolean moved;
         private boolean clicked;
+        private boolean scrolled;
         private int pointerX;
         private int pointerY;
 
@@ -150,6 +173,12 @@ public final class ClientTargetTests {
             buttonList.clear();
             save = new GuiButton(0, width / 4, height / 2, 100, 20, "Save");
             buttonList.add(save);
+        }
+
+        @Override
+        public void handleMouseInput() {
+            if (Mouse.getEventDWheel() != 0) scrolled = true;
+            super.handleMouseInput();
         }
 
         private Point position() {
