@@ -325,7 +325,12 @@ public final class SdlInput {
         }
         if (SDL_GetWindowFromID(windowId) == 0) frameConsumed(windowId);
         if (state.textBuffers.isEmpty()) states.remove(windowId);
-        if (windowId == mainWindowId()) call("org.lwjglx.input.Mouse", "getDWheel", new Class<?>[0]);
+        if (windowId == mainWindowId()) {
+            // Cleanup releases must not reach a later GUI callback after modifier state has been cleared
+            while ((Boolean) call("org.lwjglx.input.Mouse", "next", new Class<?>[0])) {}
+            while ((Boolean) call("org.lwjglx.input.Keyboard", "next", new Class<?>[0])) {}
+            call("org.lwjglx.input.Mouse", "getDWheel", new Class<?>[0]);
+        }
         applyMainState();
     }
 
