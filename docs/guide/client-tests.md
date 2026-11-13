@@ -270,6 +270,20 @@ scenario.drag(handle)
 
 `findToolbarHandle` belongs to the consumer and returns a live `ClickTarget`. The drag defaults to the left button. Use `.button(index)` to select another LWJGL mouse button or `.to(x, y)` for a fixed GUI-coordinate endpoint. `overFrames` registers the gesture and returns the scenario. The next step waits for the drag to finish. Assert the resulting state in a separate step. Completion confirms dispatch and release, not acceptance by the GUI. A replacement screen, resize or handler failure aborts the drag and clears held input. Test teardown also releases the gesture. `ClientDragTests` contains runnable cases for movement across rendered frames, handler failure and screen replacement.
 
+## Hovering a live target
+
+Use `scenario.hover(target)` for the main window, or await `window.hover(target)` for an additional window. Both use the same live target resolution and readiness checks as clicking. They move the virtual pointer and wait for the selected window to render, without sending mouse-button or wheel events. The pointer remains at that position for following observations and captures.
+
+```java
+scenario.hover(save)
+    .capture("save-tooltip")
+    .async("hover the additional editor", client -> extraWindow.hover(save));
+```
+
+A hover completing means the target rendered under the pointer and its readiness accepted the position. If a tooltip has a separate appearance condition, await that state before capturing it. Keep the resolver observational. Hover does not move the physical OS pointer or acquire native focus.
+
+The runnable examples are `horizonqaexamples:ClientTargetTests.hoverWaitsForMovingTargetWithoutClicking` for a moving main-window target and `horizonqaexamples:ClientWindowTests.offscreenWindowKeepsMainUsable` for independently hovering both windows.
+
 ## Scrolling a live target
 
 Use `scenario.scroll(panel, -120)` to scroll a live `ClientTarget` through the view's normal mouse handler. It uses the same live target lookup, rendered frame and hit-test readiness as semantic clicks. The delta is in raw signed LWJGL units, conventionally `120` upward or `-120` downward per notch. Horizon dispatches exactly one event with the supplied magnitude. Zero is rejected. The GUI decides what that event means, so wait for the resulting state in a separate sequence step. Completion confirms input dispatch and cleanup, not that the view moved. `ClientWheelTests` provides runnable moving-target and handler-failure cases.

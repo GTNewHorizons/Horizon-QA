@@ -118,6 +118,15 @@ public final class ClientWindow {
         return click(button, target, ready, true);
     }
 
+    /**
+     * Moves the virtual pointer to a live target without pressing a button or scrolling.
+     * Waits for this window's normal rendered frame and the target's readiness, repositioning when it changes.
+     * The pointer stays on the target after completion. The enclosing sequence step bounds the wait
+     */
+    public CompletableFuture<Void> hover(ClientTarget target) {
+        return atTarget(target.description, target.resolver, point -> CompletableFuture.completedFuture(null));
+    }
+
     /** Clicks a reusable live target in this window after positioning and a completed frame */
     public CompletableFuture<Void> click(int button, ClientTarget target) {
         return click(button, target.description, target.resolver);
