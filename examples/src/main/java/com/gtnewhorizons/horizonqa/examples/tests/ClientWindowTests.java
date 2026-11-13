@@ -36,6 +36,138 @@ public final class ClientWindowTests {
     private ClientWindowTests() {}
 
     @GameTest(template = "client_smoke", timeoutTicks = 600)
+    public static void offscreenShiftClickWithoutNativeFocus(GameTestHelper helper) {
+        checkUnfocusedShift(helper, false);
+    }
+
+    @GameTest(template = "client_smoke", timeoutTicks = 600, required = false)
+    public static void offscreenShiftFailureRestoresKeyboard(GameTestHelper helper) {
+        checkUnfocusedShift(helper, true);
+    }
+
+    private static void checkUnfocusedShift(GameTestHelper helper, boolean failOnPress) {
+        requireOffscreen(helper);
+        AtomicReference<ClientWindow> target = new AtomicReference<>();
+        AtomicReference<Integer> targetId = new AtomicReference<>();
+        AtomicReference<CounterScreen> selected = new AtomicReference<>();
+        AtomicReference<NativeKeys> nativeKeys = new AtomicReference<>();
+        ClientTarget increment = ClientTarget.of(
+            "unfocused.increment",
+            w -> w.screen(CounterScreen.class)
+                .target());
+        ClientTest.scenario(helper)
+            .client("open two independently polled windows", c -> {
+                CounterScreen main = new CounterScreen("Main keyboard isolation");
+                main.rejectShift = true;
+                Minecraft.getMinecraft()
+                    .displayGuiScreen(main);
+                CounterScreen first = new CounterScreen("First modifier window");
+                CounterScreen second = new CounterScreen("Second modifier window");
+                Object a = open(() -> first);
+                c.afterTest(() -> closeIfOpen(a));
+                Object b = open(() -> second);
+                c.afterTest(() -> closeIfOpen(b));
+                int firstId = (Integer) invoke(a, "getId");
+                int secondId = (Integer) invoke(b, "getId");
+                boolean useFirst = !WindowsWindowThreads.hasFocus(firstId);
+                int id = useFirst ? firstId : secondId;
+                if (WindowsWindowThreads.hasFocus(id)) throw new AssertionError("No unfocused fixture window");
+                selected.set(useFirst ? first : second);
+                selected.get().failShiftPress = failOnPress;
+                targetId.set(id);
+                (useFirst ? second : first).rejectShift = true;
+                target.set(c.offscreenWindow(id));
+                c.afterTest(() -> {
+                    if (!selected.get().shiftAtPress) throw new AssertionError("The hosted press never observed Shift");
+                    if (nativeKeys.get() != null) nativeKeys.get()
+                        .assertUnchanged();
+                    if (GuiScreen.isShiftKeyDown() || Keyboard.isKeyDown(Keyboard.KEY_LSHIFT))
+                        throw new AssertionError("Shift leaked after the hosted operation");
+                });
+            })
+            .async(
+                "position before taking the keyboard snapshot",
+                c -> target.get()
+                    .hover(increment))
+            .client("remember the native polling buffer", c -> nativeKeys.set(new NativeKeys()))
+            .async("restore polling after an exceptional scoped callback", c -> {
+                IllegalStateException expected = new IllegalStateException("Intentional scoped observation failure");
+                return target.get()
+                    .run(w -> { throw expected; })
+                    .handle((ignored, error) -> {
+                        if (error != expected)
+                            throw new AssertionError("Scoped callback failure was not preserved", error);
+                        nativeKeys.get()
+                            .assertRestored();
+                        return null;
+                    });
+            })
+            .async(
+                "Shift click the unfocused window",
+                c -> target.get()
+                    .shiftClick(0, increment))
+            .async(
+                "both callbacks polled scoped Shift",
+                c -> target.get()
+                    .run(w -> {
+                        CounterScreen screen = selected.get();
+                        if (WindowsWindowThreads.hasFocus(targetId.get()))
+                            throw new AssertionError("The test acquired native input focus");
+                        if (!screen.shiftAtPress || !screen.shiftAtRelease || screen.clicks != 1)
+                            throw new AssertionError("Hosted mouse callbacks did not see Shift");
+                        if (GuiScreen.isShiftKeyDown()) throw new AssertionError("Shift remained held in the target");
+                    }))
+            .client(
+                "native polling state was restored",
+                c -> nativeKeys.get()
+                    .assertRestored())
+            .succeed();
+    }
+
+    private static final class NativeKeys {
+
+        private final java.lang.reflect.Field pollingField;
+        private final java.nio.ByteBuffer buffer;
+        private final byte[] saved;
+        private final java.nio.ByteBuffer nativeBuffer = WindowsWindowThreads.nativeKeyboard();
+        private final byte[] nativeSaved = new byte[nativeBuffer.capacity()];
+
+        private NativeKeys() {
+            try {
+                pollingField = Class.forName("org.lwjglx.input.Keyboard")
+                    .getField("sdlKeyPressedArray");
+                buffer = (java.nio.ByteBuffer) pollingField.get(null);
+            } catch (ReflectiveOperationException e) {
+                throw new AssertionError("Cannot observe the native keyboard polling buffer", e);
+            }
+            saved = new byte[buffer.capacity()];
+            for (int i = 0; i < saved.length; i++) saved[i] = buffer.get(i);
+            for (int i = 0; i < nativeSaved.length; i++) nativeSaved[i] = nativeBuffer.get(i);
+        }
+
+        private void assertUnchanged() {
+            for (int i = 0; i < saved.length; i++) {
+                if (saved[i] != buffer.get(i))
+                    throw new AssertionError("Enclosing keyboard polling state changed at " + i);
+            }
+            for (int i = 0; i < nativeSaved.length; i++) {
+                if (nativeSaved[i] != nativeBuffer.get(i))
+                    throw new AssertionError("Native SDL keyboard state changed at " + i);
+            }
+        }
+
+        private void assertRestored() {
+            assertUnchanged();
+            try {
+                if (pollingField.get(null) != buffer)
+                    throw new AssertionError("Native polling buffer was not restored");
+            } catch (IllegalAccessException e) {
+                throw new AssertionError("Cannot inspect the restored polling buffer", e);
+            }
+        }
+    }
+
+    @GameTest(template = "client_smoke", timeoutTicks = 600)
     public static void offscreenCaptureShowsPresentedFrame(GameTestHelper helper) {
         requireOffscreen(helper);
         AtomicReference<ClientWindow> window = new AtomicReference<>();
@@ -80,6 +212,15 @@ public final class ClientWindowTests {
 
     @me.eigenraven.lwjgl3ify.api.Lwjgl3Aware
     private static final class WindowsWindowThreads {
+
+        private static java.nio.ByteBuffer nativeKeyboard() {
+            return org.lwjgl.sdl.SDLKeyboard.SDL_GetKeyboardState();
+        }
+
+        private static boolean hasFocus(int windowId) {
+            return (org.lwjgl.sdl.SDLVideo.SDL_GetWindowFlags(org.lwjgl.sdl.SDLVideo.SDL_GetWindowFromID(windowId))
+                & org.lwjgl.sdl.SDLVideo.SDL_WINDOW_INPUT_FOCUS) != 0;
+        }
 
         private static void assertSameMessageThread(int windowId) {
             if (org.lwjgl.system.Platform.get() != org.lwjgl.system.Platform.WINDOWS) return;
@@ -410,6 +551,10 @@ public final class ClientWindowTests {
         private final String title;
         private GuiButton increment;
         private boolean hovered;
+        private boolean rejectShift;
+        private boolean shiftAtPress;
+        private boolean shiftAtRelease;
+        private boolean failShiftPress;
         private int clicks;
         private boolean pressed;
         private int heldFrames;
@@ -436,6 +581,7 @@ public final class ClientWindowTests {
 
         @Override
         public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+            if (rejectShift && GuiScreen.isShiftKeyDown()) throw new AssertionError("Shift belongs to another window");
             if (Mouse.isButtonDown(0) != pressed)
                 throw new AssertionError("Polled button state belongs to another window: " + title);
             if (pressed) heldFrames++;
@@ -447,6 +593,8 @@ public final class ClientWindowTests {
 
         @Override
         protected void mouseClicked(int x, int y, int button) {
+            shiftAtPress = GuiScreen.isShiftKeyDown() && Keyboard.isKeyDown(Keyboard.KEY_LSHIFT);
+            if (failShiftPress) throw new IllegalStateException("Intentional unfocused Shift callback failure");
             if (button == 0) {
                 if (!Mouse.isButtonDown(0)) throw new AssertionError("Hosted press is absent from polling");
                 pressed = true;
@@ -456,6 +604,7 @@ public final class ClientWindowTests {
 
         @Override
         protected void mouseMovedOrUp(int x, int y, int button) {
+            shiftAtRelease = GuiScreen.isShiftKeyDown() && Keyboard.isKeyDown(Keyboard.KEY_LSHIFT);
             if (button == 0) {
                 if (Mouse.isButtonDown(0)) throw new AssertionError("Hosted release is absent from polling");
                 pressed = false;
