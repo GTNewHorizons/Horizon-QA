@@ -2,10 +2,15 @@ package com.gtnewhorizons.horizonqa.examples.tests;
 
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+
+import javax.imageio.ImageIO;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
@@ -29,6 +34,108 @@ import cpw.mods.fml.common.Loader;
 public final class ClientWindowTests {
 
     private ClientWindowTests() {}
+
+    @GameTest(template = "client_smoke", timeoutTicks = 600)
+    public static void offscreenCaptureShowsPresentedFrame(GameTestHelper helper) {
+        requireOffscreen(helper);
+        AtomicReference<ClientWindow> window = new AtomicReference<>();
+        ClientTest.scenario(helper)
+            .client("open the native presentation fixture", c -> {
+                Object opened = open(PresentationScreen::new);
+                c.afterTest(() -> closeIfOpen(opened));
+                WindowsWindowThreads.assertSameMessageThread((Integer) invoke(opened, "getId"));
+                window.set(c.offscreenWindow((Integer) invoke(opened, "getId")));
+            })
+            .async(
+                "verify the presented image",
+                c -> window.get()
+                    .capture("presented-initial")
+                    .thenAccept(ClientWindowTests::assertPresentedFrame))
+            .async(
+                "resize the native framebuffer",
+                c -> window.get()
+                    .resize(800, 600))
+            .async(
+                "verify presentation after resize",
+                c -> window.get()
+                    .capture("presented-resized")
+                    .thenAccept(ClientWindowTests::assertPresentedFrame))
+            .async(
+                "close the first native context",
+                c -> window.get()
+                    .close())
+            .client("open a new native context", c -> {
+                Object opened = open(PresentationScreen::new);
+                c.afterTest(() -> closeIfOpen(opened));
+                WindowsWindowThreads.assertSameMessageThread((Integer) invoke(opened, "getId"));
+                window.set(c.offscreenWindow((Integer) invoke(opened, "getId")));
+            })
+            .async(
+                "verify presentation in the new context",
+                c -> window.get()
+                    .capture("presented-reopened")
+                    .thenAccept(ClientWindowTests::assertPresentedFrame))
+            .succeed();
+    }
+
+    @me.eigenraven.lwjgl3ify.api.Lwjgl3Aware
+    private static final class WindowsWindowThreads {
+
+        private static void assertSameMessageThread(int windowId) {
+            if (org.lwjgl.system.Platform.get() != org.lwjgl.system.Platform.WINDOWS) return;
+            long window = org.lwjgl.sdl.SDLVideo.SDL_GetWindowFromID(windowId);
+            int mainThread = ownerThread(
+                org.lwjgl.sdl.SDLVideo.SDL_GetWindowFromID(com.gtnewhorizons.horizonqa.client.SdlInput.mainWindowId()));
+            int extraThread = ownerThread(window);
+            if (mainThread == 0 || extraThread != mainThread) {
+                throw new AssertionError(
+                    "Offscreen window is not owned by the native message-pump thread: main=" + mainThread
+                        + ", extra="
+                        + extraThread);
+            }
+        }
+
+        private static int ownerThread(long window) {
+            int properties = org.lwjgl.sdl.SDLVideo.SDL_GetWindowProperties(window);
+            long handle = org.lwjgl.sdl.SDLProperties
+                .SDL_GetPointerProperty(properties, org.lwjgl.sdl.SDLVideo.SDL_PROP_WINDOW_WIN32_HWND_POINTER, 0L);
+            if (handle == 0L) throw new AssertionError("SDL did not expose the native Windows window");
+            long function = org.lwjgl.system.windows.User32.getLibrary()
+                .getFunctionAddress("GetWindowThreadProcessId");
+            return org.lwjgl.system.JNI.callPPI(handle, 0L, function);
+        }
+    }
+
+    private static void assertPresentedFrame(File file) {
+        try {
+            BufferedImage image = ImageIO.read(file);
+            if (image == null) throw new AssertionError("Capture is not a readable image: " + file);
+            int left = image.getRGB(image.getWidth() / 4, image.getHeight() / 2) & 0xFFFFFF;
+            int right = image.getRGB(image.getWidth() * 3 / 4, image.getHeight() / 2) & 0xFFFFFF;
+            if (left != 0 || right != 0xFFFFFF) {
+                throw new AssertionError(
+                    "Native window did not present the black/white fixture: left=0x" + Integer.toHexString(left)
+                        + ", right=0x"
+                        + Integer.toHexString(right));
+            }
+        } catch (IOException error) {
+            throw new AssertionError("Cannot read presented-window capture: " + file, error);
+        }
+    }
+
+    private static final class PresentationScreen extends GuiScreen {
+
+        @Override
+        public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+            drawRect(0, 0, width / 2, height, 0xFF000000);
+            drawRect(width / 2, 0, width, height, 0xFFFFFFFF);
+        }
+
+        @Override
+        public boolean doesGuiPauseGame() {
+            return false;
+        }
+    }
 
     @GameTest(template = "client_smoke", timeoutTicks = 600)
     public static void offscreenWindowKeepsMainUsable(GameTestHelper helper) {
@@ -214,7 +321,7 @@ public final class ClientWindowTests {
                 .anyMatch(helper.getTestId()::equals),
             "Select this Offscreen integration test by its exact ID in an SDL client profile");
         if (!Loader.isModLoaded("offscreen")) {
-            throw new AssertionError("This selected test requires Offscreen 0.3 and its SDL lwjgl3ify runtime");
+            throw new AssertionError("This selected test requires Offscreen 0.0.4 and its SDL lwjgl3ify runtime");
         }
     }
 

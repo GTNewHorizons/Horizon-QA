@@ -7,19 +7,17 @@ plugins {
 }
 
 dependencies {
-    compileOnly("com.github.GTNewHorizons:lwjgl3ify:3.0.25:api")
+    compileOnly("com.github.GTNewHorizons:lwjgl3ify:3.0.33:api")
     compileOnly("org.lwjgl:lwjgl-sdl:3.4.2")
 }
 
-// An explicit local artifact enables the native-window example without adding Offscreen to ordinary runs
-providers.gradleProperty("offscreenJar").orNull?.let { path ->
-    val offscreenJar = file(path)
-    require(offscreenJar.isFile) { "offscreenJar must name an existing Offscreen dev JAR: $path" }
+// Enable native-window examples without adding Offscreen to ordinary runs
+if (providers.gradleProperty("offscreen").isPresent) {
     dependencies {
-        add("runtimeOnlyNonPublishable", files(offscreenJar))
+        add("runtimeOnlyNonPublishable", "com.sbancuz.offscreen:Offscreen:0.0.4:dev")
     }
     configurations.configureEach {
-        resolutionStrategy.force("com.github.GTNewHorizons:lwjgl3ify:3.0.25")
+        resolutionStrategy.force("com.github.GTNewHorizons:lwjgl3ify:3.0.33")
     }
     tasks.named<RunHotswappableMinecraftTask>("runClient17") {
         targetJvmVersion.set(21)
