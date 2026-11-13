@@ -23,7 +23,11 @@ public final class ClientIntegrationMixins implements ILateMixinLoader {
     public List<String> getMixins(Set<String> loadedMods) {
         return FMLLaunchHandler.side()
             .isClient() && loadedMods.contains("offscreen")
-                ? Arrays.asList("MixinOffscreenWindow", "MixinOffscreenHostedStack", "MixinOffscreenVanillaUI")
+                ? Arrays.asList(
+                    "MixinOffscreenWindow",
+                    "MixinOffscreenRenderer",
+                    "MixinOffscreenHostedStack",
+                    "MixinOffscreenVanillaUI")
                 : Collections.emptyList();
     }
 }

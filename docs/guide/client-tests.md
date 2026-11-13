@@ -192,7 +192,7 @@ The default input backend is LWJGL 2.9. Horizon supplies both queued events and 
 
 Use `ClientTest.mainWindow()` for the Minecraft window and `ClientTest.offscreenWindow(int windowId)` for an existing Offscreen window. Both return `ClientWindow`. Bind an additional window on the client thread after the consumer has opened it and obtained its SDL window ID. A handle retains that window's identity. It does not silently switch to another window after closure.
 
-Offscreen is optional. Ordinary client and dedicated-server runs do not require it. The additional-window backend targets Offscreen 0.3 with the SDL runtime from lwjgl3ify 3.0.25. A profile using it must supply those runtime mods, their native libraries and the compatible Java runtime. HQA does not install Offscreen or change the consumer's runtime profile. A missing or incompatible integration fails when the test tries to bind it.
+Offscreen is optional. Ordinary client and dedicated-server runs do not require it. The additional-window backend targets Offscreen 0.0.4 with the SDL runtime from lwjgl3ify 3.0.33. A consumer using it must supply those runtime mods, their native libraries and the compatible Java runtime. A missing or incompatible integration fails when the test tries to bind it.
 
 All windows belong to the same client session and use its existing ordered queue. Use `scenario.async` to await window operations and `scenario.awaitAsync` to retry observable assertions. Those callbacks begin on the server thread. Read GUI state only inside `ClientWindow.run`, a target resolver or another queued client operation.
 
@@ -219,30 +219,30 @@ The runnable example is `horizonqaexamples:ClientWindowTests.offscreenWindowKeep
 
 The exact-ID examples `horizonqaexamples:ClientWindowTests.offscreenClickFailureIsReported` and `horizonqaexamples:ClientWindowTests.offscreenKeyFailureIsReported` intentionally change fixture state and then throw from a hosted handler. Each must produce an optional failure retaining the original exception, not a passed test. The process still exits zero for optional failures, so inspect the case status and exception in the report when verifying these examples.
 
-Supply an Offscreen 0.3 alpha dev JAR and select the example's opt-in Java 21 SDL profile:
+Select the example's opt-in Java 21 SDL profile to download Offscreen from the GTNH Maven repository:
 
 ```sh
 ./gradlew :examples:runClient17 \
-    -PoffscreenJar=/absolute/path/to/offscreen-0.3-alpha-dev.jar \
+    -Poffscreen \
     --mcJvmArgs=-Dhorizonqa.client=true \
     --mcJvmArgs=-Dhorizonqa.mode=ci \
     --mcJvmArgs=-Dhorizonqa.world=normal \
     --mcJvmArgs=-Dhorizonqa.tests=horizonqaexamples:ClientWindowTests.offscreenWindowKeepsMainUsable
 ```
 
-The `offscreenJar` property adds that local file only to the examples runtime, pins lwjgl3ify 3.0.25 across its normal and patch dependencies, and selects Java 21 without hotswap for `runClient17`. No Offscreen binary is committed or published by HQA. The stock `:examples:runClient` profile remains the LWJGL 2 lane. The profile does not download the Offscreen artifact. Use `gradlew.bat` on Windows and quote the complete `-PoffscreenJar=...` argument when its path contains spaces.
+The `offscreen` property adds `com.sbancuz.offscreen:Offscreen:0.0.4:dev` only to the examples runtime, pins lwjgl3ify 3.0.33 across its normal and patch dependencies, and selects Java 21 without hotswap for `runClient17`. The stock `:examples:runClient` profile uses LWJGL 2. Use `gradlew.bat` on Windows.
 
-These scenarios verify event routing, independent GUI state, rendering and native resize. They do not automate OS focus changes, moving a window between monitors, mixed-DPI transitions or minimizing and restoring windows. Those require a real desktop integration check. Keep both windows rendering during unattended tests. The existing main-window key API preserves the supplied character after SDL routing. Printable characters also enter lwjgl3ify's public text-event channel, which its text fields require, without creating another legacy key press. The new Offscreen key API accepts only a character matching what Offscreen 0.3 derives from that native key and its modifiers. A mismatch fails before input is queued, rather than silently entering another character or duplicating Unicode input. Use matching native key/character pairs for additional windows. IME input is not covered by this API. Main-window resize dimensions are framebuffer pixels. Offscreen resize dimensions are logical SDL window units. An exact main-window pixel size that cannot be represented at the current pixel scale fails with a diagnostic.
+These scenarios verify event routing, independent GUI state, rendering and native resize. They do not automate OS focus changes, moving a window between monitors, mixed-DPI transitions or minimizing and restoring windows. Those require a real desktop integration check. Keep both windows rendering during unattended tests. The existing main-window key API preserves the supplied character after SDL routing. Printable characters also enter lwjgl3ify's public text-event channel, which its text fields require, without creating another legacy key press. The new Offscreen key API accepts only a character matching what Offscreen 0.0.4 derives from that native key and its modifiers. A mismatch fails before input is queued, rather than silently entering another character or duplicating Unicode input. Use matching native key/character pairs for additional windows. IME input is not covered by this API. Main-window resize dimensions are framebuffer pixels. Offscreen resize dimensions are logical SDL window units. An exact main-window pixel size that cannot be represented at the current pixel scale fails with a diagnostic.
 
 Use `shiftClick` for interactions such as NEI's modifier-assisted recipe transfer. Shift press is dispatched through the real screen keyboard path and is visible through `Keyboard.isKeyDown` and `GuiScreen.isShiftKeyDown` during both mouse callbacks. The helper dispatches Shift release after the mouse release and clears held input even if a callback throws. It does not change NEI preferences or invoke recipe-transfer handlers directly.
 
 Offscreen modifier clicks require the additional window to have native input focus. Horizon checks this precondition before sending Shift or a mouse press and reports a clear failure when focus is elsewhere. It does not silently perform an unmodified click or steal OS focus. Ordinary pointer clicks can still target an inactive Offscreen window.
 
-Offscreen's adapter determines which GUI callbacks receive input. In 0.3, `VanillaUI` does not forward drag to `GuiScreen.mouseClickMove` or wheel input to `GuiScreen.handleMouseInput`. Polling-driven gestures can observe the held button during that window's update and rendering. The MUI2 adapter implements drag and scrolling callbacks. HQA sends the real SDL events and does not add callbacks missing from the production host.
+Offscreen's adapter determines which GUI callbacks receive input. In 0.0.4, `VanillaUI` does not forward drag to `GuiScreen.mouseClickMove` or wheel input to `GuiScreen.handleMouseInput`. Polling-driven gestures can observe the held button during that window's update and rendering. The MUI2 adapter implements drag and scrolling callbacks. HQA sends the real SDL events and does not add callbacks missing from the production host.
 
 The exact-ID example `horizonqaexamples:ClientWindowTests.offscreenDragKeepsInputScoped` checks held-button polling over multiple Offscreen frames, the release point, and absence of held input in the main window.
 
-Offscreen 0.3 reduces wheel input consumed in one frame to a single signed notch. Use one `120` or `-120` scroll operation per awaited step when testing it. Native window integration does not change that host behavior.
+Offscreen 0.0.4 reduces wheel input consumed in one frame to a single signed notch. Use one `120` or `-120` scroll operation per awaited step when testing it. Native window integration does not change that host behavior.
 
 ## Sending a single key
 

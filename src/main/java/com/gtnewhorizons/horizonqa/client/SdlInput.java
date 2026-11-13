@@ -28,7 +28,7 @@ import org.lwjgl.system.MemoryUtil;
 import me.eigenraven.lwjgl3ify.api.InputEvents;
 import me.eigenraven.lwjgl3ify.api.Lwjgl3Aware;
 
-/** SDL queue injection for lwjgl3ify 3.0.25. Coordinates are top-left logical window units */
+/** SDL queue injection for lwjgl3ify 3.0.33. Coordinates are top-left logical window units */
 @Lwjgl3Aware
 public final class SdlInput {
 

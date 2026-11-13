@@ -13,11 +13,17 @@ import java.util.function.Supplier;
 import net.minecraft.client.gui.GuiScreen;
 
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
+import org.lwjgl.sdl.SDLVideo;
 
 import com.gtnewhorizons.horizonqa.api.client.ClientTest;
 import com.gtnewhorizons.horizonqa.internal.FatalErrors;
 
-/** Optional Offscreen 0.3 integration. Reflection keeps its classes out of the ordinary client/server load path */
+import me.eigenraven.lwjgl3ify.api.Lwjgl3Aware;
+
+/** Optional Offscreen 0.0.4 integration. Reflection keeps its classes out of the ordinary client/server load path */
+@Lwjgl3Aware
 public final class OffscreenWindowDriver implements WindowDriver {
 
     private static final Map<Object, OffscreenWindowDriver> WINDOWS = new IdentityHashMap<>();
@@ -187,8 +193,19 @@ public final class OffscreenWindowDriver implements WindowDriver {
         });
     }
 
-    /** Called while the completed Offscreen framebuffer is still bound on the render thread */
-    public static void completedFrame(Object window, int width, int height) {
+    /** Matches the active presentation context to its bound test window */
+    public static void presentedFrame(int width, int height) {
+        if (WINDOWS.isEmpty()) return;
+        int id = SDLVideo.SDL_GetWindowID(SDLVideo.SDL_GL_GetCurrentWindow());
+        for (OffscreenWindowDriver driver : WINDOWS.values()) {
+            if (driver.id == id) {
+                completedFrame(driver.window, width, height);
+                return;
+            }
+        }
+    }
+
+    private static void completedFrame(Object window, int width, int height) {
         OffscreenWindowDriver driver = WINDOWS.get(window);
         if (driver == null || driver.failure != null) return;
         driver.frames++;
@@ -208,7 +225,7 @@ public final class OffscreenWindowDriver implements WindowDriver {
             CompletableFuture<File> request = driver.captureRequest;
             String checkpoint = driver.checkpoint;
             driver.captureRequest = null;
-            driver.capture.capture(checkpoint, width, height)
+            driver.capturePresentedFrame(checkpoint, width, height)
                 .whenComplete((file, error) -> {
                     if (error != null) request.completeExceptionally(error);
                     else {
@@ -216,6 +233,19 @@ public final class OffscreenWindowDriver implements WindowDriver {
                         request.complete(file);
                     }
                 });
+        }
+    }
+
+    private CompletableFuture<File> capturePresentedFrame(String checkpoint, int width, int height) {
+        int framebuffer = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, 0);
+        int readBuffer = GL11.glGetInteger(GL11.GL_READ_BUFFER);
+        try {
+            GL11.glReadBuffer(GL11.GL_BACK);
+            return capture.capture(checkpoint, width, height);
+        } finally {
+            GL11.glReadBuffer(readBuffer);
+            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, framebuffer);
         }
     }
 
@@ -301,6 +331,6 @@ public final class OffscreenWindowDriver implements WindowDriver {
         Throwable cause = error instanceof InvocationTargetException ? error.getCause() : error;
         if (cause instanceof RuntimeException) return (RuntimeException) cause;
         if (cause instanceof Error) throw (Error) cause;
-        return new IllegalStateException("Unsupported Offscreen 0.3 runtime", cause);
+        return new IllegalStateException("Unsupported Offscreen 0.0.4 runtime", cause);
     }
 }
