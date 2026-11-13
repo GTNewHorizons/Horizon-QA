@@ -128,13 +128,6 @@ public final class SdlInput {
             .removeIf(entry -> entry.getValue().textBuffers.isEmpty());
     }
 
-    /** Offscreen updates its modifier polling buffer only while its window has native input focus */
-    public static void requireInputFocus(int windowId) {
-        if ((SDL_GetWindowFlags(SDL_GetWindowFromID(windowId)) & SDL_WINDOW_INPUT_FOCUS) == 0) {
-            throw new IllegalStateException("Offscreen modifier input requires native focus for window " + windowId);
-        }
-    }
-
     public static void move(int windowId, int x, int y) {
         move(windowId, x, y, false);
     }
@@ -235,10 +228,9 @@ public final class SdlInput {
         }
         if (down) state.keys.add(lwjglKey);
         else state.keys.remove(lwjglKey);
-        if (windowId == mainWindowId()) {
-            begin();
-            testKeys.put(scan, (byte) (down ? 1 : 0));
-        }
+        begin();
+        ByteBuffer keys = windowId == mainWindowId() ? testKeys : keyboard(state);
+        keys.put(scan, (byte) (down ? 1 : 0));
         long timestamp = System.nanoTime();
         try (SDL_Event event = SDL_Event.calloc()) {
             event.key()
@@ -337,16 +329,28 @@ public final class SdlInput {
         applyMainState();
     }
 
-    /** Publishes the selected window's held buttons only while its GUI context is active */
-    public static <T> T withMouseState(int windowId, Supplier<T> action) {
+    /** Publishes only this window's synthetic input while its GUI context is active */
+    public static <T> T withInputState(int windowId, Supplier<T> action) {
         Object previous = field("org.lwjglx.input.Mouse", "sdlMouseButtonFlags", null, false);
-        State state = states.get(windowId);
-        field("org.lwjglx.input.Mouse", "sdlMouseButtonFlags", state == null ? 0 : state.buttons, true);
+        Object previousKeys = field("org.lwjglx.input.Keyboard", "sdlKeyPressedArray", null, false);
+        State state = state(windowId);
+        ByteBuffer keys = keyboard(state);
+        field("org.lwjglx.input.Mouse", "sdlMouseButtonFlags", state.buttons, true);
+        field("org.lwjglx.input.Keyboard", "sdlKeyPressedArray", keys, true);
         try {
             return action.get();
         } finally {
             field("org.lwjglx.input.Mouse", "sdlMouseButtonFlags", previous, true);
+            if (field("org.lwjglx.input.Keyboard", "sdlKeyPressedArray", null, false) == keys) {
+                field("org.lwjglx.input.Keyboard", "sdlKeyPressedArray", previousKeys, true);
+            }
         }
+    }
+
+    private static ByteBuffer keyboard(State state) {
+        begin();
+        if (state.keyboard == null) state.keyboard = ByteBuffer.allocate(testKeys.capacity());
+        return state.keyboard;
     }
 
     public static void applyMainState() {
@@ -450,6 +454,7 @@ public final class SdlInput {
         private int y;
         private int buttons;
         private final Set<Integer> keys = new HashSet<>();
+        private ByteBuffer keyboard;
         private final List<ByteBuffer> textBuffers = new ArrayList<>();
     }
 }

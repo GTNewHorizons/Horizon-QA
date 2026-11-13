@@ -79,7 +79,7 @@ public final class OffscreenWindowDriver implements WindowDriver {
     public <T> T observe(Supplier<T> observation) {
         requireOpen();
         if (observing) return observation.get();
-        return SdlInput.withMouseState(id, () -> {
+        return SdlInput.withInputState(id, () -> {
             Object ui = invoke(window, "getCurrentUI");
             if (ui == null) return observation.get();
             Object scope = invoke(ui, "scope");
@@ -121,7 +121,6 @@ public final class OffscreenWindowDriver implements WindowDriver {
     }
 
     public void shift(GuiScreen screen, boolean down) {
-        if (down) SdlInput.requireInputFocus(id);
         key(screen, Keyboard.KEY_LSHIFT, '\0', down);
     }
 
@@ -187,7 +186,7 @@ public final class OffscreenWindowDriver implements WindowDriver {
     public static void withInput(Object window, Runnable action) {
         OffscreenWindowDriver driver = WINDOWS.get(window);
         if (driver == null) action.run();
-        else SdlInput.withMouseState(driver.id, () -> {
+        else SdlInput.withInputState(driver.id, () -> {
             action.run();
             return null;
         });

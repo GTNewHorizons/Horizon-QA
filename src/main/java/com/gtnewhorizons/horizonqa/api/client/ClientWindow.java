@@ -132,7 +132,10 @@ public final class ClientWindow {
         return click(button, target.description, target.resolver);
     }
 
-    /** Clicks a reusable live target in this window with Shift held through mouse release */
+    /**
+     * Clicks a reusable live target with Shift held through mouse release.
+     * Modifier polling is scoped to this window and does not require native input focus
+     */
     public CompletableFuture<Void> shiftClick(int button, ClientTarget target) {
         return shiftClick(button, target.description, target.resolver);
     }
