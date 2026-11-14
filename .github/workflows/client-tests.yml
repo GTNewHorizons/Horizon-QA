@@ -2,7 +2,6 @@ name: Client and server tests
 
 on:
   pull_request:
-    branches: [ master, main ]
   push:
     branches: [ master, main ]
 
@@ -18,6 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - scenario: manual
+            tests: horizonqaexamples:ManualLaboratoryTests.verifiesControlsAndCleanup
+            exit-code: 0
           - scenario: server
             tests: horizonqaexamples:HelperApiTests.blockPlaceAndAssert
             exit-code: 0
@@ -94,7 +96,7 @@ jobs:
         run: python3 scripts/tests/portable-client-launcher/verify.py --retention-only --server
 
       - name: Run runtime and verify its result
-        if: matrix.scenario != 'parallel'
+        if: matrix.scenario != 'parallel' && matrix.scenario != 'manual'
         shell: bash
         run: |
           set +e
@@ -142,6 +144,21 @@ jobs:
               assert all(case["status"] == "passed" for case in result["tests"]), result
           print("Verified", os.environ["SCENARIO"], "with exit", expected)
           PY
+
+      - name: Verify manual laboratory lifecycle and native controls
+        if: matrix.scenario == 'manual'
+        shell: bash
+        run: |
+          mkdir -p "$REPORT_DIR"
+          set +e
+          timeout --kill-after=15s 600s xvfb-run -a ./gradlew :examples:runClient \
+            "--mcJvmArgs=-Dhorizonqa.manualSession=$TEST_SELECTOR" --console=plain \
+            > "$REPORT_DIR/manual-lab.log" 2>&1
+          gradle_exit=$?
+          set -e
+          cat "$REPORT_DIR/manual-lab.log"
+          test "$gradle_exit" -eq 0
+          grep -F 'MANUAL_LAB_VERIFIED controls, audio, world ticks and cleanup' "$REPORT_DIR/manual-lab.log"
 
       - name: Prepare client runtime before measuring overlap
         if: matrix.scenario == 'parallel'

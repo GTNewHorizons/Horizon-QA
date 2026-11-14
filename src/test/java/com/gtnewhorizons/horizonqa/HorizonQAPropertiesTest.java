@@ -24,6 +24,21 @@ public class HorizonQAPropertiesTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+    /** Bug regression: manual laboratories retain client startup without taking over native input. */
+    @Test
+    public void manualLaboratoryKeepsClientBootstrapWithoutAutomatingInput() {
+        String previous = System.getProperty(HorizonQAProperties.MANUAL_SESSION_PROPERTY);
+        try {
+            System.setProperty(HorizonQAProperties.MANUAL_SESSION_PROPERTY, "example:Laboratory.prepare");
+
+            assertTrue(HorizonQAProperties.clientTestsEnabled());
+            assertFalse(HorizonQAProperties.clientAutomationEnabled());
+        } finally {
+            if (previous == null) System.clearProperty(HorizonQAProperties.MANUAL_SESSION_PROPERTY);
+            else System.setProperty(HorizonQAProperties.MANUAL_SESSION_PROPERTY, previous);
+        }
+    }
+
     @Test
     public void defaultParsingUsesInteractiveAllTestsAndNoIssues() {
         HorizonQAProperties.ParsedProperties parsed = HorizonQAProperties.parse(new Properties());
