@@ -9,6 +9,8 @@ Client types live in `com.gtnewhorizons.horizonqa.api.client`. Use the [client t
 
 ## Sessions and target observations
 
+These sessions require automated client mode. For physical keyboard and mouse control, use the separate [manual laboratory API](../guide/client-tests.md#manual-laboratories).
+
 | Entry point | Contract |
 | --- | --- |
 | `ClientTest.scenario(helper)` | Create one fluent scenario backed by one existing sequence and one client session |

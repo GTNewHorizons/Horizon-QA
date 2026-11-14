@@ -12,6 +12,7 @@ Primary command: **`/horizonqa`** (alias **`/qa`**). Requires permission level *
 | Subcommand  | Usage                           | Description                                                               |
 |-------------|---------------------------------|---------------------------------------------------------------------------|
 | `run`       | `/horizonqa run <testId>`       | Run a single test by full id                                              |
+| `close`     | `/horizonqa close`             | Close the active manual laboratory and run its cleanup |
 | `runall`    | `/horizonqa runall [selector]`  | Run all tests, or filter by namespace, holder class, or test-ID prefix    |
 | `runfailed` | `/horizonqa runfailed`          | Re-run failures remembered by the current mode                            |
 | `tp`        | `/horizonqa tp <testId>`        | Teleport to the placed cell for a test ID                                 |

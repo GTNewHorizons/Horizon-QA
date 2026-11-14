@@ -36,6 +36,8 @@ Scenario methods register deferred steps on the existing server-owned `GameTestS
 
 ## Automated session behavior
 
+For a world prepared for a person to control, use a [manual laboratory](#manual-laboratories). Automated input isolation, sound defaults and mob suppression described here apply to automated sessions.
+
 The launcher initializes the fresh game's audio settings with master volume at 50%, music at 0% and weather at 0%. Other sound categories keep Minecraft's defaults. These settings belong to the isolated game directory.
 
 Automatic clients are fully silent by default. To use configured sound levels, pass `--gradle-argument=--mcJvmArgs=-Dhorizonqa.client.sound=true` to the portable launcher. With `runClient` directly, use `--mcJvmArgs=-Dhorizonqa.client.sound=true`. The mute overrides effective sound levels from startup without changing saved audio options. It has no effect on a normal interactive client.
@@ -368,3 +370,63 @@ An integrated-server tick crash aborts the reported run with exit code `2`, reta
 After the reported run ends, final client teardown has a separate five-second wall-clock budget. Expiry records `CLIENT_SHUTDOWN`, performs available client restoration and ends the pending teardown without awaiting more frames or screenshot encoding. The result remains an infrastructure error. Tick budgets cannot detect a frozen game loop. Use the bounded launcher for unattended runs and retain `launch-result.json`, `launch.log`, and any thread dump alongside the normal reports.
 
 Client startup failures include the current screen, world/player/server availability and JVM thread stacks in the status JSON and JUnit XML. The parallel CI scenario prepares the client runtime with `:examples:prepareClientTests` before starting its overlap deadline, so cold dependency preparation does not consume the time reserved for booting and exercising two clients.
+
+## Manual laboratories
+
+A manual laboratory prepares a real integrated-server world for a person to explore. Setup returns without a test verdict or execution timeout. The client stays open with physical keyboard, mouse and normal cursor control. Use [automated client scenarios](client-tests.md) when Horizon-QA should perform gestures and produce a test result.
+
+### Define and launch a laboratory
+
+Declare a public static setup method in a `@GameTestHolder`. The holder's namespace and method determine the selector, using the same identity rules as test discovery.
+
+```java
+@GameTestHolder(value = "mymod", clientOnly = true)
+public final class WorkshopLab {
+    @ManualSession.Setup
+    public static void prepare(ManualSession session) {
+        int x = (int) session.player().posX + 3;
+        int y = (int) session.player().posY;
+        int z = (int) session.player().posZ;
+        session.onClose(() -> session.world().setBlockToAir(x, y, z));
+        session.world().setBlock(x, y, z, Blocks.gold_block);
+    }
+}
+```
+
+Import `ManualSession` from `com.gtnewhorizons.horizonqa.api` and `GameTestHolder` from `com.gtnewhorizons.horizonqa.api.annotation`. Use the consumer's direct RFG `runClient` task with:
+
+```text
+--mcJvmArgs=-Dhorizonqa.manualSession=mymod:WorkshopLab.prepare
+```
+
+The runnable framework example is `horizonqaexamples:ManualLaboratoryExample.prepare` with `:examples:runClient`. A lab creates a fresh flat creative scratch world and waits for the player and the first rendered world frame before setup. Startup still has a readiness deadline. The completed setup itself does not start a timed automated run.
+
+Do not launch labs through `runClientTests`, which owns a finite automated CI run and its deadline. `--keep-runtime-files` preserves files and does not enable manual control. Direct lab launches and their scratch saves are caller-managed.
+
+### Session ownership and cleanup
+
+Setup, `onTick` callbacks and `onClose` callbacks run on the server thread. `world()` and `player()` expose real server objects. Queue client work through the consumer's client-thread mechanism instead of touching client state on the server thread. Automated `ClientTest` sessions cannot attach in lab mode.
+
+Register `onClose` before changing a fixture or global state. A lab does not automatically snapshot and restore arbitrary mutations. Callbacks run in reverse registration order, including after failed setup, and all callbacks are attempted even if one fails. Keep shared registries and player data recoverable.
+
+Use `onTick` for continuing supply after each real world tick, such as replenishing energy. Production machines retain their processing and validation. Supply callbacks stop when the session closes.
+
+`/qa close`, leaving the world and server shutdown release the session and run cleanup. `/qa close` leaves the world open. While a lab owns execution, another test or lab cannot acquire it. HQA commands that mutate fixtures are blocked until closure. Position and teleport queries remain available. Closing twice has no additional effect.
+
+### Audio and gameplay settings
+
+Labs use the following effective playback levels:
+
+| Category | Volume |
+|---|---:|
+| Music | 0% |
+| Weather | 0% |
+| Hostile mobs | 0% |
+| Friendly mobs | 0% |
+| Master | 50% |
+| Blocks | 50% |
+| Other categories | Configured level |
+
+Master also scales category playback, so master and blocks at 50% produce 25% of full block volume. Saving options preserves the user's configured levels. The profile ends when the lab client runtime ends. `horizonqa.client.sound` only controls automated tests.
+
+The lab keeps the user's GUI scale, field of view and cloud settings. Automated-test mob suppression is disabled in labs. Muting mob sounds does not remove mobs or prevent their spawning. Like the integrated test client, the lab keeps world ticks running while a GUI is open or the window is inactive.
