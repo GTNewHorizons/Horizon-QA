@@ -20,6 +20,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.ChatStyle;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
@@ -51,7 +52,7 @@ import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
 public class HorizonQACommand extends CommandBase {
 
     private static final String[] SUBCOMMANDS = { "run", "runall", "runfailed", "tp", "runthis", "runthat", "pos",
-        "clearall", "load", "export", "clear", "label", "labels" };
+        "clearall", "load", "export", "clear", "label", "labels", "close" };
     private static final String[] LABEL_SUBCOMMANDS = { "list", "remove", "clear" };
 
     private final GameTestCatalog catalog;
@@ -67,7 +68,7 @@ public class HorizonQACommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/horizonqa <run|runall|runfailed|tp|runthis|runthat|pos|clearall|load|export|clear|label|labels>";
+        return "/horizonqa <run|runall|runfailed|tp|runthis|runthat|pos|clearall|load|export|clear|label|labels|close>";
     }
 
     @Override
@@ -88,7 +89,15 @@ public class HorizonQACommand extends CommandBase {
                 .addChatMessage(new ChatComponentText(EnumChatFormatting.YELLOW + "Usage: " + getCommandUsage(sender)));
             return;
         }
+        if (GameTestRunner.isManualActive() && !Arrays.asList("close", "tp", "pos", "labels")
+            .contains(args[0])) {
+            sender.addChatMessage(new ChatComponentTranslation("horizonqa.manual.close_before_command"));
+            return;
+        }
         switch (args[0]) {
+            case "close":
+                GameTestRunner.closeActiveManual();
+                break;
             case "run":
                 handleRun(sender, args);
                 break;

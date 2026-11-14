@@ -16,6 +16,39 @@ public final class GameTestRunner {
     private boolean aborting;
     private boolean running;
     private Kind kind;
+    private Runnable manualCleanup;
+    private Runnable manualTick;
+
+    /** Retains exclusive execution until explicit close, setup failure or server shutdown. */
+    public boolean tryStartManual(Runnable setup, Runnable cleanup) {
+        Objects.requireNonNull(setup, "setup");
+        Objects.requireNonNull(cleanup, "cleanup");
+        return tryStart(Kind.MANUAL, () -> {
+            manualCleanup = cleanup;
+            setup.run();
+        });
+    }
+
+    /** Releases a manual laboratory and runs its registered cleanup exactly once. */
+    public void closeManual() {
+        if (kind == Kind.MANUAL) abortAndRelease("Manual session closed", null);
+    }
+
+    /** Runs laboratory supply work after each normal world tick while this session remains open. */
+    public void onManualTick(Runnable action) {
+        requireOwnership();
+        if (kind != Kind.MANUAL || aborting) throw new IllegalStateException("No open manual session");
+        manualTick = Objects.requireNonNull(action, "action");
+    }
+
+    public static void closeActiveManual() {
+        GameTestRunner runner = activeRunner();
+        if (runner != null) runner.closeManual();
+    }
+
+    public static synchronized boolean isManualActive() {
+        return activeRunner != null && activeRunner.kind == Kind.MANUAL;
+    }
 
     boolean tryStart(Kind requestedKind, Runnable startWork) {
         Objects.requireNonNull(requestedKind, "requestedKind");
@@ -27,7 +60,7 @@ public final class GameTestRunner {
             releaseIfIdle();
             return true;
         } catch (RuntimeException | Error e) {
-            abortAndRelease("Execution startup failed", e);
+            abortAfterFailure("Execution startup failed", e);
             throw e;
         }
     }
@@ -66,7 +99,7 @@ public final class GameTestRunner {
             runner.doTickStart();
             runner.releaseIfIdle();
         } catch (RuntimeException | Error e) {
-            runner.abortAndRelease("Execution failed during the START phase", e);
+            runner.abortAfterFailure("Execution failed during the START phase", e);
             throw e;
         }
     }
@@ -80,7 +113,7 @@ public final class GameTestRunner {
             ReportedRun.updateProgress();
             runner.releaseIfIdle();
         } catch (RuntimeException | Error e) {
-            runner.abortAndRelease("Execution failed during the END phase", e);
+            runner.abortAfterFailure("Execution failed during the END phase", e);
             throw e;
         }
     }
@@ -153,6 +186,7 @@ public final class GameTestRunner {
     }
 
     private void doTickEnd() {
+        if (manualTick != null) manualTick.run();
         if (!running) return;
 
         for (GameTestInstance inst : instances) {
@@ -193,8 +227,16 @@ public final class GameTestRunner {
     }
 
     private void releaseIfIdle() {
-        if (!running && onFirstTick == null) {
+        if (!running && onFirstTick == null && manualCleanup == null) {
             release();
+        }
+    }
+
+    private void abortAfterFailure(String message, Throwable failure) {
+        try {
+            abortAndRelease(message, failure);
+        } catch (RuntimeException | Error cleanupFailure) {
+            if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure);
         }
     }
 
@@ -208,6 +250,7 @@ public final class GameTestRunner {
         onAllDone = null;
         onFirstTick = null;
         running = false;
+        manualTick = null;
         Throwable abortFailure = null;
         try {
             for (GameTestInstance instance : aborted) {
@@ -223,7 +266,13 @@ public final class GameTestRunner {
                 }
             }
         } finally {
-            release();
+            Runnable cleanup = manualCleanup;
+            manualCleanup = null;
+            try {
+                if (cleanup != null) cleanup.run();
+            } finally {
+                release();
+            }
         }
         if (abortFailure instanceof RuntimeException runtime) throw runtime;
         if (abortFailure instanceof Error error) throw error;
@@ -251,6 +300,7 @@ public final class GameTestRunner {
 
     enum Kind {
         BATCH,
-        INTERACTIVE
+        INTERACTIVE,
+        MANUAL
     }
 }

@@ -75,3 +75,5 @@ horizonqa.wand.freecam.disabled=Editor closed.
 key.categories.horizonqa=Horizon QA
 key.horizonqa.label=Label Horizon Wand target
 key.horizonqa.freecam=Toggle Horizon Editor
+
+horizonqa.manual.close_before_command=Close the manual laboratory with /qa close before running this command

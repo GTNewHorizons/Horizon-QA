@@ -1,12 +1,18 @@
 package com.gtnewhorizons.horizonqa;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.MinecraftForge;
 
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
+import com.gtnewhorizons.horizonqa.api.ManualSession;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommand;
 import com.gtnewhorizons.horizonqa.internal.GameTestCatalog;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
@@ -92,6 +98,13 @@ public class CommonProxy {
     public void postInit(FMLPostInitializationEvent event) {}
 
     public void serverStarting(FMLServerStartingEvent event) {
+        if (!HorizonQAProperties.manualSessionId()
+            .isEmpty() && FMLCommonHandler.instance()
+                .getSide()
+                .isClient()) {
+            event.registerServerCommand(new HorizonQACommand(GameTestRegistry.discoverTests(asmData)));
+            return;
+        }
         if (HorizonQAProperties.clientTestsEnabled()) {
             if (FMLCommonHandler.instance()
                 .getSide()
@@ -115,6 +128,26 @@ public class CommonProxy {
     }
 
     protected void startTests(FMLServerStartingEvent event) {
+        String laboratory = HorizonQAProperties.manualSessionId();
+        if (!laboratory.isEmpty()) {
+            Method setup = GameTestRegistry.findManualSetup(asmData, laboratory);
+            EntityPlayerMP player = (EntityPlayerMP) MinecraftServer.getServer()
+                .getConfigurationManager().playerEntityList.get(0);
+            ManualSession.open((WorldServer) player.worldObj, player, session -> {
+                try {
+                    setup.invoke(null, session);
+                } catch (InvocationTargetException failure) {
+                    Throwable cause = failure.getCause();
+                    if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+                    if (cause instanceof Error) throw (Error) cause;
+                    throw new IllegalStateException("Manual laboratory setup failed", cause);
+                } catch (IllegalAccessException failure) {
+                    throw new IllegalStateException("Manual laboratory setup is inaccessible", failure);
+                }
+            });
+            HorizonQAMod.LOG.info("MANUAL_SESSION_READY {}", laboratory);
+            return;
+        }
         ReportedRun.clearLastResult();
         if (HorizonQAProperties.hasModeError()) {
             ReportedRun.configurationFailure(CommonProxy::ciConfigurationIssues)

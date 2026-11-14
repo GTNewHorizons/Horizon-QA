@@ -66,7 +66,7 @@ public abstract class MixinMinecraft {
 
     @Inject(method = "setIngameFocus", at = @At("HEAD"), cancellable = true)
     private void horizonqa$leaveNativeCursorAlone(CallbackInfo ci) {
-        if (HorizonQAProperties.clientTestsEnabled()) ci.cancel();
+        if (HorizonQAProperties.clientAutomationEnabled()) ci.cancel();
     }
 
     @WrapOperation(
@@ -87,7 +87,7 @@ public abstract class MixinMinecraft {
     private void horizonqa$gameLoop(Operation<Void> original) {
         try {
             LwjglInput.applyPointer();
-            if (HorizonQAProperties.clientTestsEnabled() && LwjglInput.usesSdl()) {
+            if (HorizonQAProperties.clientAutomationEnabled() && LwjglInput.usesSdl()) {
                 SdlInput.withMainKeyboard(original::call);
             } else original.call();
         } catch (RuntimeException | Error error) {

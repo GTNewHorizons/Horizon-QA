@@ -19,6 +19,7 @@ import org.apache.logging.log4j.Logger;
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
+import com.gtnewhorizons.horizonqa.api.ManualSession;
 import com.gtnewhorizons.horizonqa.api.annotation.AfterBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.BeforeBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
@@ -48,6 +49,49 @@ public final class GameTestRegistry {
         .thenComparing(GameTestRegistry::erasedMethodDescriptor);
 
     private GameTestRegistry() {}
+
+    /**
+     * Resolves laboratory holders after checking their required mods.
+     *
+     * @throws IllegalArgumentException if the selector is unknown, duplicated, invalid or unavailable
+     */
+    public static Method findManualSetup(ASMDataTable asmData, String id) {
+        Method selected = null;
+        Set<ASMDataTable.ASMData> setups = asmData.getAll(ManualSession.Setup.class.getName());
+        for (ASMDataTable.ASMData holder : asmData.getAll(GameTestHolder.class.getName())) {
+            String namespace = (String) holder.getAnnotationInfo()
+                .get("value");
+            if (!id.startsWith(namespace + ":")) continue;
+            if (setups.stream()
+                .noneMatch(
+                    setup -> setup.getClassName()
+                        .equals(holder.getClassName())))
+                continue;
+            List<String> missingMods = missingRequiredMods(holder.getAnnotationInfo(), Loader::isModLoaded);
+            if (!missingMods.isEmpty()) continue;
+            try {
+                Class<?> type = Class.forName(holder.getClassName(), false, GameTestRegistry.class.getClassLoader());
+                for (Method method : type.getDeclaredMethods()) {
+                    if (!method.isAnnotationPresent(ManualSession.Setup.class)
+                        || !id.equals(intendedTestId(namespace, type, method))) continue;
+                    if (!Modifier.isPublic(method.getModifiers()) || !Modifier.isStatic(method.getModifiers())
+                        || method.getReturnType() != void.class
+                        || method.getParameterCount() != 1
+                        || method.getParameterTypes()[0] != ManualSession.class) {
+                        throw new IllegalArgumentException(
+                            "Manual setup must be public static void setup(ManualSession): " + id);
+                    }
+                    if (selected != null) throw new IllegalArgumentException("Duplicate manual laboratory: " + id);
+                    selected = method;
+                }
+            } catch (ClassNotFoundException | LinkageError failure) {
+                throw new IllegalArgumentException("Cannot load manual laboratory " + id, failure);
+            }
+        }
+        if (selected == null)
+            throw new IllegalArgumentException("Unknown manual laboratory or missing required mods: " + id);
+        return selected;
+    }
 
     public static GameTestCatalog discoverTests(ASMDataTable asmData) {
         return discoverTests(asmData, Loader::isModLoaded);

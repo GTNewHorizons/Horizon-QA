@@ -78,10 +78,12 @@ public final class ClientTest {
 
     /**
      * Attaches the sole client session to this test. Teardown invalidates queued work, captures the final
-     * rendered frame, releases input, runs client cleanup, and closes the screen before server cleanup
+     * rendered frame, releases input, runs client cleanup, and closes the screen before server cleanup.
+     * Manual laboratories cannot attach an automated session.
      */
     public static synchronized ClientTest attach(GameTestHelper helper) {
-        if (!HorizonQAProperties.clientTestsEnabled()) throw new IllegalStateException("Client test mode is disabled");
+        if (!HorizonQAProperties.clientAutomationEnabled())
+            throw new IllegalStateException("Automated client test mode is disabled");
         if (active != null) throw new IllegalStateException("Another client test still owns the screen");
         ClientTest session = new ClientTest(helper);
         helper.afterTestAsync(100, session::close);
