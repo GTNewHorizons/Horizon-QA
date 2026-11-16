@@ -53,7 +53,18 @@ For a consumer checkout with Horizon QA already configured as a development depe
     --tests mymod:ScreenTests.openAndReturn
 ```
 
-The standalone supervisor uses the consumer's Gradle wrapper and existing RFG task. It does not add dependencies or change consumer packaging. Keep client test classes out of normal published artifacts. During local framework development, `--horizon-qa-jar /path/to/horizonqa-dev.jar` forwards `-PhorizonQaJar` to a consumer that explicitly supports that override.
+The standalone supervisor uses the consumer's Gradle wrapper and existing RFG task. Keep client test classes out of normal published artifacts. During local framework development, `--horizon-qa-jar /path/to/horizonqa-dev.jar` forwards `-PhorizonQaJar` to a consumer that explicitly supports that override.
+
+The launcher supplies `-PrunDir=<ReportDir>/game` before the target build configures its tasks.
+Runtime plugins must respect this directory instead of allocating a second instance. The init script also sets
+the selected RFG task's `workingDir`, so ordinary development tasks work without a plugin implementing `runDir`.
+
+A production pack task can expose a `runtimeMods` Gradle file collection and prepare those JARs in `runDir`
+before launch. For such tasks, pass the production HQA JAR through `--runtime-mod`, without the `-dev` classifier.
+Repeat `--runtime-mod` for additional production JARs. The init script adds them to `runtimeMods`, leaving
+development dependencies unchanged. Build the consumer's scenarios into its production test artifact as well.
+For example, select `--client-task :runFullPack` or `--server-task :runFullPackServer` when those tasks are available.
+The pack task owns materializing the pack, while HQA owns the report directory, process supervision and cleanup.
 
 Use repeatable `--gradle-argument=-PusesMixinDebug=false` options for additional target build arguments. Each value remains one argument, without shell interpolation. Do not override client mode, selection, game directory, launch identity or report directory. The target build uses a private, single-use Gradle daemon so the supervisor never terminates a shared daemon.
 
