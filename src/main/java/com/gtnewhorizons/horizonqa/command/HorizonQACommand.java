@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -426,7 +427,8 @@ public class HorizonQACommand extends CommandBase {
                 EnumChatFormatting.GREEN + "Teleported to: " + EnumChatFormatting.YELLOW + cell.testId()));
         sender.addChatMessage(
             new ChatComponentText(
-                EnumChatFormatting.GRAY + String.format("Cell target: (%.1f, %.1f, %.1f)", targetX, targetY, targetZ)));
+                EnumChatFormatting.GRAY
+                    + String.format(Locale.ROOT, "Cell target: (%.1f, %.1f, %.1f)", targetX, targetY, targetZ)));
 
     }
 
