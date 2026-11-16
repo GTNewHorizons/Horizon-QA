@@ -14,6 +14,9 @@ public class GradleWrapperMain {
         String mode = option(args, "--mcJvmArgs=-Dhorizonqa.tests=");
         boolean client = Boolean.parseBoolean(option(args, "--mcJvmArgs=-Dhorizonqa.client="));
         Path report = Path.of(option(args, client ? "-PhorizonQaClientReportDir=" : "-PhorizonQaServerReportDir="));
+        if (!Path.of(option(args, "-PrunDir=")).equals(report.resolve("game"))) {
+            throw new AssertionError("Launcher must supply its game directory before target configuration");
+        }
         if (!client && (!Arrays.asList(args).contains("--mcJvmArgs=-Dhorizonqa.world=void")
                 || !Arrays.asList(args).contains("-PhorizonQaAcceptEula=true")
                 || Arrays.stream(args).anyMatch(value -> value.startsWith("--mcArgs=--width")))) {

@@ -13,6 +13,10 @@ def prefixSibling = new File(fixtureDirectory, 'project-output-unrelated/externa
 def inputsInOrder = [cached, jar, classes, otherJar, resources, absent, prefixSibling]
 def server = providers.gradleProperty('fixtureServer').map { it.toBoolean() }.getOrElse(false)
 def reportDirectory = file(providers.gradleProperty(server ? 'horizonQaServerReportDir' : 'horizonQaClientReportDir').get())
+def requestedGame = file(property('runDir'))
+assert requestedGame.canonicalFile == new File(reportDirectory, 'game').canonicalFile
+def production = providers.gradleProperty('fixtureProduction').map { it.toBoolean() }.getOrElse(false)
+def runtimeMods = objects.fileCollection()
 if (reportDirectory.canonicalFile != new File(fixtureDirectory, 'report').canonicalFile) {
     throw new GradleException('The fixture only resets its own <fixtureDirectory>/report directory')
 }
@@ -23,6 +27,7 @@ interface FixtureServices {
 def fileOperations = objects.newInstance(FixtureServices).fileSystemOperations
 
 def prepareOutputs = tasks.register('prepareOutputs') {
+    inputs.files(runtimeMods)
     outputs.files(jar, otherJar, cached, prefixSibling)
     outputs.dirs(classes, resources)
     outputs.upToDateWhen { false }
@@ -37,6 +42,13 @@ def prepareOutputs = tasks.register('prepareOutputs') {
         new File(classes, 'nested/RecipeSnapshot.class').text = 'original-class'
         resources.mkdirs()
         new File(resources, 'fixture.txt').text = 'original-resource'
+        if (production) {
+            fileOperations.copy { spec ->
+                spec.from(runtimeMods)
+                spec.into(new File(reportDirectory, 'game/mods'))
+            }
+            new File(reportDirectory, 'game/server.properties').text = 'view-distance=4\nonline-mode=true\n'
+        }
     }
 }
 
@@ -53,6 +65,8 @@ abstract class VerifyRuntimeIsolation extends JavaExec {
     String cmdlineJvmArgs = ''
     @Internal
     File assetsDirectory
+    @Input
+    boolean production
 
     @TaskAction
     @Override
@@ -64,6 +78,10 @@ abstract class VerifyRuntimeIsolation extends JavaExec {
         assert actual[6] == inputsInOrder[6]
         assert argumentsWorkingDir == workingDir
         assert workingDir == new File(expectedGamePath)
+        if (production) {
+            assert new File(workingDir, 'mods').listFiles().length == 1
+            if (server) assert new File(workingDir, 'server.properties').text.contains('view-distance=4')
+        }
         if (server) {
             assert new File(workingDir, 'eula.txt').text.trim() == 'eula=true'
             assert new File(workingDir, 'server.properties').text.contains('online-mode=false')
@@ -98,6 +116,8 @@ abstract class VerifyRuntimeIsolation extends JavaExec {
 
 tasks.register('verifyIsolation', VerifyRuntimeIsolation) {
     it.server = server
+    it.production = production
+    if (production) extensions.add('runtimeMods', runtimeMods)
     dependsOn prepareOutputs
     classpath = files(inputsInOrder)
     mainClass = 'NotLaunched'
