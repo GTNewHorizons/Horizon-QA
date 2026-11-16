@@ -37,6 +37,8 @@ abstract class RunTests extends DefaultTask {
     abstract Property<String> getShutdownSeconds()
     @Optional @Input @Option(option = 'horizon-qa-jar', description = 'Horizon QA development JAR override')
     abstract Property<String> getHorizonQaJar()
+    @Input @Option(option = 'runtime-mod', description = 'Additional production mod JAR for a pack runtime, repeatable')
+    abstract ListProperty<String> getRuntimeMods()
     @Input @Option(option = 'gradle-argument', description = 'Additional target Gradle argument, repeatable')
     abstract ListProperty<String> getGradleArguments()
     @Input @Option(option = 'python', description = 'Python 3.9+ executable for report verification')
@@ -93,10 +95,14 @@ abstract class RunTests extends DefaultTask {
                 '--mcJvmArgs=-Dhorizonqa.launchId': id,
                 ("-PhorizonQa${role}Task".toString()): runtimeTask.get(),
                 ("-PhorizonQa${role}ReportDir".toString()): report.path,
+                '-PrunDir': new File(report, 'game').path,
                 '-Dorg.gradle.daemon': 'false'
             ]
             if (!client.get()) managedArguments['-PhorizonQaAcceptEula'] = 'true'
             if (horizonQaJar.isPresent()) managedArguments['-PhorizonQaJar'] = horizonQaJar.get()
+            File runtimeModsFile = new File(report, 'runtime-mods.json')
+            runtimeModsFile.setText(JsonOutput.toJson(runtimeMods.get()), 'UTF-8')
+            managedArguments['-PhorizonQaRuntimeModsFile'] = runtimeModsFile.path
             rejectManagedArguments(gradleArguments.get(), managedArguments)
             File lockFile = new File(root, '.gradle/horizonqa-client-preparation.lock')
             Files.createDirectories(lockFile.parentFile.toPath())
@@ -405,6 +411,7 @@ tasks.withType(RunTests).configureEach {
     shutdownSeconds.convention(providers.gradleProperty('horizonQaShutdownSeconds').orElse('20'))
     horizonQaJar.convention(providers.gradleProperty('horizonQaJar'))
     gradleArguments.convention([])
+    runtimeMods.convention([])
     pythonExecutable.convention(providers.gradleProperty('horizonQaPython')
         .orElse(System.getProperty('os.name').startsWith('Windows') ? 'python' : 'python3'))
     isolationScript.set(layout.projectDirectory.file('../client-test-isolation.init.gradle').asFile.absolutePath)

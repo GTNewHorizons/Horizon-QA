@@ -1,6 +1,19 @@
 // Each supervised test runtime owns its game directory and a snapshot of this build's project outputs
 // RFG derives --gameDir from workingDir and uses the JavaExec classpath
 
+def launchProperties = gradle.startParameter.projectProperties
+def launchReport = launchProperties['horizonQaClientReportDir'] ?: launchProperties['horizonQaServerReportDir']
+if (launchReport) {
+    def game = new File(launchReport, 'game').canonicalFile
+    if (launchProperties['runDir'] && new File(launchProperties['runDir']).canonicalFile != game) {
+        throw new GradleException('runDir must match the supervised game directory: ' + game)
+    }
+    // Make the directory available before plugins configure preparation and launch tasks
+    gradle.beforeProject { project ->
+        project.extensions.extraProperties.set('runDir', game.path)
+    }
+}
+
 interface ClientIsolationServices {
     @javax.inject.Inject
     org.gradle.api.file.FileSystemOperations getFileSystemOperations()
@@ -23,6 +36,23 @@ gradle.projectsEvaluated {
     def clientTask = gradle.rootProject.tasks.getByPath(taskPath)
     if (!clientTask.hasProperty('cmdlineJvmArgs') || !clientTask.hasProperty('assetsDirectory')) {
         throw new GradleException('Client isolation requires an RFG RunMinecraftTask: ' + taskPath)
+    }
+    def gameDirectory = new File(reportPath, 'game').canonicalFile
+    clientTask.workingDir = gameDirectory
+    def runtimeMods = clientTask.extensions.findByName('runtimeMods')
+    def modsFile = properties['horizonQaRuntimeModsFile']
+    def requestedMods = modsFile ? new groovy.json.JsonSlurper().parse(clientTask.project.file(modsFile), 'UTF-8') : []
+    if (runtimeMods != null) {
+        if (requestedMods.isEmpty()) throw new GradleException('A production runtime requires --runtime-mod with a production HQA JAR')
+        requestedMods.each { jarPath ->
+            def jar = clientTask.project.file(jarPath)
+            if (!jar.isFile() || !jar.name.endsWith('.jar') || jar.name.endsWith('-dev.jar')) {
+                throw new GradleException('Expected a production mod JAR: ' + jar)
+            }
+            runtimeMods.from(jar)
+        }
+    } else if (!requestedMods.isEmpty()) {
+        throw new GradleException('The selected task does not expose a runtimeMods file collection')
     }
     def buildRoots = gradle.rootProject.allprojects.collect {
         it.layout.buildDirectory.get().asFile.canonicalFile
@@ -57,7 +87,7 @@ gradle.projectsEvaluated {
         }
         task.setClasspath(services.objects.fileCollection().from(isolatedClasspath))
         task.logger.lifecycle('Client classpath snapshot ready: {} project entries in {}', copiedEntries, snapshotRoot)
-        task.workingDir = new File(reportPath, 'game')
+        task.workingDir = gameDirectory
         java.nio.file.Files.createDirectories(task.workingDir.toPath())
         if (client) {
             new File(task.workingDir, 'options.txt').setText(
@@ -66,7 +96,11 @@ gradle.projectsEvaluated {
             if (properties['horizonQaAcceptEula'] != 'true')
                 throw new GradleException('Server isolation requires explicit EULA acceptance')
             new File(task.workingDir, 'eula.txt').setText('eula=true\n', 'UTF-8')
-            new File(task.workingDir, 'server.properties').setText('online-mode=false\n', 'UTF-8')
+            def serverFile = new File(task.workingDir, 'server.properties')
+            def serverSettings = new Properties()
+            if (serverFile.isFile()) serverFile.withInputStream { serverSettings.load(it) }
+            serverSettings.setProperty('online-mode', 'false')
+            serverFile.withOutputStream { serverSettings.store(it, null) }
         }
         // The supervisor can let another build prepare now that this launch owns its project outputs
         java.nio.file.Files.createFile(new File(reportPath, 'client-classpath-ready').toPath())
