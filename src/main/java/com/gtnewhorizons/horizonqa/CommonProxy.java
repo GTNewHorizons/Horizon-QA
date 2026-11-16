@@ -3,14 +3,14 @@ package com.gtnewhorizons.horizonqa;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.gtnewhorizons.horizonqa.block.BlockDebugIInventory;
-import com.gtnewhorizons.horizonqa.block.BlockDebugInvInterface;
-import com.gtnewhorizons.horizonqa.block.TileDebugIInventory;
-import com.gtnewhorizons.horizonqa.block.TileDebugInvInterface;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.MinecraftForge;
 
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
+import com.gtnewhorizons.horizonqa.block.BlockDebugIInventory;
+import com.gtnewhorizons.horizonqa.block.BlockDebugInvInterface;
+import com.gtnewhorizons.horizonqa.block.TileDebugIInventory;
+import com.gtnewhorizons.horizonqa.block.TileDebugInvInterface;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommand;
 import com.gtnewhorizons.horizonqa.internal.GameTestCatalog;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
