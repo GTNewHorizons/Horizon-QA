@@ -79,7 +79,7 @@ public class SequencePhaseTests {
     @GameTest(timeoutTicks = 5)
     public static void succeedAtTimeoutObservesFinalTick(GameTestHelper helper) {
         final int[] observedTicks = { 0 };
-        helper.onEachTick(() -> observedTicks[0]++);
+        helper.onEachTick("observe every allowed tick", () -> observedTicks[0]++);
         helper.startSequence()
             .thenIdle(5)
             .thenExecute(() -> helper.assertEquals(5, observedTicks[0], "Expected final tick to be observed"));
@@ -89,29 +89,31 @@ public class SequencePhaseTests {
     @GameTest(timeoutTicks = 10)
     public static void scopedEachTickCallback(GameTestHelper helper) {
         final int[] observedTicks = { 0 };
-        TickCallbackHandle callback = helper.onEachTick(() -> observedTicks[0]++);
-        callback.disable();
+        TickCallbackHandle callback = helper
+            .onEachTickDisabled("count ticks inside the sequence window", () -> observedTicks[0]++);
 
         helper.startSequence()
-            .thenExecuteAtStart(callback::enable)
-            .thenExecute(() -> helper.assertEquals(1, observedTicks[0], "START enable should affect this tick"))
+            .thenExecuteAtStart("enable scoped callback", callback::enable)
+            .thenExecute(
+                "assert START enable affects the current tick",
+                () -> helper.assertEquals(1, observedTicks[0], "START enable should affect this tick"))
             .thenIdle(1)
-            .thenExecute(() -> {
+            .thenExecute("disable scoped callback at END", () -> {
                 helper.assertEquals(2, observedTicks[0], "END disable should happen after this tick's callback");
                 callback.disable();
             })
             .thenIdle(1)
-            .thenExecute(() -> {
+            .thenExecute("re-enable scoped callback", () -> {
                 helper.assertEquals(2, observedTicks[0], "Disabled callback should not run");
                 callback.enable();
             })
             .thenIdle(1)
-            .thenExecute(() -> {
+            .thenExecute("remove scoped callback", () -> {
                 helper.assertEquals(3, observedTicks[0], "Re-enabled callback should resume");
                 callback.remove();
             })
             .thenIdle(1)
-            .thenExecute(() -> {
+            .thenExecute("assert removed callback stays removed", () -> {
                 callback.enable();
                 helper.assertEquals(3, observedTicks[0], "Removed callback should stay removed");
             })

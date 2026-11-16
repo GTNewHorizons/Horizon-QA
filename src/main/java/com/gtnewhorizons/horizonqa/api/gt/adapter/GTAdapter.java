@@ -3,7 +3,6 @@ package com.gtnewhorizons.horizonqa.api.gt.adapter;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.chunk.Chunk;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 import com.gtnewhorizons.horizonqa.api.event.state.HatchTopology;
 import com.gtnewhorizons.horizonqa.api.event.state.MaintenanceSnapshot;
 import com.gtnewhorizons.horizonqa.api.event.state.RecipeStateSnapshot;
@@ -12,7 +11,6 @@ import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 
 /** GT-version-specific operations used by GTNH gametest helpers. */
-@Experimental
 @SuppressWarnings("unused")
 public interface GTAdapter {
 

@@ -127,7 +127,8 @@ Relative report paths resolve from the server working directory, normally `run/s
 
 ```bash
 ./gradlew runServer \
-  --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+  --mcJvmArgs=-Dhorizonqa.mode=ci \
+  --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
 The server performs a report-path preflight before execution. Read the console for permissions, directory collisions, or unwritable targets.

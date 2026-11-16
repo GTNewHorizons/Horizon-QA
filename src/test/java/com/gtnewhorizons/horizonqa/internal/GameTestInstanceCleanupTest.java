@@ -11,6 +11,7 @@ import java.util.Collections;
 import org.junit.Test;
 
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
+import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.RunResult;
 
@@ -76,6 +77,29 @@ public class GameTestInstanceCleanupTest {
         assertEquals(0, result.requiredFailures());
     }
 
+    @Test
+    public void abortedExecutionRemainsPrimaryWhenCleanupAlsoFails() throws Exception {
+        GameTestInstance instance = instance("mod:CleanupTests.abortThenCleanupFails", "abortThenCleanupFails");
+        instance.start(null);
+
+        instance.abortExecution("execution stopped", null);
+
+        assertEquals(GameTestStatus.ERROR, instance.getStatus());
+        assertTrue(instance.getFailureCause() instanceof GameTestInfrastructureException);
+        assertEquals("EXECUTION_ABORTED", ((GameTestInfrastructureException) instance.getFailureCause()).kind());
+        assertEquals(
+            "cleanup broke during abort",
+            instance.getCleanupFailureCause()
+                .getMessage());
+
+        CaseResult resultCase = CaseResult.from(instance);
+        assertEquals("EXECUTION_ABORTED", resultCase.failureType());
+        assertEquals("execution stopped", resultCase.failureMessage());
+        assertTrue(
+            resultCase.failureTrace()
+                .contains("cleanup broke during abort"));
+    }
+
     private static GameTestInstance instance(String id, String methodName) throws Exception {
         Method method = TestDefinitions.class.getMethod(methodName, GameTestHelper.class);
         GameTestDefinition definition = new GameTestDefinition(id, method, "", 100, "", true, 0);
@@ -101,6 +125,10 @@ public class GameTestInstanceCleanupTest {
         public static void assertionThenCleanupFails(GameTestHelper helper) {
             helper.afterTest(() -> { throw new AssertionError("cleanup broke after assertion"); });
             helper.fail("assertion broke");
+        }
+
+        public static void abortThenCleanupFails(GameTestHelper helper) {
+            helper.afterTest(() -> { throw new AssertionError("cleanup broke during abort"); });
         }
     }
 }

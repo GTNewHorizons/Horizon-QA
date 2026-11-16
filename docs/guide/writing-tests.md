@@ -60,7 +60,9 @@ Coordinate-based `GameTestHelper` methods accept a label directly. Use `helper.p
 
 ## Batches
 
-Batch grouping applies to automatic runs and manually started reported runs. The batch runner executes batch names one after another; tests sharing the same `batch = "name"` are placed together and tick concurrently. Hook setup and teardown with batch-scoped lifecycle methods:
+Batch grouping applies to automatic runs and manually started reported runs. The Reported Run executes Test Batch names
+one after another; tests sharing the same `batch = "name"` are placed together and tick concurrently. Hook setup and
+teardown with batch-scoped lifecycle methods:
 
 ```java
 @BeforeBatch("assembler")
@@ -70,7 +72,9 @@ public static void warmCaches() { /* no args */ }
 public static void tearDown() { /* no args */ }
 ```
 
-Batch methods must be **public static void** and take **no parameters**. Every matching `@BeforeBatch` method runs once before the reported batch starts. Every matching `@AfterBatch` method runs once after all tests in that batch finish.
+Batch methods must be **public static void** and take **no parameters**. Every matching `@BeforeBatch` method runs once
+before its Test Batch starts. Once setup begins, every matching `@AfterBatch` method is attempted exactly once, including
+when a before-hook or the Reported Run fails before the tests complete.
 
 Batch names are global across every discovered holder. Prefer a mod-prefixed name such as `mymod_assembler` when another mod could choose the same word.
 

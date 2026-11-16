@@ -26,7 +26,6 @@ import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidHandler;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 import com.gtnewhorizons.horizonqa.api.event.EventLog;
 import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
@@ -45,7 +44,6 @@ import cpw.mods.fml.common.Loader;
  * {@link #pos(String)}, including structure rotation, and throw {@link LabelResolutionException} when
  * the fixture has no matching label.
  */
-@Experimental
 @SuppressWarnings("unused")
 public class GameTestHelper {
 
@@ -128,8 +126,8 @@ public class GameTestHelper {
     }
 
     /**
-     * Run {@code callback} once per test tick until the test ends (pass or fail). Useful for negative
-     * assertions that must hold continuously or during a specific sequence window.
+     * Register a named, initially enabled callback that runs once per test tick until the test ends.
+     * Useful for negative assertions that must hold continuously.
      *
      * <p>
      * The returned handle is initially enabled and can temporarily disable or permanently remove the
@@ -137,10 +135,37 @@ public class GameTestHelper {
      * {@code succeedWhen}, END-phase sequence actions, and timeout evaluation. A callback registered
      * while per-tick callbacks are running begins on the next tick.
      *
+     * If the callback fails, {@code name} is included in reports. Use
+     * {@link #onEachTickDisabled(String, Runnable)} when a sequence enables the callback later.
+     *
+     * @param name     non-blank diagnostic name for this callback
+     * @param callback action invoked during each enabled END phase
      * @return a handle that controls this callback registration
      */
+    public TickCallbackHandle onEachTick(String name, Runnable callback) {
+        return instance.addEachTickCallback(name, callback, true);
+    }
+
+    /**
+     * Register an initially enabled callback without a diagnostic name.
+     *
+     * @deprecated Use {@link #onEachTick(String, Runnable)} so failures identify the callback.
+     */
+    @Deprecated
     public TickCallbackHandle onEachTick(Runnable callback) {
-        return instance.addEachTickCallback(callback);
+        return onEachTick("Using deprecated method, fix ASAP", callback);
+    }
+
+    /**
+     * Register a named, initially disabled per-tick callback. Enable the returned handle from a
+     * sequence action when its observation window begins.
+     *
+     * @param name     non-blank diagnostic name for this callback
+     * @param callback action invoked during each enabled END phase
+     * @return a disabled handle that controls this callback registration
+     */
+    public TickCallbackHandle onEachTickDisabled(String name, Runnable callback) {
+        return instance.addEachTickCallback(name, callback, false);
     }
 
     /** Register {@code callback} to run once when this test ends, regardless of outcome. */

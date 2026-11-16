@@ -2,33 +2,53 @@ package com.gtnewhorizons.horizonqa.internal;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import org.junit.After;
 import org.junit.Test;
 
+import com.gtnewhorizons.horizonqa.api.GameTestHelper;
+import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
+
 public class GameTestRunnerTest {
+
+    private static int cleanupRuns;
+    private static boolean cleanupAcquiredOwnership;
+    private static GameTestRunner cleanupCandidate;
 
     private static final class FakeInstance extends GameTestInstance {
 
+        final List<String> events;
         int tickStarts;
         int tickEnds;
         boolean done;
 
         FakeInstance() {
+            this(new ArrayList<>());
+        }
+
+        FakeInstance(List<String> events) {
             super(null, 0, 0, 0);
+            this.events = events;
         }
 
         @Override
         public void tickStart() {
             tickStarts++;
+            events.add("START");
         }
 
         @Override
         public void tickEnd() {
             tickEnds++;
+            events.add("END");
         }
 
         @Override
@@ -37,201 +57,217 @@ public class GameTestRunnerTest {
         }
     }
 
-    private int callbackRuns;
-
     @After
-    public void clearActiveRunner() {
-        GameTestRunner sentinel = new GameTestRunner();
-        sentinel.register();
-        sentinel.unregister();
+    public void resetExecution() {
+        GameTestRunner.shutdown();
+        cleanupRuns = 0;
+        cleanupAcquiredOwnership = false;
+        cleanupCandidate = null;
     }
 
-    private static void tick() {
+    @Test
+    public void activeRunnerDeliversStartBeforeWorldAndEndAfterWorld() {
+        List<String> events = new ArrayList<>();
+        GameTestRunner runner = new GameTestRunner();
+        FakeInstance instance = new FakeInstance(events);
+
+        assertTrue(runner.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> runner.addInstance(instance)));
+
+        GameTestRunner.handleTickStart();
+        events.add("WORLD");
+        GameTestRunner.handleTickEnd();
+
+        assertEquals(Arrays.asList("START", "WORLD", "END"), events);
+    }
+
+    @Test
+    public void ticksAreNoOpsWithoutAnOwner() {
         GameTestRunner.handleTickStart();
         GameTestRunner.handleTickEnd();
     }
 
     @Test
-    public void registeredRunnerReceivesStaticTicks() {
+    public void interactiveOwnerCannotBeReplacedByBatchOwner() {
+        GameTestRunner interactive = new GameTestRunner();
+        FakeInstance active = new FakeInstance();
+        assertTrue(interactive.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> interactive.addInstance(active)));
+
+        GameTestRunner batch = new GameTestRunner();
+        FakeInstance rejected = new FakeInstance();
+        assertFalse(batch.tryStart(GameTestRunner.Kind.BATCH, () -> batch.addInstance(rejected)));
+
+        tick();
+
+        assertEquals(1, active.tickStarts);
+        assertEquals(1, active.tickEnds);
+        assertEquals(0, rejected.tickStarts);
+        assertEquals(0, rejected.tickEnds);
+    }
+
+    @Test
+    public void batchOwnerCannotBeReplacedByInteractiveOwner() {
+        GameTestRunner batch = new GameTestRunner();
+        FakeInstance active = new FakeInstance();
+        assertTrue(batch.tryStart(GameTestRunner.Kind.BATCH, () -> batch.addInstance(active)));
+        assertTrue(GameTestRunner.isBatchActive());
+
+        GameTestRunner interactive = new GameTestRunner();
+        assertFalse(
+            interactive.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> interactive.addInstance(new FakeInstance())));
+        assertTrue(GameTestRunner.isBatchActive());
+    }
+
+    @Test
+    public void sameInteractiveOwnerCanAddWork() {
         GameTestRunner runner = new GameTestRunner();
-        FakeInstance inst = new FakeInstance();
-        runner.run(Collections.singletonList(inst), () -> callbackRuns++);
-        runner.register();
+        FakeInstance first = new FakeInstance();
+        FakeInstance second = new FakeInstance();
+        assertTrue(runner.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> runner.addInstance(first)));
 
+        assertTrue(runner.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> runner.addInstance(second)));
         tick();
 
-        assertEquals(1, inst.tickStarts);
-        assertEquals(1, inst.tickEnds);
-        assertEquals(0, callbackRuns);
+        assertEquals(1, first.tickStarts);
+        assertEquals(1, second.tickStarts);
     }
 
     @Test
-    public void ticksAreNoOpsWhenNoRunnerRegistered() {
-        GameTestRunner runner = new GameTestRunner();
-        FakeInstance inst = new FakeInstance();
-        runner.run(Collections.singletonList(inst), () -> callbackRuns++);
-
-        tick();
-
-        assertEquals(0, inst.tickStarts);
-        assertEquals(0, inst.tickEnds);
-    }
-
-    @Test
-    public void unregisterStopsTickDelivery() {
-        GameTestRunner runner = new GameTestRunner();
-        FakeInstance inst = new FakeInstance();
-        runner.run(Collections.singletonList(inst), () -> callbackRuns++);
-        runner.register();
-        runner.unregister();
-
-        tick();
-
-        assertEquals(0, inst.tickStarts);
-        assertEquals(0, inst.tickEnds);
-    }
-
-    @Test
-    public void unregisterFromNonActiveRunnerLeavesActiveRunnerInPlace() {
-        GameTestRunner active = new GameTestRunner();
-        FakeInstance inst = new FakeInstance();
-        active.run(Collections.singletonList(inst), () -> callbackRuns++);
-        active.register();
-
-        new GameTestRunner().unregister();
-        tick();
-
-        assertEquals(1, inst.tickStarts);
-        assertEquals(1, inst.tickEnds);
-    }
-
-    @Test
-    public void registerSilentlyOverwritesPreviousRunner() {
+    public void normalCompletionReleasesOwnership() {
         GameTestRunner first = new GameTestRunner();
-        FakeInstance firstInst = new FakeInstance();
-        first.run(Collections.singletonList(firstInst), () -> callbackRuns++);
-        first.register();
-
-        GameTestRunner second = new GameTestRunner();
-        FakeInstance secondInst = new FakeInstance();
-        second.run(Collections.singletonList(secondInst), null);
-        second.register();
+        FakeInstance completed = new FakeInstance();
+        completed.done = true;
+        assertTrue(first.tryStart(GameTestRunner.Kind.BATCH, () -> first.addInstance(completed)));
 
         tick();
 
-        assertEquals(0, firstInst.tickStarts);
-        assertEquals(0, firstInst.tickEnds);
-        assertEquals(1, secondInst.tickStarts);
-        assertEquals(1, secondInst.tickEnds);
+        GameTestRunner replacement = new GameTestRunner();
+        assertTrue(
+            replacement.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> replacement.addInstance(new FakeInstance())));
     }
 
     @Test
-    public void unregisterOfOverwrittenRunnerLeavesNewRunnerActive() {
-        GameTestRunner first = new GameTestRunner();
-        first.register();
-
-        GameTestRunner second = new GameTestRunner();
-        FakeInstance inst = new FakeInstance();
-        second.run(Collections.singletonList(inst), null);
-        second.register();
-
-        first.unregister();
-        tick();
-
-        assertEquals(1, inst.tickStarts);
-        assertEquals(1, inst.tickEnds);
-    }
-
-    @Test
-    public void overwrittenRunnerRetainsStateAndResumesAfterReRegister() {
-        GameTestRunner orphan = new GameTestRunner();
-        FakeInstance inst = new FakeInstance();
-        orphan.run(Collections.singletonList(inst), () -> callbackRuns++);
-        orphan.register();
-        new GameTestRunner().register();
-
-        tick();
-        assertEquals(0, inst.tickStarts);
-
-        orphan.register();
-        tick();
-        assertEquals(1, inst.tickStarts);
-        assertEquals(1, inst.tickEnds);
-
-        inst.done = true;
-        tick();
-        assertEquals(1, callbackRuns);
-    }
-
-    @Test
-    public void runnerStaysRegisteredAfterBatchCompletes() {
+    public void completionCallbackFiresOnceAndReleasesOwnership() {
+        int[] callbackRuns = new int[1];
         GameTestRunner runner = new GameTestRunner();
-        FakeInstance inst = new FakeInstance();
-        inst.done = true;
-        runner.run(Collections.singletonList(inst), () -> callbackRuns++);
-        runner.register();
+        FakeInstance instance = new FakeInstance();
+        assertTrue(
+            runner.tryStart(
+                GameTestRunner.Kind.BATCH,
+                () -> runner.run(Collections.singletonList(instance), () -> callbackRuns[0]++)));
 
         tick();
-        assertEquals(1, callbackRuns);
+        assertEquals(0, callbackRuns[0]);
 
-        FakeInstance late = new FakeInstance();
-        runner.addInstance(late);
+        instance.done = true;
+        tick();
         tick();
 
-        assertEquals(1, late.tickStarts);
-        assertEquals(1, late.tickEnds);
+        assertEquals(1, callbackRuns[0]);
+        assertTrue(new GameTestRunner().tryStart(GameTestRunner.Kind.INTERACTIVE, () -> {}));
     }
 
     @Test
-    public void completionCallbackFiresOnceWhenAllInstancesDone() {
+    public void startupFailureReleasesOwnership() {
         GameTestRunner runner = new GameTestRunner();
-        FakeInstance inst = new FakeInstance();
-        runner.run(Collections.singletonList(inst), () -> callbackRuns++);
-        runner.register();
+        IllegalStateException failure = assertThrows(
+            IllegalStateException.class,
+            () -> runner.tryStart(GameTestRunner.Kind.BATCH, () -> { throw new IllegalStateException("boom"); }));
 
-        tick();
-        assertEquals(0, callbackRuns);
-
-        inst.done = true;
-        tick();
-        assertEquals(1, callbackRuns);
-
-        tick();
-        assertEquals(1, callbackRuns);
-        assertEquals(1, inst.tickStarts);
-        assertEquals(1, inst.tickEnds);
+        assertEquals("boom", failure.getMessage());
+        assertFalse(GameTestRunner.isBatchActive());
+        assertTrue(new GameTestRunner().tryStart(GameTestRunner.Kind.INTERACTIVE, () -> {}));
     }
 
     @Test
-    public void rerunReplacesPendingBatchAndDropsItsCallback() {
+    public void firstTickFailureReleasesOwnership() {
         GameTestRunner runner = new GameTestRunner();
-        FakeInstance firstInst = new FakeInstance();
-        int[] firstCallbackRuns = new int[1];
-        runner.run(Collections.singletonList(firstInst), () -> firstCallbackRuns[0]++);
-        runner.register();
+        assertTrue(
+            runner.tryStart(
+                GameTestRunner.Kind.BATCH,
+                () -> runner.scheduleOnFirstTick(() -> { throw new IllegalStateException("boom"); })));
 
-        FakeInstance secondInst = new FakeInstance();
-        secondInst.done = true;
-        runner.run(Collections.singletonList(secondInst), () -> callbackRuns++);
+        IllegalStateException failure = assertThrows(IllegalStateException.class, GameTestRunner::handleTickStart);
 
+        assertEquals("boom", failure.getMessage());
+        assertFalse(GameTestRunner.isBatchActive());
+        assertTrue(new GameTestRunner().tryStart(GameTestRunner.Kind.INTERACTIVE, () -> {}));
+    }
+
+    @Test
+    public void completionFailureReleasesOwnership() {
+        GameTestRunner runner = new GameTestRunner();
+        FakeInstance completed = new FakeInstance();
+        completed.done = true;
+        assertTrue(
+            runner.tryStart(
+                GameTestRunner.Kind.BATCH,
+                () -> runner
+                    .run(Collections.singletonList(completed), () -> { throw new IllegalStateException("boom"); })));
+
+        GameTestRunner.handleTickStart();
+        IllegalStateException failure = assertThrows(IllegalStateException.class, GameTestRunner::handleTickEnd);
+
+        assertEquals("boom", failure.getMessage());
+        assertFalse(GameTestRunner.isBatchActive());
+        assertTrue(new GameTestRunner().tryStart(GameTestRunner.Kind.INTERACTIVE, () -> {}));
+    }
+
+    @Test
+    public void shutdownClearsOwnershipAndRunsInstanceCleanup() throws Exception {
+        cleanupCandidate = new GameTestRunner();
+        GameTestDefinition definition = new GameTestDefinition(
+            "horizonqatest:Runner.pending",
+            GameTestRunnerTest.class.getMethod("pendingTest", GameTestHelper.class),
+            "",
+            20,
+            "",
+            true,
+            0);
+        GameTestInstance instance = new GameTestInstance(definition, 0, 0, 0);
+        instance.start(null);
+        GameTestRunner runner = new GameTestRunner();
+        assertTrue(runner.tryStart(GameTestRunner.Kind.BATCH, () -> runner.addInstance(instance)));
+        assertTrue(GameTestRunner.isBatchActive());
+
+        GameTestRunner.shutdown();
+
+        assertFalse(GameTestRunner.isBatchActive());
+        assertFalse(GameTestRunner.isTurboActive());
+        assertEquals(1, cleanupRuns);
+        assertFalse(cleanupAcquiredOwnership);
+        assertEquals(GameTestStatus.ERROR, instance.getStatus());
+        assertTrue(instance.getFailureCause() instanceof GameTestInfrastructureException);
+        assertEquals("EXECUTION_ABORTED", ((GameTestInfrastructureException) instance.getFailureCause()).kind());
+        assertTrue(cleanupCandidate.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> {}));
+    }
+
+    @Test
+    public void emptyCompletionIsOneShot() {
+        int[] callbackRuns = new int[1];
+        GameTestRunner runner = new GameTestRunner();
+        assertTrue(
+            runner.tryStart(
+                GameTestRunner.Kind.BATCH,
+                () -> runner.run(Collections.emptyList(), () -> callbackRuns[0]++)));
+
+        GameTestRunner replacement = new GameTestRunner();
+        FakeInstance completed = new FakeInstance();
+        completed.done = true;
+        assertTrue(replacement.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> replacement.addInstance(completed)));
         tick();
 
-        assertEquals(0, firstInst.tickStarts);
-        assertEquals(0, firstCallbackRuns[0]);
-        assertEquals(1, callbackRuns);
+        assertEquals(1, callbackRuns[0]);
     }
 
     @Test
-    public void emptyBatchInvokesCallbackImmediatelyWithoutRegistration() {
+    public void unownedRunnerCannotSubmitWork() {
         GameTestRunner runner = new GameTestRunner();
-        runner.run(Collections.emptyList(), () -> callbackRuns++);
 
-        assertEquals(1, callbackRuns);
-    }
+        IllegalStateException failure = assertThrows(
+            IllegalStateException.class,
+            () -> runner.addInstance(new FakeInstance()));
 
-    @Test
-    public void emptyBatchWithNullCallbackIsNoOp() {
-        new GameTestRunner().run(Collections.emptyList(), null);
+        assertEquals("GameTest runner does not own execution.", failure.getMessage());
     }
 
     @Test
@@ -248,76 +284,16 @@ public class GameTestRunnerTest {
         assertArrayEquals(new int[] { 16, 128, -24 }, grid.allocateOrigin());
     }
 
-    @Test
-    public void emptyBatchCallbackRemainsArmedAndFiresAgainOnLaterCompletion() {
-        GameTestRunner runner = new GameTestRunner();
-        runner.run(Collections.emptyList(), () -> callbackRuns++);
-        runner.register();
-        assertEquals(1, callbackRuns);
-
-        FakeInstance inst = new FakeInstance();
-        inst.done = true;
-        runner.addInstance(inst);
-        tick();
-
-        assertEquals(2, callbackRuns);
-    }
-
-    @Test
-    public void emptyBatchCallbackExceptionPropagatesFromRun() {
-        GameTestRunner runner = new GameTestRunner();
-        try {
-            runner.run(Collections.emptyList(), () -> { throw new IllegalStateException("boom"); });
-            fail("expected callback exception to propagate");
-        } catch (IllegalStateException e) {
-            assertEquals("boom", e.getMessage());
-        }
-    }
-
-    @Test
-    public void completionCallbackExceptionPropagatesAndDisarmsCallback() {
-        GameTestRunner runner = new GameTestRunner();
-        FakeInstance inst = new FakeInstance();
-        inst.done = true;
-        runner.run(Collections.singletonList(inst), () -> {
-            callbackRuns++;
-            throw new IllegalStateException("boom");
+    public static void pendingTest(GameTestHelper helper) {
+        helper.afterTest(() -> {
+            cleanupRuns++;
+            GameTestRunner.shutdown();
+            cleanupAcquiredOwnership = cleanupCandidate.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> {});
         });
-        runner.register();
-
-        GameTestRunner.handleTickStart();
-        try {
-            GameTestRunner.handleTickEnd();
-            fail("expected callback exception to propagate");
-        } catch (IllegalStateException e) {
-            assertEquals("boom", e.getMessage());
-        }
-        assertEquals(1, callbackRuns);
-
-        tick();
-        assertEquals(1, callbackRuns);
-        assertEquals(0, inst.tickStarts);
-        assertEquals(0, inst.tickEnds);
     }
 
-    @Test
-    public void completedInstancesWithoutCallbackAreClearedOnTickEnd() {
-        GameTestRunner runner = new GameTestRunner();
-        FakeInstance inst = new FakeInstance();
-        inst.done = true;
-        runner.register();
-        runner.addInstance(inst);
-
-        tick();
-
-        // Flip the instance back to not-done: if it had survived the cleanup it would tick again below.
-        inst.done = false;
-        FakeInstance replacement = new FakeInstance();
-        runner.addInstance(replacement);
-        tick();
-
-        assertEquals(0, inst.tickStarts);
-        assertEquals(1, replacement.tickStarts);
-        assertEquals(1, replacement.tickEnds);
+    private static void tick() {
+        GameTestRunner.handleTickStart();
+        GameTestRunner.handleTickEnd();
     }
 }

@@ -4,13 +4,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.junit.After;
 import org.junit.Test;
 
 import com.gtnewhorizons.horizonqa.api.GameTestArguments;
@@ -23,84 +20,60 @@ import cpw.mods.fml.common.discovery.ASMDataTable;
 
 public class ParameterizedRegistryOrderingTest {
 
-    @After
-    public void clearAsmData() {
-        GameTestRegistry.setAsmData(null);
-    }
-
     @Test
     public void registryPreservesMethodSourceEncounterOrder() {
-        GameTestRegistry.setAsmData(holderAsmData(EncounterOrderTests.class));
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+        GameTestCatalog catalog = GameTestRegistry
+            .discoverTests(holderAsmData(EncounterOrderTests.class), modId -> true);
 
         assertTrue(
-            discovery.issues()
+            catalog.diagnostics()
+                .issues()
                 .isEmpty());
         assertTrue(
-            discovery.duplicateIds()
+            catalog.diagnostics()
+                .duplicateIds()
                 .isEmpty());
         assertEquals(
             Arrays.asList(
                 "matrix:EncounterOrderTests.inSourceOrder[zeta]",
                 "matrix:EncounterOrderTests.inSourceOrder[alpha]",
                 "matrix:EncounterOrderTests.inSourceOrder[middle]"),
-            testIds(discovery.validTests()));
+            testIds(catalog.tests()));
         assertEquals(
             Arrays.asList(0, 1, 2),
             Arrays.asList(
-                discovery.validTests()
+                catalog.tests()
                     .get(0)
                     .getCaseOrdinal(),
-                discovery.validTests()
+                catalog.tests()
                     .get(1)
                     .getCaseOrdinal(),
-                discovery.validTests()
+                catalog.tests()
                     .get(2)
                     .getCaseOrdinal()));
     }
 
     @Test
-    public void batchBuilderPreservesParameterizedEncounterOrder() throws Exception {
-        Method testMethod = EncounterOrderTests.class.getMethod("inSourceOrder", GameTestHelper.class, int.class);
-        String baseTestId = "matrix:EncounterOrderTests.inSourceOrder";
-        List<GameTestDefinition> definitions = Arrays.asList(
-            parameterized(baseTestId, "zeta", 0, testMethod),
-            parameterized(baseTestId, "alpha", 1, testMethod),
-            parameterized(baseTestId, "middle", 2, testMethod));
-
-        Method buildBatches = GameTestBatchRunner.class
-            .getDeclaredMethod("buildBatches", List.class, java.util.Map.class, java.util.Map.class);
-        buildBatches.setAccessible(true);
-        List<?> batches = (List<?>) buildBatches
-            .invoke(null, definitions, Collections.emptyMap(), Collections.emptyMap());
-        Field tests = batches.get(0)
-            .getClass()
-            .getDeclaredField("tests");
-        tests.setAccessible(true);
-
-        assertEquals(definitions, tests.get(batches.get(0)));
-    }
-
-    @Test
     public void duplicateBaseIdsAreRejectedEvenWhenCaseKeysDoNotOverlap() {
-        GameTestRegistry.setAsmData(holderAsmData(OverloadedParameterizedTests.class));
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+        GameTestCatalog catalog = GameTestRegistry
+            .discoverTests(holderAsmData(OverloadedParameterizedTests.class), modId -> true);
 
         assertTrue(
-            discovery.validTests()
+            catalog.tests()
                 .isEmpty());
         assertEquals(
             1,
-            discovery.duplicateIds()
+            catalog.diagnostics()
+                .duplicateIds()
                 .size());
         assertEquals(
             "matrix:OverloadedParameterizedTests.collides",
-            discovery.duplicateIds()
+            catalog.diagnostics()
+                .duplicateIds()
                 .get(0)
                 .testId());
-        String diagnostic = discovery.issues()
+        String diagnostic = catalog.diagnostics()
+            .issues()
             .get(0)
             .message();
         assertTrue(diagnostic.contains(GameTestHelper.class.getName()));
@@ -110,36 +83,22 @@ public class ParameterizedRegistryOrderingTest {
     @Test
     public void duplicateBaseIdsAreRejectedBeforeEitherSourceIsResolved() {
         MixedValidityDuplicateTests.validProviderInvoked = false;
-        GameTestRegistry.setAsmData(holderAsmData(MixedValidityDuplicateTests.class));
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+        GameTestCatalog catalog = GameTestRegistry
+            .discoverTests(holderAsmData(MixedValidityDuplicateTests.class), modId -> true);
 
         assertTrue(
-            discovery.validTests()
+            catalog.tests()
                 .isEmpty());
         assertEquals(
             1,
-            discovery.duplicateIds()
+            catalog.diagnostics()
+                .duplicateIds()
                 .size());
         assertTrue(
-            discovery.invalidTests()
+            catalog.diagnostics()
+                .invalidTests()
                 .isEmpty());
         assertFalse(MixedValidityDuplicateTests.validProviderInvoked);
-    }
-
-    private static GameTestDefinition parameterized(String baseTestId, String caseName, int caseOrdinal,
-        Method method) {
-        return GameTestDefinition.parameterized(
-            baseTestId,
-            caseName,
-            caseOrdinal,
-            method,
-            "",
-            20,
-            "matrix",
-            true,
-            0,
-            new Object[] { caseOrdinal });
     }
 
     private static List<String> testIds(List<GameTestDefinition> definitions) {

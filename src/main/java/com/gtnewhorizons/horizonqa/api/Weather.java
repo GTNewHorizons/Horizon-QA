@@ -3,9 +3,6 @@ package com.gtnewhorizons.horizonqa.api;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.storage.WorldInfo;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
-
-@Experimental
 public enum Weather {
 
     CLEAR(false, false),

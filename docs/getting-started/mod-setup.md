@@ -41,10 +41,10 @@ Local server runs use interactive mode by default, so no JVM property is require
 Automated server runs should use CI mode on the Minecraft server JVM:
 
 ```text
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
-`--mcJvmArgs` is provided by RetroFuturaGradle. Passing `-Dhorizonqa.mode=ci` directly to Gradle, or wiring it as ordinary Gradle JVM arguments, sets it on the wrong JVM.
+`--mcJvmArgs` is provided by RetroFuturaGradle. Repeat it for each JVM argument; RFG does not split a quoted value on spaces. Passing `-Dhorizonqa.mode=ci` directly to Gradle, or wiring it as ordinary Gradle JVM arguments, sets it on the wrong JVM.
 
 Use `-Dhorizonqa.mode=off` only when you want the mod on the classpath without commands, discovery, runner behavior, or test visuals. Batch execution, JUnit XML, and status JSON are server-side.
 

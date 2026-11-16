@@ -7,7 +7,6 @@ import net.minecraftforge.fluids.IFluidHandler;
 
 import com.gtnewhorizons.horizonqa.api.GameTestAssertException;
 import com.gtnewhorizons.horizonqa.api.TestPos;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 import com.gtnewhorizons.horizonqa.api.event.EUSupplyJobRegistered;
 import com.gtnewhorizons.horizonqa.api.event.HatchFilled;
 import com.gtnewhorizons.horizonqa.internal.TestEventRecorder;
@@ -20,7 +19,6 @@ import gregtech.api.metatileentity.implementations.MTEHatchMultiInput;
  * View of a hatch tile resolved from a controller. Fluid methods use the meta tile entity as {@link IFluidHandler},
  * same idea as {@link GTNHGameTestHelper#fillHatch}.
  */
-@Experimental
 public final class Hatch {
 
     private final IGregTechTileEntity te;
@@ -100,6 +98,19 @@ public final class Hatch {
     }
 
     /**
+     * Fills this hatch with {@code amount} mB of the fluid registered as {@code fluidName}.
+     *
+     * @throws IllegalArgumentException if {@code fluidName} is not a known fluid registry name
+     */
+    public Hatch fill(String fluidName, int amount) {
+        FluidStack fluid = FluidRegistry.getFluidStack(fluidName, amount);
+        if (fluid == null) {
+            throw new IllegalArgumentException("Unknown fluid registry name: " + fluidName);
+        }
+        return fill(fluid);
+    }
+
+    /**
      * Passes when the hatch contains at least {@code fluid.amount} mB of the given fluid.
      * Handles {@link MTEHatchMultiInput} correctly by checking all internal fluid slots rather
      * than relying on the single-slot {@code drain()} view.
@@ -133,6 +144,19 @@ public final class Hatch {
                 te.getYCoord(),
                 te.getZCoord());
         }
+    }
+
+    /**
+     * Passes when the hatch contains at least {@code amount} mB of the fluid registered as {@code fluidName}.
+     *
+     * @throws IllegalArgumentException if {@code fluidName} is not a known fluid registry name
+     */
+    public void assertContains(String fluidName, int amount) {
+        FluidStack fluid = FluidRegistry.getFluidStack(fluidName, amount);
+        if (fluid == null) {
+            throw new IllegalArgumentException("Unknown fluid registry name: " + fluidName);
+        }
+        assertContains(fluid);
     }
 
     /**

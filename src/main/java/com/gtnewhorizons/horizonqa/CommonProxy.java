@@ -1,6 +1,5 @@
 package com.gtnewhorizons.horizonqa;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,23 +12,20 @@ import net.minecraftforge.common.MinecraftForge;
 
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommand;
-import com.gtnewhorizons.horizonqa.internal.DiscoveryResult;
-import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
+import com.gtnewhorizons.horizonqa.internal.GameTestCatalog;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
+import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
+import com.gtnewhorizons.horizonqa.internal.ReportedRun;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.network.HorizonQANetwork;
-import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
-import com.gtnewhorizons.horizonqa.report.ReportPathPreflight;
-import com.gtnewhorizons.horizonqa.report.RunReportWriter;
-import com.gtnewhorizons.horizonqa.report.RunResult;
 import com.gtnewhorizons.horizonqa.visual.SelectionBoxRenderer;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
-import cpw.mods.fml.common.FMLCommonHandler;
+import cpw.mods.fml.common.discovery.ASMDataTable;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -39,6 +35,8 @@ import cpw.mods.fml.common.registry.GameRegistry;
 
 public class CommonProxy {
 
+    private ASMDataTable asmData;
+
     public void preInit(FMLPreInitializationEvent event) {
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());
 
@@ -46,10 +44,12 @@ public class CommonProxy {
         HorizonQAMod.LOG.info("I am " + HorizonQAMod.NAME + " at version " + Tags.VERSION);
         HorizonQAMod.LOG.info("Mode (-D{}): {}", HorizonQAProperties.MODE_PROPERTY, HorizonQAProperties.modeName());
         HorizonQAMod.LOG.info(
-            "Resolved Horizon-QA behavior: world={}, autoRun={}, stopServer={}, gridOrigin={}, interactiveFeatures={}",
+            "Resolved Horizon-QA behavior: world={}, autoRun={}, stopServer={}, turbo={}, gridOrigin={}, "
+                + "interactiveFeatures={}",
             HorizonQAProperties.worldPolicyName(),
             HorizonQAProperties.autoRunTests(),
             HorizonQAProperties.stopServerAfterRun(),
+            HorizonQAProperties.turboMultiplier(),
             HorizonQAProperties.gridOriginName(),
             HorizonQAProperties.interactiveFeaturesEnabled());
         if (HorizonQAProperties.hasModeError()) {
@@ -77,7 +77,7 @@ public class CommonProxy {
         }
 
         ForgeChunkManager.setForcedChunkLoadingCallback(HorizonQAMod.instance, HorizonQAMod.CHUNK_LOADER);
-        GameTestRegistry.setAsmData(event.getAsmData());
+        asmData = event.getAsmData();
 
         ItemHorizonWand.INSTANCE = new ItemHorizonWand();
         GameRegistry.registerItem(ItemHorizonWand.INSTANCE, "wand");
@@ -102,52 +102,31 @@ public class CommonProxy {
     public void postInit(FMLPostInitializationEvent event) {}
 
     public void serverStarting(FMLServerStartingEvent event) {
-        List<PropertyIssue> startupPropertyIssues = HorizonQAProperties.ciInfrastructureIssues();
-        boolean autoRunBlocked = false;
-        if (!startupPropertyIssues.isEmpty() || HorizonQAProperties.autoRunTests()) {
-            List<IssueResult> reportPathIssues = ReportPathPreflight
-                .check(HorizonQAProperties.junitReportFile(), HorizonQAProperties.statusReportFile());
-            if (!reportPathIssues.isEmpty()) {
-                logReportPathIssues(reportPathIssues);
-                RunResult result = preRunResult(reportPathIssues);
-                // The configured report outputs just failed preflight; retrying them can create partial or colliding
-                // files, so report this class of failure to the console only.
-                ConsoleReporter.report(result);
-                if (shouldStopAfterStartupFailure()) {
-                    FMLCommonHandler.instance()
-                        .exitJava(result.exitCode(), false);
-                    return;
-                }
-                autoRunBlocked = true;
-            }
-        }
-        if (!startupPropertyIssues.isEmpty() && !autoRunBlocked) {
-            logInfrastructureIssues(startupPropertyIssues);
-            RunResult result = preRunResult(toPropertyIssueResults(startupPropertyIssues));
-            result = writePreRunReport(result);
-            if (shouldStopAfterStartupFailure()) {
-                FMLCommonHandler.instance()
-                    .exitJava(result.exitCode(), false);
-                return;
-            }
-            autoRunBlocked = true;
+        ReportedRun.clearLastResult();
+        if (HorizonQAProperties.hasModeError()) {
+            ReportedRun.configurationFailure(CommonProxy::ciConfigurationIssues)
+                .start();
+            return;
         }
         if (HorizonQAProperties.isOff()) return;
 
         InteractiveTestSession.reset();
-        event.registerServerCommand(new HorizonQACommand());
 
         HorizonQAMod.LOG.info("Discovering tests...");
-        DiscoveryResult discovery = GameTestRegistry.discoverTests();
+        GameTestCatalog catalog = GameTestRegistry.discoverTests(asmData);
+        event.registerServerCommand(new HorizonQACommand(catalog));
 
-        if (!HorizonQAProperties.autoRunTests() || autoRunBlocked) return;
+        if (!HorizonQAProperties.autoRunTests()) return;
 
-        GameTestSelection selection = GameTestSelection.from(discovery);
+        GameTestSelection selection = catalog
+            .select(HorizonQAProperties.selectsAllTests(), HorizonQAProperties.testSelectors());
         List<SelectionIssue> infrastructureIssues = new ArrayList<>(selection.infrastructureIssues());
         if (selection.selectedTests()
             .isEmpty() && infrastructureIssues.isEmpty()
             && !HorizonQAProperties.allowNoTests()) {
-            infrastructureIssues.add(GameTestSelection.noSelectedTests(HorizonQAProperties.selectsAllTests()));
+            infrastructureIssues.add(
+                GameTestSelection
+                    .noSelectedTests(HorizonQAProperties.selectsAllTests(), HorizonQAProperties.rawTests()));
         }
         logSelectionIssues(infrastructureIssues);
         List<IssueResult> issues = toIssueResults(infrastructureIssues);
@@ -159,35 +138,34 @@ public class CommonProxy {
             } else {
                 HorizonQAMod.LOG.error("No selected valid tests. Nothing to run.");
             }
-            RunResult result = preRunResult(issues);
-            result = writePreRunReport(result);
-            if (HorizonQAProperties.stopServerAfterRun()) {
-                FMLCommonHandler.instance()
-                    .exitJava(result.exitCode(), false);
-            }
-            return;
         }
-
-        HorizonQAMod.LOG.info(
-            "Starting {} selected test(s) in auto-run mode.",
-            selection.selectedTests()
-                .size());
-        GameTestBatchRunner batchRunner = new GameTestBatchRunner(
+        ReportedRun.StartStatus status = new ReportedRun(
+            catalog,
             selection.selectedTests(),
-            discovery.beforeBatchMethods(),
-            discovery.afterBatchMethods(),
             issues,
-            HorizonQACommand::rememberReportedBatchResult);
-        batchRunner.start();
+            CommonProxy::ciConfigurationIssues).start();
+        if (status == ReportedRun.StartStatus.ALREADY_ACTIVE) {
+            HorizonQAMod.LOG.error("Could not start automatic reported run because execution is already active.");
+        } else if (status == ReportedRun.StartStatus.STARTED) {
+            HorizonQAMod.LOG.info(
+                "Starting {} selected test(s) in auto-run mode.",
+                selection.selectedTests()
+                    .size());
+        }
     }
 
     public void serverStopping(FMLServerStoppingEvent event) {
-        HorizonQACommand.resetReportBatchState();
-        GameTestBatchRunner.resetBatchRunningState();
+        boolean reportedRunReleasedChunks = ReportedRun.shutdown();
+        InteractiveTestSession.reset();
+        GameTestRunner.shutdown();
+        if (!reportedRunReleasedChunks) HorizonQAMod.CHUNK_LOADER.releaseAll();
+        ReportedRun.clearLastResult();
     }
 
-    private static boolean shouldStopAfterStartupFailure() {
-        return HorizonQAProperties.stopServerAfterRun() || HorizonQAProperties.hasModeError();
+    private static List<IssueResult> ciConfigurationIssues() {
+        List<PropertyIssue> issues = HorizonQAProperties.ciInfrastructureIssues();
+        logInfrastructureIssues(issues);
+        return toPropertyIssueResults(issues);
     }
 
     private static void logInfrastructureIssues(List<PropertyIssue> issues) {
@@ -210,22 +188,6 @@ public class CommonProxy {
                 HorizonQAProperties.TESTS_PROPERTY,
                 issue.message());
         }
-    }
-
-    private static void logReportPathIssues(List<IssueResult> issues) {
-        HorizonQAMod.LOG.error("Report path preflight failed; aborting before test discovery/execution.");
-        for (IssueResult issue : issues) {
-            HorizonQAMod.LOG.error("Infrastructure issue [{}] {}: {}", issue.id(), issue.name(), issue.message());
-        }
-    }
-
-    private static RunResult preRunResult(List<IssueResult> issues) {
-        File reportFile = HorizonQAProperties.junitReportFile();
-        return RunResult.preRun(HorizonQAProperties.modeName(), issues, reportFile.getPath());
-    }
-
-    private static RunResult writePreRunReport(RunResult result) {
-        return RunReportWriter.write(result, HorizonQAMod.LOG);
     }
 
     private static List<IssueResult> toIssueResults(List<SelectionIssue> issues) {

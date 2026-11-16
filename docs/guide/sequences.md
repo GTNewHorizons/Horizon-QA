@@ -120,7 +120,9 @@ START-phase actions after an initial idle run before the next world tick after t
 
 ## Assertions inside thenExecute
 
-Throw any `AssertionError` subclass. It propagates through the sequence and fails the test with the usual position context.
+Throw any `AssertionError` subclass. It propagates through the sequence and fails the test with the usual
+position and throwable type. Reports add the active step number, label, kind, phase, and declaration
+source without wrapping or replacing that original failure.
 
 ## Prefer state polling over fixed delays
 
@@ -146,6 +148,23 @@ helper.startSequence()
 
 Unlabeled steps are still identified automatically by their sequence index and source file line. Sequence state is
 also available through `getSteps()` and `getActiveStep()` for investigation tooling.
+
+## Step events and failure context
+
+Every step emits one `SequenceStepStarted` event when it first becomes active and one
+`SequenceStepFinished` event when it completes or fails. A wait that retries for many ticks still emits
+only that single pair. Its finish event retains the total attempt count and elapsed outer-test ticks as
+structured fields, while its human-readable summary omits timing for immediate steps and shows only the
+elapsed ticks when the counts are equal. Pending steps that never start do not emit a start event.
+
+Use labels for stable, readable automation output. An unlabeled event falls back to its declaration
+source. Event lines are included in JUnit `<system-out>`, each status JSON test's optional `output` array,
+and failed-case console tails when event recording is enabled. Horizon-QA deliberately does not emit an
+event for every wait attempt.
+
+The examples mod's optional
+[`simpleFail`](https://github.com/GTNewHorizons/Horizon-QA/blob/master/examples/src/main/java/com/gtnewhorizons/horizonqa/examples/tests/BasicTests.java)
+case is a runnable demonstration of labelled sequence failure output.
 
 ## Interaction with warp
 

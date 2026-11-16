@@ -23,10 +23,6 @@ sonar {
     properties {
         property("sonar.projectKey", "GTNewHorizons_Horizon-QA")
         property("sonar.organization", "gtnewhorizons")
-
-        // The examples module is exercised inside Minecraft by runServer, outside the unit-test JVM
-        // instrumented by JaCoCo. Keep it in static analysis without treating it as uncovered unit-test code.
-        property("sonar.coverage.exclusions", "examples/src/main/**")
     }
 }
 

@@ -45,28 +45,13 @@ public final class GameTestRegistry {
         .thenComparing(Method::getName)
         .thenComparing(GameTestRegistry::erasedMethodDescriptor);
 
-    private static ASMDataTable asmData;
-
-    private static final List<GameTestDefinition> ALL_TESTS = new ArrayList<>();
-    private static final Map<String, List<Method>> BEFORE_BATCH_METHODS = new LinkedHashMap<>();
-    private static final Map<String, List<Method>> AFTER_BATCH_METHODS = new LinkedHashMap<>();
-    private static DiscoveryResult lastDiscoveryResult = emptyResult();
-
     private GameTestRegistry() {}
 
-    public static void setAsmData(ASMDataTable data) {
-        asmData = data;
+    public static GameTestCatalog discoverTests(ASMDataTable asmData) {
+        return discoverTests(asmData, Loader::isModLoaded);
     }
 
-    public static DiscoveryResult discoverTests() {
-        return discoverTests(Loader::isModLoaded);
-    }
-
-    static DiscoveryResult discoverTests(Predicate<String> modLoaded) {
-        ALL_TESTS.clear();
-        BEFORE_BATCH_METHODS.clear();
-        AFTER_BATCH_METHODS.clear();
-
+    static GameTestCatalog discoverTests(ASMDataTable asmData, Predicate<String> modLoaded) {
         DiscoveryCollector collector = new DiscoveryCollector();
 
         if (asmData == null) {
@@ -310,7 +295,7 @@ public final class GameTestRegistry {
         return separator >= 0 ? className.substring(separator + 1) : className;
     }
 
-    private static DiscoveryResult publish(DiscoveryCollector collector, Set<String> duplicateIds,
+    private static GameTestCatalog publish(DiscoveryCollector collector, Set<String> duplicateIds,
         int holderAnnotationCount) {
 
         List<GameTestDefinition> validTests = new ArrayList<>();
@@ -329,18 +314,14 @@ public final class GameTestRegistry {
         List<DuplicateTestId> duplicateIdsList = sortedDuplicateIds(collector.duplicateIds);
         List<DiscoveryIssue> issues = sortedIssues(collector.issues);
 
-        ALL_TESTS.addAll(validTests);
-        copyHookMap(collector.beforeBatchMethods, BEFORE_BATCH_METHODS);
-        copyHookMap(collector.afterBatchMethods, AFTER_BATCH_METHODS);
-
-        lastDiscoveryResult = new DiscoveryResult(
-            immutableList(validTests),
-            immutableHookMap(collector.beforeBatchMethods),
-            immutableHookMap(collector.afterBatchMethods),
-            immutableList(invalidTests),
-            immutableList(invalidHooks),
-            immutableList(duplicateIdsList),
-            immutableList(issues));
+        GameTestCatalog catalog = new GameTestCatalog(
+            validTests,
+            collector.beforeBatchMethods,
+            collector.afterBatchMethods,
+            invalidTests,
+            invalidHooks,
+            duplicateIdsList,
+            issues);
 
         LOG.info(
             "Discovery complete: {} valid test(s), {} invalid test(s), {} invalid hook(s), {} duplicate id(s)"
@@ -350,7 +331,7 @@ public final class GameTestRegistry {
             collector.invalidHooks.size(),
             collector.duplicateIds.size(),
             holderAnnotationCount);
-        return lastDiscoveryResult;
+        return catalog;
     }
 
     private static void processHolderClass(Class<?> clazz, Set<String> duplicateIds, DiscoveryCollector collector) {
@@ -432,7 +413,7 @@ public final class GameTestRegistry {
                 collector.issues.add(issue);
                 LOG.warn(issue.message());
             }
-            collector.invalidTests.add(new InvalidTestDefinition(intendedTestId, method, immutableList(issues)));
+            collector.invalidTests.add(new InvalidTestDefinition(intendedTestId, method, issues));
             return;
         }
 
@@ -512,7 +493,7 @@ public final class GameTestRegistry {
                 collector.issues.add(issue);
                 LOG.warn(issue.message());
             }
-            collector.invalidHooks.add(new InvalidBatchHook(phase, batch, method, immutableList(issues)));
+            collector.invalidHooks.add(new InvalidBatchHook(phase, batch, method, issues));
             return;
         }
 
@@ -749,12 +730,8 @@ public final class GameTestRegistry {
                 "discovery:duplicateId:" + testId,
                 KIND_DUPLICATE_TEST_ID,
                 "Duplicate @GameTest id '" + testId + "' found in " + sourceRefs + "; all duplicates are excluded.");
-            collector.duplicateIds.add(
-                new DuplicateTestId(
-                    testId,
-                    immutableList(methods),
-                    immutableList(new ArrayList<>(holderClassNames)),
-                    parameterized));
+            collector.duplicateIds
+                .add(new DuplicateTestId(testId, methods, new ArrayList<>(holderClassNames), parameterized));
             collector.issues.add(issue);
             LOG.warn(issue.message());
         }
@@ -764,12 +741,6 @@ public final class GameTestRegistry {
     private static void sortHookMap(Map<String, List<Method>> hooks) {
         for (List<Method> methods : hooks.values()) {
             methods.sort(METHOD_ORDER);
-        }
-    }
-
-    private static void copyHookMap(Map<String, List<Method>> source, Map<String, List<Method>> target) {
-        for (Map.Entry<String, List<Method>> entry : source.entrySet()) {
-            target.put(entry.getKey(), new ArrayList<>(entry.getValue()));
         }
     }
 
@@ -852,77 +823,8 @@ public final class GameTestRegistry {
         return new DiscoveryIssue(id, kind, message);
     }
 
-    private static DiscoveryResult emptyResult() {
-        return new DiscoveryResult(
-            Collections.emptyList(),
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            Collections.emptyList(),
-            Collections.emptyList(),
-            Collections.emptyList(),
-            Collections.emptyList());
-    }
-
     private static <T> List<T> immutableList(List<T> source) {
         return Collections.unmodifiableList(new ArrayList<>(source));
-    }
-
-    private static Map<String, List<Method>> immutableHookMap(Map<String, List<Method>> source) {
-        Map<String, List<Method>> copy = new LinkedHashMap<>();
-        for (Map.Entry<String, List<Method>> entry : source.entrySet()) {
-            copy.put(entry.getKey(), immutableList(entry.getValue()));
-        }
-        return Collections.unmodifiableMap(copy);
-    }
-
-    public static List<GameTestDefinition> getAllTests() {
-        return Collections.unmodifiableList(ALL_TESTS);
-    }
-
-    public static List<GameTestDefinition> getTestsForBatch(String batchName) {
-        List<GameTestDefinition> result = new ArrayList<>();
-        for (GameTestDefinition def : ALL_TESTS) {
-            if (def.getBatch()
-                .equals(batchName)) result.add(def);
-        }
-        return result;
-    }
-
-    public static List<GameTestDefinition> getTestsForNamespace(String namespace) {
-        List<GameTestDefinition> result = new ArrayList<>();
-        for (GameTestDefinition def : ALL_TESTS) {
-            if (def.getTestId()
-                .startsWith(namespace + ":")) result.add(def);
-        }
-        return result;
-    }
-
-    public static Map<String, List<Method>> getBeforeBatchMethods() {
-        return Collections.unmodifiableMap(BEFORE_BATCH_METHODS);
-    }
-
-    public static Map<String, List<Method>> getAfterBatchMethods() {
-        return Collections.unmodifiableMap(AFTER_BATCH_METHODS);
-    }
-
-    public static DiscoveryResult getLastDiscoveryResult() {
-        return lastDiscoveryResult;
-    }
-
-    public static List<InvalidTestDefinition> getInvalidTests() {
-        return lastDiscoveryResult.invalidTests();
-    }
-
-    public static List<InvalidBatchHook> getInvalidHooks() {
-        return lastDiscoveryResult.invalidHooks();
-    }
-
-    public static List<DuplicateTestId> getDuplicateIds() {
-        return lastDiscoveryResult.duplicateIds();
-    }
-
-    public static List<DiscoveryIssue> getDiscoveryIssues() {
-        return lastDiscoveryResult.issues();
     }
 
     @Desugar

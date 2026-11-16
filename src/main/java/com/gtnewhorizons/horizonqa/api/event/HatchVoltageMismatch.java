@@ -2,9 +2,7 @@ package com.gtnewhorizons.horizonqa.api.event;
 
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.api.TestPos;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
-@Experimental
 @Desugar
 public record HatchVoltageMismatch(int tick, TestPos hatch, long suppliedVoltage, long hatchMaxVoltage)
     implements TestEvent {

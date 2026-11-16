@@ -36,6 +36,8 @@ public class HorizonQAPropertiesTest {
         assertNull(parsed.rawAutoRun());
         assertFalse(parsed.stopServerAfterRun());
         assertNull(parsed.rawStopServer());
+        assertEquals(1, parsed.turboMultiplier());
+        assertNull(parsed.rawTurbo());
         assertEquals(new HorizonQAProperties.GridOrigin(0, 64, 0), parsed.gridOrigin());
         assertNull(parsed.rawGridOrigin());
         assertTrue(parsed.selectsAllTests());
@@ -158,6 +160,7 @@ public class HorizonQAPropertiesTest {
         properties.setProperty(HorizonQAProperties.WORLD_PROPERTY, "normal");
         properties.setProperty(HorizonQAProperties.AUTO_RUN_PROPERTY, "false");
         properties.setProperty(HorizonQAProperties.STOP_SERVER_PROPERTY, "true");
+        properties.setProperty(HorizonQAProperties.TURBO_PROPERTY, " 10 ");
         properties.setProperty(HorizonQAProperties.GRID_ORIGIN_PROPERTY, " 16,128,-32 ");
         properties.setProperty(HorizonQAProperties.TESTS_PROPERTY, " moda , modb:Suite.test ");
         properties.setProperty(HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY, "true");
@@ -177,6 +180,8 @@ public class HorizonQAPropertiesTest {
         assertFalse(parsed.autoRunTests());
         assertEquals("true", parsed.rawStopServer());
         assertTrue(parsed.stopServerAfterRun());
+        assertEquals(" 10 ", parsed.rawTurbo());
+        assertEquals(10, parsed.turboMultiplier());
         assertEquals(" 16,128,-32 ", parsed.rawGridOrigin());
         assertEquals(new HorizonQAProperties.GridOrigin(16, 128, -32), parsed.gridOrigin());
         assertEquals(" moda , modb:Suite.test ", parsed.rawTests());
@@ -214,6 +219,7 @@ public class HorizonQAPropertiesTest {
         properties.setProperty(HorizonQAProperties.WORLD_PROPERTY, "flat");
         properties.setProperty(HorizonQAProperties.AUTO_RUN_PROPERTY, "yes");
         properties.setProperty(HorizonQAProperties.STOP_SERVER_PROPERTY, "no");
+        properties.setProperty(HorizonQAProperties.TURBO_PROPERTY, "101");
         properties.setProperty(HorizonQAProperties.GRID_ORIGIN_PROPERTY, "0,256,0");
         properties.setProperty(HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY, "yes");
         properties.setProperty(HorizonQAProperties.ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY, "yes");
@@ -226,6 +232,7 @@ public class HorizonQAPropertiesTest {
         assertEquals(HorizonQAProperties.WorldPolicy.NORMAL, parsed.worldPolicy());
         assertFalse(parsed.autoRunTests());
         assertFalse(parsed.stopServerAfterRun());
+        assertEquals(1, parsed.turboMultiplier());
         assertEquals(new HorizonQAProperties.GridOrigin(0, 64, 0), parsed.gridOrigin());
         assertFalse(parsed.allowNoTests());
         assertEquals("yes", parsed.rawAllowLegacyNumericItemIds());
@@ -236,13 +243,14 @@ public class HorizonQAPropertiesTest {
         assertConfigIssue(parsed, HorizonQAProperties.WORLD_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.AUTO_RUN_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.STOP_SERVER_PROPERTY);
+        assertConfigIssue(parsed, HorizonQAProperties.TURBO_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.GRID_ORIGIN_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.ALLOW_NO_TESTS_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.ALLOW_LEGACY_NUMERIC_ITEM_IDS_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.REPORT_FILE_PROPERTY);
         assertConfigIssue(parsed, HorizonQAProperties.EVENTS_PROPERTY);
         assertEquals(
-            9,
+            10,
             parsed.issues()
                 .size());
     }

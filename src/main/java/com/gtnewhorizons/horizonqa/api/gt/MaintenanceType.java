@@ -1,10 +1,7 @@
 package com.gtnewhorizons.horizonqa.api.gt;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
-
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 
-@Experimental
 public enum MaintenanceType {
 
     WRENCH,

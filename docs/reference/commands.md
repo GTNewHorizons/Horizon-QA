@@ -37,18 +37,21 @@ For example, `/horizonqa runall IOPortTests` selects that holder across namespac
 `/horizonqa runall appliedenergistics2:IOPortTests.fillMode` selects a group of methods. Use
 `/horizonqa run <testId>` when exactly one full test ID must run.
 
-When the server starts in a non-interactive reported-batch configuration, such as `-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false`, `run`, `runall`, and `runfailed` use the CI batch runner and write JUnit XML plus status JSON after the batch completes. The server stays running unless `-Dhorizonqa.stopServer=true` is set.
+When the server starts in a non-interactive reported configuration, such as
+`-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false`, `run`, `runall`, and `runfailed` start a Reported Run and write JUnit XML
+plus status JSON after it completes. The server stays running unless `-Dhorizonqa.stopServer=true` is set.
 
 In normal interactive mode, those commands launch the selected tests directly for inspection. Interactive launches do not order tests by `GameTest.batch()` and do not invoke `@BeforeBatch` or `@AfterBatch`.
 
 `runfailed` is mode-sensitive:
 
 - Interactive mode reruns tests that are still marked failed in the current interactive session. A successful rerun removes a test from that set.
-- Reported mode reruns failures remembered from the most recent reported batch.
+- Reported mode reruns failures from the most recent Reported Run result.
 
 `runthis`, `runthat`, `pos`, `clearall`, and `load` are restricted to interactive features. `tp` also depends on cells created by the interactive session and has no reported-batch cells to target.
 
-Only one batch runner can be active at a time. If an automatic or reported batch is running, commands that launch, relaunch, or clear tests (`run`, `runall`, `runfailed`, `runthis`, `runthat`, and `clearall`) are rejected until the active batch finishes.
+Only one test execution owner can be active at a time. If a Reported Run is active, commands that launch, relaunch, or
+clear tests (`run`, `runall`, `runfailed`, `runthis`, `runthat`, and `clearall`) are rejected until it finishes.
 
 ## Export requirements
 

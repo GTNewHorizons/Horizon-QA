@@ -35,7 +35,7 @@ The site is served at `http://127.0.0.1:8000` with live reload.
 
 - [ ] Behavior matches an existing design principle or extends one deliberately
 - [ ] Failure output remains actionable (event log + JUnit XML)
-- [ ] Public API changes marked `@Stable` / `@Experimental` appropriately
+- [ ] Public API changes follow the versioning policy and are documented
 - [ ] Examples mod updated if the feature is user-visible
 - [ ] MkDocs pages updated for author-facing changes
 

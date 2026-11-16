@@ -55,7 +55,8 @@ public record CaseResult(String id, String classname, String name, Status status
         Throwable cause = failureCauseForReport(inst);
         String failureMessage = failureMessage(inst, cause);
         String failureType = failureType(inst, cause);
-        String failureTrace = inst.getStatus() == GameTestStatus.SKIPPED ? "" : cause != null ? stackTrace(cause) : "";
+        String failureTrace = inst.getStatus() == GameTestStatus.SKIPPED ? ""
+            : cause != null ? failureTrace(inst, cause) : "";
 
         List<String> output = new ArrayList<>();
         addParameterSummary(definition, output);
@@ -259,10 +260,11 @@ public record CaseResult(String id, String classname, String name, Status status
                 : "Runtime assumption was not satisfied";
         }
         if (status == GameTestStatus.ERROR) {
-            return errorMessage(cause, "Cleanup callback failed");
+            return withFailureContext(inst, cause, errorMessage(cause, "Cleanup callback failed"));
         }
         if (status == GameTestStatus.FAILED) {
-            return cause != null && cause.getMessage() != null ? cause.getMessage() : "Test failed";
+            String message = cause != null && cause.getMessage() != null ? cause.getMessage() : "Test failed";
+            return withFailureContext(inst, cause, message);
         }
         if (status == GameTestStatus.TIMED_OUT) {
             return cause != null && cause.getMessage() != null ? cause.getMessage()
@@ -300,6 +302,7 @@ public record CaseResult(String id, String classname, String name, Status status
 
     private static Throwable failureCauseForReport(GameTestInstance inst) {
         if (inst.getStatus() == GameTestStatus.ERROR) {
+            if (inst.isExecutionAborted()) return inst.getFailureCause();
             return inst.getCleanupFailureCause() != null ? inst.getCleanupFailureCause() : inst.getFailureCause();
         }
         return inst.getFailureCause();
@@ -315,6 +318,19 @@ public record CaseResult(String id, String classname, String name, Status status
                 .getName();
         }
         return message;
+    }
+
+    private static String withFailureContext(GameTestInstance inst, Throwable cause, String message) {
+        String context = inst.getFailureContext();
+        if (context.isEmpty() || cause != inst.getFailureCause()) return message;
+        return context + ": " + message;
+    }
+
+    private static String failureTrace(GameTestInstance inst, Throwable cause) {
+        String trace = stackTrace(cause);
+        String context = inst.getFailureContext();
+        if (context.isEmpty() || cause != inst.getFailureCause()) return trace;
+        return context + System.lineSeparator() + trace;
     }
 
     private static String formatEvent(TestEvent event) {

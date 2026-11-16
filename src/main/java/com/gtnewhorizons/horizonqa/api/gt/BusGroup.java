@@ -7,12 +7,10 @@ import net.minecraft.item.ItemStack;
 
 import com.gtnewhorizons.horizonqa.api.GameTestAssertException;
 import com.gtnewhorizons.horizonqa.api.TestPos;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
 /**
  * Collection of {@link Bus} instances from {@link Multiblock#inputs()} or {@link Multiblock#outputs()}.
  */
-@Experimental
 public final class BusGroup {
 
     private final List<Bus> buses = new ArrayList<>();

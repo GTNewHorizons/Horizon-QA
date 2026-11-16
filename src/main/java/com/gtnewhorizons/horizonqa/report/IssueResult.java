@@ -42,7 +42,7 @@ public record IssueResult(String id, String kind, String classname, String name,
             issue.fatalInCi());
     }
 
-    public static IssueResult reporting(String reporter, String target, Exception error) {
+    public static IssueResult reporting(String reporter, String target, Throwable error) {
         String name = reporter == null || reporter.isEmpty() ? "report" : reporter;
         String message = error != null && error.getMessage() != null ? error.getMessage() : "unknown reporting error";
         String id = "reporting:" + name;
@@ -71,7 +71,7 @@ public record IssueResult(String id, String kind, String classname, String name,
             stackTrace(error));
     }
 
-    private static String stackTrace(Exception error) {
+    private static String stackTrace(Throwable error) {
         if (error == null) {
             return "";
         }

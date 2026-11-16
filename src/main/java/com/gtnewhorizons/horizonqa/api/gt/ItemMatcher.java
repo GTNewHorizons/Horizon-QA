@@ -4,13 +4,10 @@ import java.util.function.Predicate;
 
 import net.minecraft.item.ItemStack;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
-
 /**
  * Predicate for {@link Bus#assertContains} and {@link BusGroup# assertContains}. Default matching ignores stack size;
  * use {@link #count(int)} to require a minimum amount in the matched slot.
  */
-@Experimental
 public final class ItemMatcher {
 
     private final Predicate<ItemStack> predicate;

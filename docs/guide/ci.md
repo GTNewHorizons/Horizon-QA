@@ -11,16 +11,16 @@ Horizon-QA CI runs are normal dedicated-server runs with the Horizon-QA mode set
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci"
 ```
 
-`--mcJvmArgs` is provided by RetroFuturaGradle (RFG). Do not pass `-Dhorizonqa.mode=ci` directly to Gradle; that sets the property on the Gradle daemon, where the Minecraft server cannot read it.
+`--mcJvmArgs` is provided by RetroFuturaGradle (RFG). Repeat the option for each JVM argument; RFG does not split a quoted value on spaces. Do not pass `-Dhorizonqa.mode=ci` directly to Gradle; that sets the property on the Gradle daemon, where the Minecraft server cannot read it.
 
 In `horizonqa.mode=ci`, Horizon-QA discovers tests, runs the selected batch automatically after the server is ready, writes reports, and exits the process with a deterministic status code. Local authoring should use `horizonqa.mode=interactive` or omit the mode property, because interactive is the default.
 
 ```mermaid
 flowchart LR
     accTitle: CI process boundary and outputs
-    accDescr: The runServer command forwards Minecraft JVM arguments to the server, which runs a reported batch and produces three outputs.
+    accDescr: The runServer command forwards Minecraft JVM arguments to the server, which runs a Reported Run and produces three outputs.
     Gradle["runServer with --mcJvmArgs"] --> JVM["Minecraft server JVM"]
-    JVM --> Batch["Horizon-QA reported batch"]
+    JVM --> Batch["Horizon-QA Reported Run"]
     Batch --> XML["TEST-horizonqa.xml"]
     Batch --> JSON["horizonqa-result.json"]
     Batch --> Exit["Process exit 0, 1, or 2"]
@@ -29,26 +29,34 @@ flowchart LR
 Use `horizonqa.mode=ci -Dhorizonqa.autoRun=false` when you want report files from a manually-started non-interactive batch without CI lifetime management:
 
 ```text
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.autoRun=false --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
-Manual reported batches use the same report formats as automatic CI and default to the same void world policy. Then run `/horizonqa run <testId>`, `/horizonqa runall [selector]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` and `horizonqa.allowNoTests` only affect automatic execution; for manual reported batches, use the command arguments to choose tests.
+Manual Reported Runs use the same report formats as automatic CI and default to the same void world policy. Then run
+`/horizonqa run <testId>`, `/horizonqa runall [selector]`, or `/horizonqa runfailed`. The run writes JUnit XML and status
+JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests`
+and `horizonqa.allowNoTests` only affect automatic execution; for manual runs, use the command arguments to choose tests.
 
 Modes are presets. Override specific behavior when the workflow needs it:
 
 ```text
 # Use the configured or existing world instead of Horizon-QA's void world
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.world=normal"
+./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.world=normal
 
 # Run automatically but keep the server up afterward
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.stopServer=false"
+./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.stopServer=false
 
 # Place the test grid at Y=128
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.world=normal -Dhorizonqa.gridOrigin=0,128,0"
+./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.autoRun=false --mcJvmArgs=-Dhorizonqa.world=normal --mcJvmArgs=-Dhorizonqa.gridOrigin=0,128,0
 
 # Manual reported batches with CI overrides
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.autoRun=false --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+
+# Bounded tick acceleration during the reported batch
+./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.turbo=10 --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
+
+`horizonqa.turbo` accepts `1` through `100` and defaults to `1`. A value above `1` runs that many complete server tick bodies per normal tick slot only while a reported batch is active under CI server behavior. It suppresses tick-scheduled autosaves and `Can't keep up!` warnings during that window. It does not accelerate interactive test sessions or leave the server accelerated after the batch.
 
 ## Report files
 
@@ -62,8 +70,8 @@ horizonqa-result.json
 For CI, send them to a predictable artifact directory:
 
 ```text
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
-./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.autoRun=false --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
 Report path flags:
@@ -94,7 +102,9 @@ Relative paths resolve from the Minecraft server process working directory, whic
 | `name`       | Method name, with `[caseName]` for a parameterized case |
 | `time`       | Duration in seconds (`testTicks / 20`) |
 
-Required assertion failures and timeouts are emitted as `<failure>`. Infrastructure problems such as cleanup, template, configuration, selection, report-path, and reporting failures are emitted as `<error>`. Optional failures and intentional skips are emitted as `<skipped>` so JUnit publishers can show them without failing the suite aggregate. Intentional skips put their reason in the element's `message` attribute.
+Required assertion failures and timeouts are emitted as `<failure>`. Infrastructure problems known before JUnit writing, such as cleanup, template, configuration, selection, and report-path failures, are emitted as `<error>`. Optional failures and intentional skips are emitted as `<skipped>` so JUnit publishers can show them without failing the suite aggregate. Intentional skips put their reason in the element's `message` attribute.
+
+Reports are attempted once in order: console, status JSON, then JUnit XML. A report-sink failure is added to the run result for later sinks and the process exit code, so JUnit describes any console or status-reporting failure. If JUnit itself fails, no JUnit artifact can describe that failure.
 
 Parameterized cases include a `parameters=[…]` line in `<system-out>`. When event recording is enabled, each
 `<testcase>` may also include ordered `[t=NNN] [category] summary` lines there. The server console prints a compact
@@ -108,11 +118,11 @@ Disable event recording only for performance investigations:
 
 ## Status JSON schema
 
-`horizonqa-result.json` is the compact automation surface. Schema version `2` has this top-level shape:
+`horizonqa-result.json` is the compact automation surface. Schema version `3` has this top-level shape:
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "status": "passed",
   "exitCode": 0,
   "configuration": {
@@ -124,6 +134,8 @@ Disable event recording only for performance investigations:
     "rawAutoRun": null,
     "stopServer": true,
     "rawStopServer": null,
+    "turbo": 1,
+    "rawTurbo": null,
     "gridOrigin": "0,64,0",
     "rawGridOrigin": null,
     "tests": null,
@@ -160,10 +172,12 @@ Disable event recording only for performance investigations:
 
 Each `issues[]` entry contains `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` /
 `stackTrace`. Each `tests[]` entry contains `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`,
-optional `parameters` for a parameterized case, optional `blockedByIssueId`, optional `failure` details, or
-`skipReason` / `skipType` for an intentional skip.
+optional `parameters` for a parameterized case, optional `output` lines, optional `blockedByIssueId`, optional
+`failure` details, or `skipReason` / `skipType` for an intentional skip.
 
-Schema version `2` adds the `skipped` count, the per-test `skipped` status, and `skipReason` / `skipType`.
+Schema version `3` adds the per-test `output` array. It contains the same parameter, warning, and ordered event
+lines used for JUnit `<system-out>`; the field is omitted when there is no output. Schema version `2` added the
+`skipped` count, the per-test `skipped` status, and `skipReason` / `skipType`.
 
 Status values are:
 
@@ -234,6 +248,11 @@ A test is intentionally skipped when its holder has a missing `requiredMods` ent
 
 Setup-blocked cases remain `notStarted` with `blockedByIssueId`; they are not intentional assumptions and their underlying infrastructure issue still produces exit code `2`.
 
+If the server stops or reported execution aborts before completion, active cases become `error` with failure type
+`EXECUTION_ABORTED`. Selected cases that did not start remain `notStarted` and reference the fatal run-level abort issue.
+The run still attempts batch and instance cleanup, writes its reports, and exits with infrastructure status `2`; a
+server-stopping callback never starts a second process exit.
+
 ## GitHub Actions handling
 
 Always upload reports with `if: always()` so failed tests still leave artifacts. Publish JUnit XML from a later `always()` step, then let the original `runServer` exit code fail the job.
@@ -262,7 +281,8 @@ jobs:
       - name: Run Horizon-QA
         run: >
           ./gradlew runServer
-          --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=${{ github.workspace }}/build/horizonqa"
+          --mcJvmArgs=-Dhorizonqa.mode=ci
+          --mcJvmArgs="-Dhorizonqa.reportDir=${{ github.workspace }}/build/horizonqa"
 
       - name: Upload Horizon-QA reports
         if: always()
@@ -281,6 +301,10 @@ If your workflow uses a JUnit publishing action, run it after the upload step wi
 Work from the artifacts before relaunching anything: the `<failure>` message, the event trace in `<system-out>`, and `issues[]` in the status JSON usually identify the cause on their own. The triage workflow, including a failure-signature table and the in-game reproduction loop, is in [Debugging failed tests](debugging.md).
 
 ```text
-read TEST-horizonqa.xml → runServer (interactive) → /horizonqa runfailed
-                        → fix → /horizonqa runthis → push
+read TEST-horizonqa.xml → identify failed test ID → runServer (interactive)
+                        → /horizonqa run <testId> → fix → /horizonqa runthis → push
 ```
+
+`/horizonqa runfailed` repeats failures remembered in the current runtime; it does not
+read a downloaded CI report. If batch hooks matter, use the manual Reported Run
+instructions above instead.

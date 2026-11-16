@@ -55,10 +55,11 @@ Set the mode on the **Minecraft server JVM**:
 
 ```bash
 ./gradlew runServer \
-  --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+  --mcJvmArgs=-Dhorizonqa.mode=ci \
+  --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
-RetroFuturaGradle forwards `--mcJvmArgs` to Minecraft. Passing `-Dhorizonqa.mode=ci` directly to Gradle sets it on the Gradle daemon, where Horizon-QA cannot read it.
+RetroFuturaGradle forwards `--mcJvmArgs` to Minecraft. Repeat the option for each JVM argument; RFG does not split a quoted value on spaces. Passing `-Dhorizonqa.mode=ci` directly to Gradle sets it on the Gradle daemon, where Horizon-QA cannot read it.
 
 The CI preset:
 
@@ -72,7 +73,9 @@ Use `horizonqa.tests` to select a namespace, holder class, or test-ID prefix:
 
 ```bash
 ./gradlew runServer \
-  --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.tests=mymod -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+  --mcJvmArgs=-Dhorizonqa.mode=ci \
+  --mcJvmArgs=-Dhorizonqa.tests=mymod \
+  --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
 See [CI and JUnit reports](../guide/ci.md) for selectors, report schemas, optional tests, exit codes, and a GitHub Actions example.
@@ -83,7 +86,9 @@ Use CI mode with automatic startup execution disabled when you want reports but 
 
 ```bash
 ./gradlew runServer \
-  --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+  --mcJvmArgs=-Dhorizonqa.mode=ci \
+  --mcJvmArgs=-Dhorizonqa.autoRun=false \
+  --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
 Then run `/horizonqa run`, `/horizonqa runall`, or `/horizonqa runfailed`. These commands write reports when the batch completes. In this mode, `runfailed` uses failures remembered from the most recent reported batch.

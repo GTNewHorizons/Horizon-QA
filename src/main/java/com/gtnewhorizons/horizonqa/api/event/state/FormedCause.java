@@ -1,9 +1,6 @@
 package com.gtnewhorizons.horizonqa.api.event.state;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
-
 /** Why a {@code MachineFormed} event was emitted. Lets readers distinguish the three legitimate sources. */
-@Experimental
 public enum FormedCause {
 
     /** Controller already reported {@code mMachine == true} the first time the recorder polled it. */

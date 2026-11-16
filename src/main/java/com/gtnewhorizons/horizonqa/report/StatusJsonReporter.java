@@ -9,7 +9,7 @@ import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 
 public final class StatusJsonReporter {
 
-    private static final int SCHEMA_VERSION = 2;
+    private static final int SCHEMA_VERSION = 3;
 
     private StatusJsonReporter() {}
 
@@ -51,6 +51,8 @@ public final class StatusJsonReporter {
         configFirst = appendStringField(out, 2, "rawAutoRun", HorizonQAProperties.rawAutoRun(), configFirst);
         configFirst = appendBooleanField(out, 2, "stopServer", HorizonQAProperties.stopServerAfterRun(), configFirst);
         configFirst = appendStringField(out, 2, "rawStopServer", HorizonQAProperties.rawStopServer(), configFirst);
+        configFirst = appendNumberField(out, 2, "turbo", HorizonQAProperties.turboMultiplier(), configFirst);
+        configFirst = appendStringField(out, 2, "rawTurbo", HorizonQAProperties.rawTurbo(), configFirst);
         configFirst = appendStringField(out, 2, "gridOrigin", HorizonQAProperties.gridOriginName(), configFirst);
         configFirst = appendStringField(out, 2, "rawGridOrigin", HorizonQAProperties.rawGridOrigin(), configFirst);
         configFirst = appendStringField(out, 2, "tests", HorizonQAProperties.rawTests(), configFirst);
@@ -199,6 +201,10 @@ public final class StatusJsonReporter {
         if (hasText(resultCase.parameterSummary())) {
             first = appendStringField(out, 3, "parameters", resultCase.parameterSummary(), first);
         }
+        if (!resultCase.outputLines()
+            .isEmpty()) {
+            first = appendStringArrayField(out, 3, "output", resultCase.outputLines(), first);
+        }
         if (hasText(resultCase.blockedByIssueId())) {
             first = appendStringField(out, 3, "blockedByIssueId", resultCase.blockedByIssueId(), first);
         }
@@ -278,6 +284,30 @@ public final class StatusJsonReporter {
         appendQuoted(out, name);
         out.append(": ")
             .append(value);
+        return false;
+    }
+
+    private static boolean appendStringArrayField(StringBuilder out, int indentation, String name,
+        Iterable<String> values, boolean first) {
+        appendFieldPrefix(out, indentation, first);
+        appendQuoted(out, name);
+        out.append(": [");
+        boolean valueFirst = true;
+        for (String value : values) {
+            if (valueFirst) {
+                out.append('\n');
+                valueFirst = false;
+            } else {
+                out.append(",\n");
+            }
+            indent(out, indentation + 1);
+            appendQuoted(out, value);
+        }
+        if (!valueFirst) {
+            out.append('\n');
+            indent(out, indentation);
+        }
+        out.append(']');
         return false;
     }
 

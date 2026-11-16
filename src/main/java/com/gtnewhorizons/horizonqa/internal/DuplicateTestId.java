@@ -13,6 +13,11 @@ import com.github.bsideup.jabel.Desugar;
 public record DuplicateTestId(String testId, List<Method> methods, List<String> holderClassNames,
     boolean parameterized) {
 
+    public DuplicateTestId {
+        methods = Collections.unmodifiableList(new ArrayList<>(methods));
+        holderClassNames = Collections.unmodifiableList(new ArrayList<>(holderClassNames));
+    }
+
     public DuplicateTestId(String testId, List<Method> methods) {
         this(testId, methods, holderClassNames(methods), false);
     }
@@ -30,6 +35,6 @@ public record DuplicateTestId(String testId, List<Method> methods, List<String> 
                         .getName());
             }
         }
-        return Collections.unmodifiableList(new ArrayList<>(names));
+        return new ArrayList<>(names);
     }
 }

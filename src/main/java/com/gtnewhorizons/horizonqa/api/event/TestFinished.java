@@ -1,7 +1,6 @@
 package com.gtnewhorizons.horizonqa.api.event;
 
 import com.github.bsideup.jabel.Desugar;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
 /**
  * Emitted after test cleanup has run and the final status is known.
@@ -9,7 +8,6 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
  * @param status one of {@code passed}, {@code skipped}, {@code failed}, {@code timed out}, or
  *               {@code error}
  */
-@Experimental
 @Desugar
 public record TestFinished(int tick, String testId, String status, int simulatedTicks) implements TestEvent {
 

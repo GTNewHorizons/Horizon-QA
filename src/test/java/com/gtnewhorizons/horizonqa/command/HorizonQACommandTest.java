@@ -6,12 +6,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.command.ICommandSender;
@@ -23,112 +21,80 @@ import net.minecraft.world.World;
 import org.junit.After;
 import org.junit.Test;
 
+import com.gtnewhorizons.horizonqa.api.GameTestArguments;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
-import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
-import com.gtnewhorizons.horizonqa.internal.DiscoveryIssue;
-import com.gtnewhorizons.horizonqa.internal.DiscoveryResult;
-import com.gtnewhorizons.horizonqa.internal.DuplicateTestId;
-import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
+import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
+import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
+import com.gtnewhorizons.horizonqa.api.annotation.MethodSource;
+import com.gtnewhorizons.horizonqa.internal.GameTestCatalog;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
+import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
-import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook;
-import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
+import com.gtnewhorizons.horizonqa.internal.ReportedRun;
+import com.gtnewhorizons.horizonqa.internal.TestCell;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.RunResult;
+
+import cpw.mods.fml.common.discovery.ASMDataTable;
 
 public class HorizonQACommandTest {
 
     @After
-    public void clearRegistry() throws Exception {
-        seedRegistry(Collections.emptyList(), Collections.emptyList());
+    public void clearExecution() {
+        GameTestRunner.shutdown();
         InteractiveTestSession.reset();
-        HorizonQACommand.resetReportBatchState();
+        ReportedRun.clearLastResult();
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void tabCompletionListsOnlyRunnableTests() throws Exception {
-        seedRegistry(
-            Collections.singletonList(definition("good:Suite.valid")),
-            Collections.singletonList(invalid("bad:Broken.invalid")));
-
-        HorizonQACommand command = new HorizonQACommand();
+    public void tabCompletionListsOnlyRunnableTests() {
+        HorizonQACommand command = new HorizonQACommand(catalog(RunnableTests.class, InvalidTests.class));
 
         List<String> runCompletions = command
             .addTabCompletionOptions(new RecordingSender(), new String[] { "run", "" });
-        assertTrue(runCompletions.contains("good:Suite.valid"));
-        assertFalse(runCompletions.contains("bad:Broken.invalid"));
+        assertTrue(runCompletions.contains("good:RunnableTests.valid"));
+        assertFalse(runCompletions.contains("bad:InvalidTests.invalid"));
 
         List<String> runAllCompletions = command
             .addTabCompletionOptions(new RecordingSender(), new String[] { "runall", "" });
         assertTrue(runAllCompletions.contains("good"));
-        assertTrue(runAllCompletions.contains("DummyTests"));
-        assertTrue(runAllCompletions.contains("good:Suite"));
-        assertTrue(runAllCompletions.contains("good:Suite.valid"));
+        assertTrue(runAllCompletions.contains("RunnableTests"));
+        assertTrue(runAllCompletions.contains("good:RunnableTests"));
+        assertTrue(runAllCompletions.contains("good:RunnableTests.valid"));
         assertFalse(runAllCompletions.contains("bad"));
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void runAllCompletionUsesParameterizedBaseIdentity() throws Exception {
-        GameTestDefinition parameterized = GameTestDefinition.parameterized(
-            "good:Suite.acceptsVoltage",
-            "tier.4",
-            0,
-            DummyTests.class.getMethod("parameterized", GameTestHelper.class, int.class),
-            "",
-            20,
-            "",
-            true,
-            0,
-            new Object[] { 32 });
-        seedRegistry(Collections.singletonList(parameterized), Collections.emptyList());
-
-        List<String> completions = new HorizonQACommand()
+    public void runAllCompletionUsesParameterizedBaseIdentity() {
+        List<String> completions = new HorizonQACommand(catalog(ParameterizedTests.class))
             .addTabCompletionOptions(new RecordingSender(), new String[] { "runall", "" });
 
-        assertTrue(completions.contains("good:Suite.acceptsVoltage"));
-        assertTrue(completions.contains("good:Suite.acceptsVoltage[tier.4]"));
-        assertFalse(completions.contains("good:Suite.acceptsVoltage[tier"));
-    }
-
-    @Test
-    public void runAllSelectionAcceptsHolderAndTestIdPrefix() throws Exception {
-        GameTestDefinition dummyFirst = definition("good:DummyTests.first", DummyTests.class);
-        GameTestDefinition dummySecond = definition("good:DummyTests.second", DummyTests.class);
-        GameTestDefinition other = definition("good:OtherTests.third", OtherTests.class);
-        seedRegistry(Arrays.asList(dummyFirst, dummySecond, other), Collections.emptyList());
-
-        assertEquals(Arrays.asList(dummyFirst, dummySecond), HorizonQACommand.selectRunAllTests("DummyTests"));
-        assertEquals(Collections.singletonList(dummySecond), HorizonQACommand.selectRunAllTests("good:DummyTests.sec"));
+        assertTrue(completions.contains("good:ParameterizedTests.acceptsVoltage"));
+        assertTrue(completions.contains("good:ParameterizedTests.acceptsVoltage[tier.4]"));
+        assertFalse(completions.contains("good:ParameterizedTests.acceptsVoltage[tier"));
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void teleportTabCompletionListsOnlyPlacedCells() throws Exception {
-        seedRegistry(
-            Arrays.asList(definition("good:Suite.placed"), definition("good:Suite.notPlaced")),
-            Collections.emptyList());
-        Map<String, CellRecord> knownCells = (Map<String, CellRecord>) sessionField("knownCells")
+    public void teleportTabCompletionListsOnlyPlacedCells() throws ReflectiveOperationException {
+        java.util.Map<String, TestCell> knownCells = (java.util.Map<String, TestCell>) sessionField("knownCells")
             .get(InteractiveTestSession.get());
-        knownCells.put("good:Suite.placed", new CellRecord("good:Suite.placed", 0, 64, 0, 0, 64, 0, 4, 68, 4));
+        knownCells
+            .put("good:RunnableTests.placed", new TestCell("good:RunnableTests.placed", 0, 64, 0, 0, 64, 0, 4, 68, 4));
 
-        List<String> completions = new HorizonQACommand()
+        List<String> completions = new HorizonQACommand(catalog(RunnableTests.class))
             .addTabCompletionOptions(new RecordingSender(), new String[] { "tp", "" });
 
-        assertTrue(completions.contains("good:Suite.placed"));
-        assertFalse(completions.contains("good:Suite.notPlaced"));
+        assertTrue(completions.contains("good:RunnableTests.placed"));
+        assertFalse(completions.contains("good:RunnableTests.notPlaced"));
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void loadTabCompletionListsDiscoveredTemplates() throws Exception {
-        seedRegistry(
-            Arrays
-                .asList(definition("good:Suite.withTemplate", "good:machines/ebf"), definition("good:Suite.empty", "")),
-            Collections.emptyList());
-
-        List<String> completions = new HorizonQACommand()
+    public void loadTabCompletionListsDiscoveredTemplates() {
+        List<String> completions = new HorizonQACommand(catalog(RunnableTests.class))
             .addTabCompletionOptions(new RecordingSender(), new String[] { "load", "" });
 
         assertTrue(completions.contains("good:machines/ebf"));
@@ -147,15 +113,13 @@ public class HorizonQACommandTest {
     }
 
     @Test
-    public void runKnownInvalidTestReportsInvalidInsteadOfUnknown() throws Exception {
-        String invalidId = "bad:Broken.invalid";
-        seedRegistry(
-            Collections.singletonList(definition("good:Suite.valid")),
-            Collections.singletonList(invalid(invalidId)));
+    public void runKnownInvalidTestReportsInvalidInsteadOfUnknown() {
+        String invalidId = "bad:InvalidTests.invalid";
 
         RecordingSender sender = new RecordingSender();
 
-        new HorizonQACommand().processCommand(sender, new String[] { "run", invalidId });
+        new HorizonQACommand(catalog(RunnableTests.class, InvalidTests.class))
+            .processCommand(sender, new String[] { "run", invalidId });
 
         String messages = sender.messages();
         assertTrue(messages.contains("Invalid test"));
@@ -165,8 +129,7 @@ public class HorizonQACommandTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void rememberedReportedBatchResultKeepsFailedIdsForRunfailed() throws Exception {
+    public void reportedResultSuppliesFailedIdsForRunfailed() {
         RunResult result = RunResult.completedCases(
             "ci",
             Arrays.asList(
@@ -178,9 +141,7 @@ public class HorizonQACommandTest {
             Collections.emptyList(),
             "TEST.xml");
 
-        HorizonQACommand.rememberReportedBatchResult(result);
-
-        Set<String> failedIds = (Set<String>) commandField("LAST_REPORTED_FAILED_IDS").get(null);
+        Set<String> failedIds = HorizonQACommand.failedIds(result);
         assertFalse(failedIds.contains("mod:Suite.passed"));
         assertFalse(failedIds.contains("mod:Suite.skipped"));
         assertTrue(failedIds.contains("mod:Suite.failed"));
@@ -190,7 +151,7 @@ public class HorizonQACommandTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void clearAllClearsInteractiveFailedIds() throws Exception {
+    public void clearAllClearsInteractiveFailedIds() throws ReflectiveOperationException {
         Set<String> failedIds = (Set<String>) sessionField("failedIds").get(InteractiveTestSession.get());
         failedIds.add("mod:Suite.failed");
 
@@ -198,39 +159,6 @@ public class HorizonQACommandTest {
             .clearAll();
 
         assertTrue(failedIds.isEmpty());
-    }
-
-    private static GameTestDefinition definition(String testId) throws Exception {
-        return definition(testId, "");
-    }
-
-    private static GameTestDefinition definition(String testId, String templateName) throws Exception {
-        return definition(testId, templateName, DummyTests.class);
-    }
-
-    private static GameTestDefinition definition(String testId, Class<?> holderClass) throws Exception {
-        return definition(testId, "", holderClass);
-    }
-
-    private static GameTestDefinition definition(String testId, String templateName, Class<?> holderClass)
-        throws Exception {
-
-        return new GameTestDefinition(
-            testId,
-            holderClass.getMethod("test", GameTestHelper.class),
-            templateName,
-            20,
-            "",
-            true,
-            0);
-    }
-
-    private static InvalidTestDefinition invalid(String testId) throws Exception {
-        DiscoveryIssue issue = new DiscoveryIssue(
-            "discovery:invalidTest:" + testId + ":modifiers",
-            "DISCOVERY_ERROR",
-            "Skipping @GameTest method 'invalid' in 'DummyTests': must be public static.");
-        return new InvalidTestDefinition(testId, dummyMethod(), Collections.singletonList(issue));
     }
 
     private static CaseResult caseResult(String testId, CaseResult.Status status) {
@@ -241,61 +169,61 @@ public class HorizonQACommandTest {
         return new CaseResult(testId, classname, name, status, true, 0, 0.0, "", "", "", Collections.emptyList());
     }
 
-    private static Method dummyMethod() throws Exception {
-        return DummyTests.class.getMethod("test", GameTestHelper.class);
+    private static GameTestCatalog catalog(Class<?>... holders) {
+        ASMDataTable table = new ASMDataTable();
+        for (Class<?> holder : holders) {
+            table.addASMData(
+                null,
+                GameTestHolder.class.getName(),
+                holder.getName(),
+                holder.getName(),
+                Collections.emptyMap());
+        }
+        return GameTestRegistry.discoverTests(table);
     }
 
-    @SuppressWarnings("unchecked")
-    private static void seedRegistry(List<GameTestDefinition> validTests, List<InvalidTestDefinition> invalidTests)
-        throws Exception {
-
-        List<GameTestDefinition> allTests = (List<GameTestDefinition>) field("ALL_TESTS").get(null);
-        allTests.clear();
-        allTests.addAll(validTests);
-
-        ((Map<String, List<Method>>) field("BEFORE_BATCH_METHODS").get(null)).clear();
-        ((Map<String, List<Method>>) field("AFTER_BATCH_METHODS").get(null)).clear();
-
-        field("lastDiscoveryResult").set(
-            null,
-            new DiscoveryResult(
-                validTests,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                invalidTests,
-                Collections.<InvalidBatchHook>emptyList(),
-                Collections.<DuplicateTestId>emptyList(),
-                Collections.<DiscoveryIssue>emptyList()));
-    }
-
-    private static Field field(String name) throws Exception {
-        Field field = GameTestRegistry.class.getDeclaredField(name);
-        field.setAccessible(true);
-        return field;
-    }
-
-    private static Field commandField(String name) throws Exception {
-        Field field = HorizonQACommand.class.getDeclaredField(name);
-        field.setAccessible(true);
-        return field;
-    }
-
-    private static Field sessionField(String name) throws Exception {
+    private static Field sessionField(String name) throws NoSuchFieldException {
         Field field = InteractiveTestSession.class.getDeclaredField(name);
         field.setAccessible(true);
         return field;
     }
 
-    public static final class DummyTests {
+    @GameTestHolder("good")
+    public static final class RunnableTests {
 
-        public static void test(GameTestHelper helper) {}
+        @GameTest
+        public static void valid(GameTestHelper helper) {}
 
-        public static void parameterized(GameTestHelper helper, int voltage) {}
+        @GameTest
+        public static void placed(GameTestHelper helper) {}
+
+        @GameTest
+        public static void notPlaced(GameTestHelper helper) {}
+
+        @GameTest(template = "machines/ebf")
+        public static void withTemplate(GameTestHelper helper) {}
+
+        @GameTest
+        public static void empty(GameTestHelper helper) {}
     }
 
-    public static final class OtherTests {
+    @GameTestHolder("good")
+    public static final class ParameterizedTests {
 
-        public static void test(GameTestHelper helper) {}
+        @GameTest
+        @MethodSource("rows")
+        public static void acceptsVoltage(GameTestHelper helper, int voltage) {}
+
+        public static List<GameTestArguments> rows() {
+            return Collections.singletonList(GameTestArguments.named("tier.4", 32));
+        }
+    }
+
+    @GameTestHolder("bad")
+    public static final class InvalidTests {
+
+        @GameTest
+        private static void invalid(GameTestHelper helper) {}
     }
 
     private static final class RecordingSender implements ICommandSender {

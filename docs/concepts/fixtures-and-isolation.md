@@ -56,9 +56,10 @@ See [Structure templates](../guide/structures.md) for export, file formats, labe
 
 ## Interactive template loading
 
-Reported execution treats a missing or unreadable template as a `TEMPLATE_ERROR` and does not start that test.
-
-The current interactive runner logs the load failure and continues with an empty cell. If an interactive fixture appears absent, check the server log before debugging assertions. Use reported execution when the template-load failure itself needs deterministic classification.
+Reported and interactive execution treat a missing, unreadable, invalid, or partially placed template as a
+`TEMPLATE_ERROR` and do not start that test. Interactive execution reserves a cell for a pink error marker; reported
+execution includes the failure in its result protocol. Independent fixtures continue preparing after one fixture
+fails.
 
 ## Coordinate spaces
 

@@ -5,7 +5,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -14,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import org.junit.After;
 import org.junit.Test;
 
 import com.gtnewhorizons.horizonqa.api.GameTestArguments;
@@ -24,84 +22,62 @@ import com.gtnewhorizons.horizonqa.api.annotation.BeforeBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
 import com.gtnewhorizons.horizonqa.api.annotation.MethodSource;
-import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook.HookPhase;
 
 import cpw.mods.fml.common.discovery.ASMDataTable;
 
 public class GameTestRegistryTest {
 
-    @After
-    public void clearAsmData() {
-        GameTestRegistry.setAsmData(null);
-    }
-
     @Test
-    public void beforeBatchHooksMustReturnVoid() throws Exception {
-        Method method = Hooks.class.getMethod("nonVoidBefore");
+    public void beforeBatchHooksMustReturnVoid() {
+        GameTestCatalog catalog = GameTestRegistry.discoverTests(holderAsmData(Hooks.class), modId -> true);
+        DiscoveryIssue issue = findIssue(
+            catalog,
+            "discovery:invalidHook:before:" + Hooks.class.getName() + "#nonVoidBefore:returnType");
 
-        List<DiscoveryIssue> issues = collectBatchMethodIssues(method, HookPhase.BEFORE);
-
-        assertEquals(1, issues.size());
-        assertEquals(
-            "discovery:invalidHook:before:" + Hooks.class.getName() + "#nonVoidBefore:returnType",
-            issues.get(0)
-                .id());
-        assertEquals(
-            "DISCOVERY_ERROR",
-            issues.get(0)
-                .kind());
+        assertEquals("DISCOVERY_ERROR", issue.kind());
         assertTrue(
-            issues.get(0)
-                .message()
+            issue.message()
                 .contains("must return void"));
     }
 
     @Test
-    public void afterBatchHooksMustReturnVoid() throws Exception {
-        Method method = Hooks.class.getMethod("nonVoidAfter");
+    public void afterBatchHooksMustReturnVoid() {
+        GameTestCatalog catalog = GameTestRegistry.discoverTests(holderAsmData(Hooks.class), modId -> true);
+        DiscoveryIssue issue = findIssue(
+            catalog,
+            "discovery:invalidHook:after:" + Hooks.class.getName() + "#nonVoidAfter:returnType");
 
-        List<DiscoveryIssue> issues = collectBatchMethodIssues(method, HookPhase.AFTER);
-
-        assertEquals(1, issues.size());
-        assertEquals(
-            "discovery:invalidHook:after:" + Hooks.class.getName() + "#nonVoidAfter:returnType",
-            issues.get(0)
-                .id());
-        assertEquals(
-            "DISCOVERY_ERROR",
-            issues.get(0)
-                .kind());
+        assertEquals("DISCOVERY_ERROR", issue.kind());
         assertTrue(
-            issues.get(0)
-                .message()
+            issue.message()
                 .contains("must return void"));
     }
 
     @Test
     public void publicStaticVoidNoArgBatchHooksAreValid() throws Exception {
-        Method method = Hooks.class.getMethod("validBefore");
+        GameTestCatalog catalog = GameTestRegistry.discoverTests(holderAsmData(Hooks.class), modId -> true);
 
-        List<DiscoveryIssue> issues = collectBatchMethodIssues(method, HookPhase.BEFORE);
-
-        assertTrue(issues.isEmpty());
+        assertEquals(
+            Collections.singletonList(Hooks.class.getMethod("validBefore")),
+            catalog.batchHooks("setup")
+                .beforeMethods());
     }
 
     @Test
     public void missingRequiredModGatesHolderFromAsmWithoutLoadingItsDefinition() {
         String holderClassName = GameTestRegistryTest.class.getName() + "$ModGatedTests";
         ASMDataTable table = gatedAsmData(holderClassName);
-        GameTestRegistry.setAsmData(table);
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> false);
+        GameTestCatalog catalog = GameTestRegistry.discoverTests(table, modId -> false);
 
         assertTrue(
-            discovery.issues()
+            catalog.diagnostics()
+                .issues()
                 .isEmpty());
         assertEquals(
             1,
-            discovery.validTests()
+            catalog.tests()
                 .size());
-        GameTestDefinition definition = discovery.validTests()
+        GameTestDefinition definition = catalog.tests()
             .get(0);
         assertEquals("testmod:ModGatedTests.gated", definition.getTestId());
         assertEquals(holderClassName, definition.getHolderClassName());
@@ -117,18 +93,17 @@ public class GameTestRegistryTest {
     @Test
     public void presentRequiredModLoadsAndReflectivelyValidatesHolder() {
         String holderClassName = ModGatedTests.class.getName();
-        GameTestRegistry.setAsmData(gatedAsmData(holderClassName));
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests("optionalmod"::equals);
+        GameTestCatalog catalog = GameTestRegistry.discoverTests(gatedAsmData(holderClassName), "optionalmod"::equals);
 
         assertTrue(
-            discovery.issues()
+            catalog.diagnostics()
+                .issues()
                 .isEmpty());
         assertEquals(
             1,
-            discovery.validTests()
+            catalog.tests()
                 .size());
-        GameTestDefinition definition = discovery.validTests()
+        GameTestDefinition definition = catalog.tests()
             .get(0);
         assertFalse(definition.isSkippedAtDiscovery());
         assertEquals(
@@ -147,16 +122,14 @@ public class GameTestRegistryTest {
             holderClassName,
             "gated(Lcom/gtnewhorizons/horizonqa/api/GameTestHelper;)V",
             Collections.emptyMap());
-        GameTestRegistry.setAsmData(table);
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> false);
+        GameTestCatalog catalog = GameTestRegistry.discoverTests(table, modId -> false);
 
         assertEquals(
             1,
-            discovery.validTests()
+            catalog.tests()
                 .size());
         assertTrue(
-            discovery.validTests()
+            catalog.tests()
                 .get(0)
                 .isUnresolvedCaseFamily());
     }
@@ -167,18 +140,18 @@ public class GameTestRegistryTest {
         String secondHolder = "missing.second.ModGatedTests";
         ASMDataTable table = gatedAsmData(firstHolder);
         addGatedAsmData(table, secondHolder);
-        GameTestRegistry.setAsmData(table);
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> false);
+        GameTestCatalog catalog = GameTestRegistry.discoverTests(table, modId -> false);
 
         assertTrue(
-            discovery.validTests()
+            catalog.tests()
                 .isEmpty());
         assertEquals(
             1,
-            discovery.duplicateIds()
+            catalog.diagnostics()
+                .duplicateIds()
                 .size());
-        DuplicateTestId duplicate = discovery.duplicateIds()
+        DuplicateTestId duplicate = catalog.diagnostics()
+            .duplicateIds()
             .get(0);
         assertTrue(
             duplicate.holderClassNames()
@@ -190,30 +163,30 @@ public class GameTestRegistryTest {
 
     @Test
     public void methodSourceExpandsNamedRowsAndPassesArgumentsToEachInvocation() {
-        GameTestRegistry.setAsmData(holderAsmData(ParameterizedTests.class));
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+        GameTestCatalog catalog = GameTestRegistry
+            .discoverTests(holderAsmData(ParameterizedTests.class), modId -> true);
 
         assertTrue(
-            discovery.issues()
+            catalog.diagnostics()
+                .issues()
                 .isEmpty());
         assertEquals(
             2,
-            discovery.validTests()
+            catalog.tests()
                 .size());
         assertEquals(
             "matrix:ParameterizedTests.acceptsVoltage[lv]",
-            discovery.validTests()
+            catalog.tests()
                 .get(0)
                 .getTestId());
         assertEquals(
             "matrix:ParameterizedTests.acceptsVoltage[mv]",
-            discovery.validTests()
+            catalog.tests()
                 .get(1)
                 .getTestId());
 
         ParameterizedTests.observed.clear();
-        for (GameTestDefinition definition : discovery.validTests()) {
+        for (GameTestDefinition definition : catalog.tests()) {
             GameTestInstance instance = new GameTestInstance(definition, 0, 0, 0);
             instance.start(null);
             assertEquals(GameTestStatus.PASSED, instance.getStatus());
@@ -223,44 +196,45 @@ public class GameTestRegistryTest {
 
     @Test
     public void emptyMethodSourceValueUsesTestMethodNameAndIndexedCaseIds() {
-        GameTestRegistry.setAsmData(holderAsmData(DefaultNamedSourceTests.class));
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+        GameTestCatalog catalog = GameTestRegistry
+            .discoverTests(holderAsmData(DefaultNamedSourceTests.class), modId -> true);
 
         assertTrue(
-            discovery.issues()
+            catalog.diagnostics()
+                .issues()
                 .isEmpty());
         assertEquals(
             Arrays.asList("matrix:DefaultNamedSourceTests.fluid[0]", "matrix:DefaultNamedSourceTests.fluid[1]"),
             Arrays.asList(
-                discovery.validTests()
+                catalog.tests()
                     .get(0)
                     .getTestId(),
-                discovery.validTests()
+                catalog.tests()
                     .get(1)
                     .getTestId()));
         assertEquals(
             "water",
-            discovery.validTests()
+            catalog.tests()
                 .get(0)
                 .getArguments()[0]);
     }
 
     @Test
     public void duplicateMethodSourceNamesExcludeTheParameterizedMethod() {
-        GameTestRegistry.setAsmData(holderAsmData(DuplicateSourceNames.class));
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+        GameTestCatalog catalog = GameTestRegistry
+            .discoverTests(holderAsmData(DuplicateSourceNames.class), modId -> true);
 
         assertTrue(
-            discovery.validTests()
+            catalog.tests()
                 .isEmpty());
         assertEquals(
             1,
-            discovery.invalidTests()
+            catalog.diagnostics()
+                .invalidTests()
                 .size());
         assertTrue(
-            discovery.issues()
+            catalog.diagnostics()
+                .issues()
                 .get(0)
                 .message()
                 .contains("duplicate case name 'same'"));
@@ -268,19 +242,20 @@ public class GameTestRegistryTest {
 
     @Test
     public void incompatibleMethodSourceArgumentsExcludeTheParameterizedMethod() {
-        GameTestRegistry.setAsmData(holderAsmData(IncompatibleSourceArguments.class));
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+        GameTestCatalog catalog = GameTestRegistry
+            .discoverTests(holderAsmData(IncompatibleSourceArguments.class), modId -> true);
 
         assertTrue(
-            discovery.validTests()
+            catalog.tests()
                 .isEmpty());
         assertEquals(
             1,
-            discovery.invalidTests()
+            catalog.diagnostics()
+                .invalidTests()
                 .size());
         assertTrue(
-            discovery.issues()
+            catalog.diagnostics()
+                .issues()
                 .get(0)
                 .message()
                 .contains("java.lang.String, which cannot be passed to int"));
@@ -288,19 +263,20 @@ public class GameTestRegistryTest {
 
     @Test
     public void unsafeArgumentMaterializationBecomesADiscoveryIssue() {
-        GameTestRegistry.setAsmData(holderAsmData(DeeplyNestedSourceArguments.class));
-
-        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+        GameTestCatalog catalog = GameTestRegistry
+            .discoverTests(holderAsmData(DeeplyNestedSourceArguments.class), modId -> true);
 
         assertTrue(
-            discovery.validTests()
+            catalog.tests()
                 .isEmpty());
         assertEquals(
             1,
-            discovery.invalidTests()
+            catalog.diagnostics()
+                .invalidTests()
                 .size());
         assertTrue(
-            discovery.issues()
+            catalog.diagnostics()
+                .issues()
                 .get(0)
                 .message()
                 .contains("argument arrays may be nested at most 64 levels"));
@@ -344,16 +320,16 @@ public class GameTestRegistryTest {
             testInfo);
     }
 
-    private static List<DiscoveryIssue> collectBatchMethodIssues(Method method, HookPhase phase) throws Exception {
-        Method validator = GameTestRegistry.class
-            .getDeclaredMethod("collectBatchMethodIssues", Method.class, HookPhase.class, List.class);
-        validator.setAccessible(true);
-
-        List<DiscoveryIssue> issues = new ArrayList<>();
-        validator.invoke(null, method, phase, issues);
-        return issues;
+    private static DiscoveryIssue findIssue(GameTestCatalog catalog, String id) {
+        for (DiscoveryIssue issue : catalog.diagnostics()
+            .issues()) {
+            if (issue.id()
+                .equals(id)) return issue;
+        }
+        throw new AssertionError("Discovery issue not found: " + id);
     }
 
+    @GameTestHolder("hooks")
     public static final class Hooks {
 
         @BeforeBatch("setup")

@@ -5,7 +5,9 @@ description: Emitted event types, trace timing, JUnit output, warp differ behavi
 
 # Test event log
 
-Every test owns an ordered log of typed events. Reported batches write that log to the test case's JUnit `<system-out>`. The CI console summary also prints the last 20 trace lines for a failed case.
+Every test owns an ordered log of typed events. Reported batches write that log to the test case's JUnit
+`<system-out>` and to the test's optional status JSON `output` array. The CI console summary also prints
+the last 20 trace lines for a failed case.
 
 Interactive failures are logged immediately, but they do not print the same 20-line console tail. Use the in-world cell and `helper.getRecorder()` when investigating an interactive run.
 
@@ -49,7 +51,9 @@ Events come from three places:
 
 1. **Author-facing helpers** record successful setup or assertion-related actions such as bus insertion, fluid filling, EU job registration, maintenance repair, and temporary recipe changes.
 2. **The warp differ** snapshots watched controllers and emits formation, recipe, maintenance, and explosion transitions.
-3. **The test instance and runners** record test start, failure, finish, and supported isolation failures. The reported batch runner also records successful structure placement.
+3. **Sequences and named per-tick callbacks** record step boundaries, callback registration, and actual callback state changes.
+4. **Fixture preparation, the test instance, and runners** record successful structure placement, test start,
+   failure, finish, and supported isolation failures.
 
 `Multiblock.runRecipe` watches its controller automatically. `fastForwardTicks(n)` does not watch any controller unless the absolute positions are passed to its overload.
 
@@ -61,7 +65,7 @@ This catalog lists event records with active emit sites in the current implement
 
 | Record | Emitted when |
 |---|---|
-| `StructurePlaced` | The reported batch runner places a template successfully |
+| `StructurePlaced` | Fixture preparation places a template successfully |
 | `TestStarted` | The test body is about to run |
 | `WarpStarted` | A time-warp begins |
 | `WarpFinished` | A time-warp ends |
@@ -76,6 +80,23 @@ instance, so they do not emit test events.
 - `completed` when a fixed warp runs its full length.
 - `predicate` when a stop condition succeeds before the bound.
 - `timeout` when a conditional warp reaches the bound.
+
+### Sequences and per-tick callbacks
+
+| Record | Emitted when |
+|---|---|
+| `SequenceStepStarted` | A sequence step makes its first action or condition attempt |
+| `SequenceStepFinished` | A sequence step completes or fails |
+| `TickCallbackStateChanged` | A named callback is registered or actually changes enabled/removed state |
+
+Wait retries do not emit additional start events or one event per attempt. `SequenceStepFinished`
+contains the final outcome, attempts, and elapsed outer-test ticks. Unlabeled
+steps use their declaration source as the event label.
+
+Callback state is one of `registered-enabled`, `registered-disabled`, `enabled`, `disabled`, or
+`removed`. Idempotent state operations and attempts to change a removed handle emit nothing. Callback
+failures retain their original throwable and assertion position while report messages add the callback
+name. Successful per-tick invocations do not emit one event per tick.
 
 ### Structure and safety
 

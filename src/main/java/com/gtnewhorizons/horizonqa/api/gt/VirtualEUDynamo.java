@@ -8,13 +8,11 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.WorldServer;
 
 import com.gtnewhorizons.horizonqa.api.TestPos;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 import com.gtnewhorizons.horizonqa.api.event.EUBufferOverflow;
 import com.gtnewhorizons.horizonqa.internal.TestEventRecorder;
 
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 
-@Experimental
 class VirtualEUDynamo {
 
     private final List<EUSupplyJob> jobs = new ArrayList<>();

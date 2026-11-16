@@ -1,9 +1,7 @@
 package com.gtnewhorizons.horizonqa.api.event;
 
 import com.github.bsideup.jabel.Desugar;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
-@Experimental
 @Desugar
 public record WarpStarted(int tick, int maxTicks, int watchedControllers) implements TestEvent {
 

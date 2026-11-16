@@ -7,8 +7,6 @@ import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
-
 /**
  * Traverses {@link NBTTagCompound} structures using dotted-path notation.
  * <p>
@@ -22,7 +20,6 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
  * <li>{@code "ForgeCaps.mymod:cap\\.subkey"} key containing a literal dot</li>
  * </ul>
  */
-@Experimental
 public final class NBTPathAccessor {
 
     private static final Field TAG_LIST_FIELD;

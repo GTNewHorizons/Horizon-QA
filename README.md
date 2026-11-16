@@ -12,12 +12,13 @@ A key strength of Horizon QA is verifying that machines *don't* behave incorrect
 @GameTest(template = "ebf_no_coils", timeoutTicks = 60)
 public static void doesNotFormWithoutCoils(GameTestHelper helper) {
     Multiblock ebf = helper.gtnh().multiblock(helper.pos("controller"));
-    helper.onEachTick(() -> helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
+    helper.onEachTick("EBF remains unformed", () ->
+        helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
     helper.succeedAtTimeout();
 }
 ```
 
-`onEachTick` re-runs the assertion every tick for the full 60-tick window, so any transient formation is caught immediately. `succeedAtTimeout` marks the test passed only if it reaches the end without triggering the assertion.
+`onEachTick` re-runs the named assertion every tick for the full 60-tick window, so any transient formation is caught immediately and reports identify the failing invariant. `succeedAtTimeout` marks the test passed only if it reaches the end without triggering the assertion.
 
 ## Features
 * **Java API**: Define tests using standard `@GameTest` annotations and the GameTestHelper class for assertions.

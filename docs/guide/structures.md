@@ -149,9 +149,10 @@ Coordinate-based helpers accept raw test-local coordinates, a test-local `TestPo
 
 ## Placement in the grid
 
-The reported batch runner places each test's template into a dedicated grid cell with margin for clearance. CI defaults to Horizon-QA's void world, but `-Dhorizonqa.world=normal` leaves the server's configured or existing world type in place, and `-Dhorizonqa.gridOrigin=x,y,z` moves the grid start. Successful reported placement emits `StructurePlaced` in the [event log](../reference/events.md). A missing or invalid template becomes a reported infrastructure error.
+Fixture preparation places each test's template into a dedicated grid cell with margin for clearance. CI defaults to Horizon-QA's void world, but `-Dhorizonqa.world=normal` leaves the server's configured or existing world type in place, and `-Dhorizonqa.gridOrigin=x,y,z` moves the grid start. Every successful placement emits `StructurePlaced` in the [event log](../reference/events.md). A missing or invalid template becomes an infrastructure error without starting the affected test.
 
-The normal interactive runner also allocates a dedicated cell. A template load failure prevents the affected test from starting and leaves a pink `TEMPLATE_ERROR` marker with the specific failure message; the server log contains the complete error.
+Interactive execution leaves a pink `TEMPLATE_ERROR` marker with the specific failure message in the reserved cell;
+the server log contains the complete error. Other fixtures in the same launch continue preparing independently.
 
 ## Rotation
 

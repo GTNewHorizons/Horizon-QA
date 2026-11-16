@@ -8,7 +8,6 @@ import java.lang.annotation.Target;
 /**
  * Marks a public static void method run once before all tests in the same {@link GameTest#batch()}.
  */
-@Experimental
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface BeforeBatch {

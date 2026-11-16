@@ -24,6 +24,7 @@ import com.gtnewhorizons.horizonqa.api.event.AssertionFailed;
 import com.gtnewhorizons.horizonqa.api.event.IsolationViolation;
 import com.gtnewhorizons.horizonqa.api.event.TestFinished;
 import com.gtnewhorizons.horizonqa.api.event.TestStarted;
+import com.gtnewhorizons.horizonqa.api.event.TickCallbackStateChanged;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
 import com.gtnewhorizons.horizonqa.structure.StructureAnnotations;
 import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
@@ -45,6 +46,7 @@ public class GameTestInstance {
     private int tickCount = 0;
     private Throwable failureCause;
     private Throwable cleanupFailureCause;
+    private String failureContext = "";
     private GameTestSequence sequence;
     private BooleanSupplier succeedWhen;
     private boolean succeedAtTimeout;
@@ -91,6 +93,7 @@ public class GameTestInstance {
                 .invoke(null, invocationArguments);
         } catch (InvocationTargetException e) {
             Throwable cause = e.getCause();
+            FatalErrors.rethrow(cause);
             fail(cause != null ? cause : e);
         } catch (Exception e) {
             fail(e);
@@ -101,6 +104,13 @@ public class GameTestInstance {
         if (status != GameTestStatus.NOT_STARTED) return;
         status = GameTestStatus.RUNNING;
         fail(cause);
+    }
+
+    void abortExecution(String message, Throwable cause) {
+        if (status != GameTestStatus.RUNNING) return;
+        GameTestInfrastructureException failure = new GameTestInfrastructureException("EXECUTION_ABORTED", message);
+        if (cause != null) failure.initCause(cause);
+        fail(failure);
     }
 
     public void tickStart() {
@@ -116,6 +126,7 @@ public class GameTestInstance {
                 try {
                     action.action.run();
                 } catch (Throwable t) {
+                    FatalErrors.rethrow(t);
                     fail(t);
                     return;
                 }
@@ -127,6 +138,7 @@ public class GameTestInstance {
             try {
                 sequence.tick(tickCount, TestPhase.START);
             } catch (Throwable t) {
+                FatalErrors.rethrow(t);
                 fail(t);
             }
         }
@@ -143,6 +155,8 @@ public class GameTestInstance {
                     callback.runCallback();
                     if (status != GameTestStatus.RUNNING) return;
                 } catch (Throwable t) {
+                    FatalErrors.rethrow(t);
+                    setFailureContext("Per-tick callback '" + callback.name + "' failed");
                     fail(t);
                     return;
                 }
@@ -156,6 +170,7 @@ public class GameTestInstance {
                     return;
                 }
             } catch (Throwable t) {
+                FatalErrors.rethrow(t);
                 fail(t);
                 return;
             }
@@ -165,6 +180,7 @@ public class GameTestInstance {
             try {
                 sequence.tick(tickCount, TestPhase.END);
             } catch (Throwable t) {
+                FatalErrors.rethrow(t);
                 fail(t);
                 return;
             }
@@ -216,7 +232,7 @@ public class GameTestInstance {
         }
         final Throwable c = cause;
         recorder.record(() -> {
-            String msg = c != null ? String.valueOf(c.getMessage()) : "unknown";
+            String msg = failureMessage(c);
             String type = c != null ? c.getClass()
                 .getName() : "java.lang.AssertionError";
             TestPos pos = hasFailPosition ? new TestPos(failX, failY, failZ) : null;
@@ -227,7 +243,7 @@ public class GameTestInstance {
                 type,
                 pos);
         });
-        String detail = cause != null ? cause.getMessage() : "unknown";
+        String detail = failureMessage(cause);
         LOG.error("{}   {} - {}", status == GameTestStatus.ERROR ? "ERROR " : "FAILED", definition.getTestId(), detail);
         if (cause != null && !(cause instanceof GameTestAssertException)) {
             LOG.error("Caused by:", cause);
@@ -253,6 +269,7 @@ public class GameTestInstance {
             message += ". " + sequence.describeActiveStep(tickCount);
             GameTestSequence.SequenceStepSnapshot activeStep = sequence.getActiveStep();
             if (activeStep != null) lastAssertion = activeStep.lastAssertion();
+            sequence.failActiveStep(tickCount);
         }
         failureCause = new GameTestTimeoutException(message, lastAssertion);
         status = GameTestStatus.TIMED_OUT;
@@ -276,6 +293,7 @@ public class GameTestInstance {
 
     private void runCleanup() {
         Throwable cleanupFailure = null;
+        Error fatalFailure = null;
         for (Runnable cb : cleanupCallbacks) {
             try {
                 cb.run();
@@ -286,13 +304,16 @@ public class GameTestInstance {
             } catch (Throwable t) {
                 cleanupFailure = appendCleanupFailure(cleanupFailure, t);
                 LOG.error("Exception in cleanup callback for {}: {}", definition.getTestId(), t.getMessage(), t);
+                if (fatalFailure == null && FatalErrors.isFatal(t)) fatalFailure = (Error) t;
             }
         }
         cleanupCallbacks.clear();
         if (cleanupFailure != null) {
             cleanupFailureCause = cleanupFailure;
+            if (isExecutionAborted() && cleanupFailure != failureCause) failureCause.addSuppressed(cleanupFailure);
             status = GameTestStatus.ERROR;
         }
+        if (fatalFailure != null) throw fatalFailure;
     }
 
     private static Throwable appendCleanupFailure(Throwable first, Throwable next) {
@@ -359,23 +380,45 @@ public class GameTestInstance {
         succeedAtTimeout = true;
     }
 
-    public TickCallbackHandle addEachTickCallback(Runnable callback) {
+    public TickCallbackHandle addEachTickCallback(String name, Runnable callback, boolean enabled) {
+        String normalizedName = normalizeCallbackName(name);
         if (callback == null) {
             throw new IllegalArgumentException("onEachTick callback must not be null");
         }
-        EachTickCallback registration = new EachTickCallback(callback);
+        EachTickCallback registration = new EachTickCallback(normalizedName, callback, enabled);
         eachTickCallbacks.add(registration);
+        registration.recordState(enabled ? "registered-enabled" : "registered-disabled");
         return registration;
+    }
+
+    void setFailureContext(String context) {
+        failureContext = context == null ? "" : context.trim();
+    }
+
+    private static String normalizeCallbackName(String name) {
+        if (name == null || name.trim()
+            .isEmpty()) {
+            throw new IllegalArgumentException("onEachTick name must not be blank");
+        }
+        return name.trim();
+    }
+
+    private String failureMessage(Throwable cause) {
+        String detail = cause != null && cause.getMessage() != null ? cause.getMessage() : "unknown";
+        return failureContext.isEmpty() ? detail : failureContext + ": " + detail;
     }
 
     private final class EachTickCallback implements TickCallbackHandle {
 
+        private final String name;
         private final Runnable callback;
-        private boolean enabled = true;
+        private boolean enabled;
         private boolean removed;
 
-        private EachTickCallback(Runnable callback) {
+        private EachTickCallback(String name, Runnable callback, boolean enabled) {
+            this.name = name;
             this.callback = callback;
+            this.enabled = enabled;
         }
 
         private void runCallback() {
@@ -384,12 +427,16 @@ public class GameTestInstance {
 
         @Override
         public void enable() {
-            if (!removed) enabled = true;
+            if (removed || enabled) return;
+            enabled = true;
+            recordState("enabled");
         }
 
         @Override
         public void disable() {
-            if (!removed) enabled = false;
+            if (removed || !enabled) return;
+            enabled = false;
+            recordState("disabled");
         }
 
         @Override
@@ -398,6 +445,7 @@ public class GameTestInstance {
             removed = true;
             enabled = false;
             eachTickCallbacks.remove(this);
+            recordState("removed");
         }
 
         @Override
@@ -408,6 +456,15 @@ public class GameTestInstance {
         @Override
         public boolean isRemoved() {
             return removed;
+        }
+
+        private void recordState(String state) {
+            recorder.record(
+                () -> new TickCallbackStateChanged(
+                    recorder.clock()
+                        .tick(),
+                    name,
+                    state));
         }
     }
 
@@ -429,6 +486,15 @@ public class GameTestInstance {
 
     public Throwable getCleanupFailureCause() {
         return cleanupFailureCause;
+    }
+
+    public boolean isExecutionAborted() {
+        return failureCause instanceof GameTestInfrastructureException infrastructure
+            && "EXECUTION_ABORTED".equals(infrastructure.kind());
+    }
+
+    public String getFailureContext() {
+        return failureContext;
     }
 
     public int getOriginX() {

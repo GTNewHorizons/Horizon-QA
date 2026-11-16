@@ -25,15 +25,16 @@ The equivalent explicit pattern must include the same initial structure check:
 
 ```java
 ebf.assertNotFormed("EBF formed without coils");
-helper.onEachTick(() -> helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
+helper.onEachTick("EBF remains unformed", () ->
+    helper.assertFalse(ebf.isFormed(), "EBF formed without coils"));
 helper.succeedAtTimeout();
 ```
 
-| Call                                              | Role                                                                  |
-|---------------------------------------------------|-----------------------------------------------------------------------|
-| `onEachTick(Runnable)`                            | Registers an enabled callback and returns its `TickCallbackHandle`    |
-| `assertFalse(ebf.isFormed(), ...)`                | Fails immediately on the tick where the machine forms                 |
-| `succeedAtTimeout()`                              | Passes at the END of the final allowed tick if nothing failed         |
+| Call                               | Role                                                                     |
+|------------------------------------|--------------------------------------------------------------------------|
+| `onEachTick(String, Runnable)`     | Registers a named, enabled callback and returns its `TickCallbackHandle` |
+| `assertFalse(ebf.isFormed(), ...)` | Fails immediately on the tick where the machine forms                    |
+| `succeedAtTimeout()`               | Passes at the END of the final allowed tick if nothing failed            |
 
 The final allowed tick is still observed before `succeedAtTimeout()` passes.
 
@@ -58,7 +59,7 @@ helper.succeedWhen(() ->
 Combine multiple checks in a single callback so they share the same window:
 
 ```java
-helper.onEachTick(() -> {
+helper.onEachTick("EBF remains idle and unformed", () -> {
     helper.assertFalse(ebf.isFormed(), "formed");
     helper.assertFalse(ebf.isProcessing(), "started recipe");
 });
@@ -67,15 +68,16 @@ helper.succeedAtTimeout();
 
 ## Scoped sequence windows
 
-Keep the handle returned by `onEachTick` when an invariant applies to only part of a sequence. A handle
-starts enabled, so disable it before the first tick when the observation window begins later:
+Use `onEachTickDisabled` when an invariant applies to only part of a sequence and its observation window
+begins later:
 
 ```java
-TickCallbackHandle emptyNetworkKeepsCell = helper.onEachTick(() -> {
-    helper.assertNotNull(ioport.getStackInSlot(0), "Cell should stay in input");
-    helper.assertNull(ioport.getStackInSlot(6), "Cell should not move to output");
-});
-emptyNetworkKeepsCell.disable();
+TickCallbackHandle emptyNetworkKeepsCell = helper.onEachTickDisabled(
+    "empty network keeps cell in input",
+    () -> {
+        helper.assertNotNull(ioport.getStackInSlot(0), "Cell should stay in input");
+        helper.assertNull(ioport.getStackInSlot(6), "Cell should not move to output");
+    });
 
 helper.startSequence()
     .thenWaitUntilAtEnd("IO port network activates", () -> assertActive(ioport))
@@ -90,7 +92,9 @@ helper.startSequence()
 
 `disable()` pauses the callback and `enable()` resumes it. `remove()` is permanent; later enable or
 disable calls have no effect. All three operations are safe to call repeatedly or from a per-tick
-callback itself.
+callback itself. Registration and actual state changes are event-log entries; repeated no-op calls do
+not add entries. If the callback throws, failure output includes its name without replacing the original
+exception or assertion position.
 
 Per-tick callbacks run at END before END-phase sequence actions. An enable or disable from a START
 action therefore affects the callback later in that same tick. An END action that disables or removes

@@ -1,14 +1,12 @@
 package com.gtnewhorizons.horizonqa.api.event.state;
 
 import com.github.bsideup.jabel.Desugar;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
 /**
  * Bitmask of the six standard GT maintenance flags. A set bit means the corresponding issue is currently
  * <em>present</em> (the tool flag is {@code false} on the controller). When {@code mask == 0} the machine is fully
  * maintained.
  */
-@Experimental
 @Desugar
 public record MaintenanceSnapshot(int mask) {
 

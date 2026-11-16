@@ -1,10 +1,8 @@
 package com.gtnewhorizons.horizonqa.api.event;
 
 import com.github.bsideup.jabel.Desugar;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
 /** Replaces further appends once the recorder's per-test event cap is reached. */
-@Experimental
 @Desugar
 public record EventOverflow(int tick, int cap) implements TestEvent {
 

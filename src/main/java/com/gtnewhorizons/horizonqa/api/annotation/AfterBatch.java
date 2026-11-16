@@ -6,9 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a public static void method run once after all tests in the same {@link GameTest#batch()}.
+ * Marks a public static void method run once when the same {@link GameTest#batch()} finishes or aborts. Cleanup is
+ * still attempted when a before-hook fails after batch setup begins or the reported run ends early.
  */
-@Experimental
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface AfterBatch {

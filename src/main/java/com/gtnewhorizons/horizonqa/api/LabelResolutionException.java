@@ -1,8 +1,5 @@
 package com.gtnewhorizons.horizonqa.api;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
-
-@Experimental
 public class LabelResolutionException extends GameTestInfrastructureException {
 
     public static final String ERROR_KIND = "LABEL_ERROR";

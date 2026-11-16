@@ -9,7 +9,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.WorldServer;
 
 import com.gtnewhorizons.horizonqa.api.TestPos;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 import com.gtnewhorizons.horizonqa.api.event.MachineDeformed;
 import com.gtnewhorizons.horizonqa.api.event.MachineExploded;
 import com.gtnewhorizons.horizonqa.api.event.MachineFormed;
@@ -39,7 +38,6 @@ import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
  * One instance per call to {@link TimeWarpHandler#fastForward}. All snapshot reads are quarantined behind the
  * supplied {@link GTAdapter}.
  */
-@Experimental
 final class WarpDiffer {
 
     private final WorldServer world;

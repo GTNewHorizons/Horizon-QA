@@ -181,10 +181,11 @@ public class ReporterOutputTest {
         StatusJsonReporter.write(result, output);
 
         String json = read(output);
-        assertTrue(json.contains("\"schemaVersion\": 2"));
+        assertTrue(json.contains("\"schemaVersion\": 3"));
         assertTrue(json.contains("\"status\": \"error\""));
         assertTrue(json.contains("\"exitCode\": 2"));
         assertTrue(json.contains("\"configuration\": {"));
+        assertTrue(json.contains("\"turbo\": 1"));
         assertTrue(json.contains("\"counts\": {"));
         assertTrue(json.contains("\"selectedTests\": 0"));
         assertTrue(json.contains("\"diagnosticErrors\": 1"));
@@ -199,7 +200,7 @@ public class ReporterOutputTest {
     }
 
     @Test
-    public void statusJsonIncludesTestsWithoutEventLogs() throws Exception {
+    public void statusJsonIncludesPerTestReportOutput() throws Exception {
         RunResult result = RunResult.completedCases(
             "ci",
             Collections.singletonList(
@@ -214,7 +215,7 @@ public class ReporterOutputTest {
                     "bad",
                     "java.lang.AssertionError",
                     "trace line",
-                    Collections.singletonList("event line that belongs only in JUnit"))),
+                    Collections.singletonList("event line reported with the test"))),
             Collections.singletonList(
                 new IssueResult(
                     "config:bad",
@@ -238,8 +239,9 @@ public class ReporterOutputTest {
         assertTrue(json.contains("\"status\": \"failed\""));
         assertTrue(json.contains("\"failure\": {"));
         assertTrue(json.contains("\"stackTrace\": \"trace line\""));
+        assertTrue(json.contains("\"output\": ["));
+        assertTrue(json.contains("event line reported with the test"));
         assertTrue(json.contains("\"diagnosticErrors\": 1"));
-        assertFalse(json.contains("event line that belongs only in JUnit"));
     }
 
     @Test
@@ -388,6 +390,13 @@ public class ReporterOutputTest {
             Collections.emptyList(),
             "TEST.xml");
         assertEquals("RUN PASSED", ConsoleReporter.runLine(passedResult));
+    }
+
+    @Test
+    public void consoleSelectorArgumentQuotesParameterizedTestIds() {
+        assertEquals(
+            "--mcJvmArgs='-Dhorizonqa.tests=mod:Suite.case[it'\"'\"'s]'",
+            ConsoleReporter.selectorArgument("mod:Suite.case[it's]"));
     }
 
     @Test

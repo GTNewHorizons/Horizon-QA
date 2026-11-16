@@ -12,11 +12,11 @@
 
 ## Public contracts
 
-- `docs/` is canonical; `README.md` is only a summary and `site/` is generated. Any author-facing API, annotation, event, command, JVM property, or structure-format change must update the matching surfaces: Javadoc for Java APIs, its MkDocs reference, and a focused runnable `examples/` case when applicable. New 0.x author APIs remain `@Experimental`; add new pages to `mkdocs.yml`.
+- `docs/` is canonical; `README.md` is only a summary and `site/` is generated. Any author-facing API, annotation, event, command, JVM property, or structure-format change must update the matching surfaces: Javadoc for Java APIs, its MkDocs reference, and a focused runnable `examples/` case when applicable. Add new pages to `mkdocs.yml`.
 - Results are one external protocol from `CaseResult`/`IssueResult` through `RunResult` to console, JUnit XML, and status JSON. Optional failures remain exit `0`/JUnit-skipped, required failures or timeouts exit `1`, and infrastructure/incomplete/reporting errors exit `2`; update all reporters, tests, and docs together, and bump `schemaVersion` for breaking JSON shape or meaning changes.
 
 ## Proving a change
 
 - Run `./gradlew build` for compilation, unit tests, Checkstyle, and Spotless across the root and `examples`; this does **not** boot Minecraft.
-- Exercise Minecraft/Forge/GT, mixin/lifecycle, or structure behavior with a focused `./gradlew :examples:runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.tests=<exact-test-id>"`. Pass every `horizonqa.*` flag through `--mcJvmArgs`, not bare Gradle `-D`. Interactive `/horizonqa run` bypasses batch ordering and hooks; use reported/CI mode when those matter. Some optional failing/timeout examples are intentional.
+- Exercise Minecraft/Forge/GT, mixin/lifecycle, or structure behavior with a focused `./gradlew :examples:runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.tests=<exact-test-id>`. Pass every `horizonqa.*` flag through its own `--mcJvmArgs`, not bare Gradle `-D`. Interactive `/horizonqa run` bypasses batch ordering and hooks; use reported/CI mode when those matter. Some optional failing/timeout examples are intentional.
 - For documentation run `mkdocs build --strict`; for public API changes also run `./gradlew javadoc`.

@@ -17,7 +17,6 @@ import com.gtnewhorizons.horizonqa.api.GameTestArguments;
  * cases retain encounter order. A source may contain at most 256 rows; named case keys may contain at
  * most 128 characters. An empty value uses the test method's name as the source method name.
  */
-@Experimental
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface MethodSource {

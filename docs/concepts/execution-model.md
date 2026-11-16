@@ -12,8 +12,8 @@ Horizon-QA has one test-instance model and two orchestration paths. Understandin
 | Path | Best for | Orchestration | Output |
 |---|---|---|---|
 | Interactive commands | Local authoring and visual inspection | Launch the selected tests directly | Cells, logs, and client overlays |
-| Automatic execution | CI or unattended server runs | Select, group, and run reported batches after startup | JUnit XML, status JSON, console summary, optional process exit |
-| Manually reported commands | Local or controlled reported runs | Use the batch runner without startup autorun | The same reports, while the server normally remains available |
+| Automatic execution | CI or unattended server runs | Select, group, and run a Reported Run after startup | JUnit XML, status JSON, console summary, optional process exit |
+| Manually reported commands | Local or controlled reported runs | Start a Reported Run without startup autorun | The same reports, while the server normally remains available |
 
 The `interactive`, `ci`, and `off` mode values are presets:
 
@@ -25,7 +25,8 @@ The `interactive`, `ci`, and `off` mode values are presets:
 
 Properties such as `horizonqa.autoRun`, `horizonqa.stopServer`, `horizonqa.world`, and `horizonqa.gridOrigin` override individual preset choices. See [JVM properties](../reference/jvm-flags.md).
 
-The selection source chooses the orchestration path. Interactive commands launch cells directly, while automatic and manually reported runs converge on the same batch runner and report formats.
+The selection source chooses the orchestration path. Interactive commands launch cells directly, while automatic and
+manually reported invocations converge on the same Reported Run lifecycle and report formats.
 
 ```mermaid
 flowchart LR
@@ -44,16 +45,18 @@ flowchart LR
 
 The `batch` attribute applies only to automatic and manually reported execution.
 
-The batch runner:
+The reported run:
 
 1. Groups selected tests by batch name.
 2. Executes batch names one after another.
 3. Runs every matching `@BeforeBatch` hook.
 4. Prepares the tests in that batch.
 5. Starts those test instances together and ticks them concurrently.
-6. Runs every matching `@AfterBatch` hook after all tests finish.
+6. Runs every matching `@AfterBatch` hook after all tests finish or the batch aborts.
 
-A failed before-hook blocks the tests in that batch. A failed after-hook becomes an infrastructure issue after the tests have run.
+A failed before-hook blocks the tests in that batch, but any matching after-hooks are still owed once batch setup has
+begun. After-hooks run once, best effort, on ordinary completion, setup failure, infrastructure failure, and reported-run
+shutdown. A failed after-hook becomes an infrastructure issue without preventing later after-hooks from running.
 
 Batch names are global across all discovered holders. Prefer a mod-prefixed value such as `mymod_assembler` when collisions are possible.
 
@@ -80,6 +83,11 @@ A normal test tick has two framework phases around Minecraft world logic:
 `GameTestSequence` methods default to END so assertions normally observe the world after it has ticked. START variants are useful when an input must be visible to a machine during that same world tick.
 
 The test body itself runs before the first counted tick. Timeout is evaluated after the END phase of the final allowed tick, so END actions scheduled at `timeoutTicks` still run before timeout is reported.
+
+In `ci` mode, `horizonqa.turbo` may increase how many complete server ticks run per normal wall-clock tick slot while a
+Reported Run is active. It does not change the phase ordering or omit tick bodies. The normal cadence resumes when the
+run finishes. See [JVM properties](../reference/jvm-flags.md#runtime-behavior-overrides) for its range and wall-clock
+caveat.
 
 See [Sequences and timing](../guide/sequences.md) for scheduling, bounded waits, and phase-ordering rules.
 

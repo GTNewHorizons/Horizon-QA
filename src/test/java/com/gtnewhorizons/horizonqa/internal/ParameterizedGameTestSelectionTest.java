@@ -28,12 +28,12 @@ public class ParameterizedGameTestSelectionTest {
                     "DISCOVERY_ERROR",
                     "method source 'missingRows' was not found in the test holder")));
 
-        GameTestSelection selection = GameTestSelection.from(
+        GameTestSelection selection = catalog(
             Collections.emptyList(),
             Collections.singletonList(invalid),
-            Collections.emptyList(),
-            false,
-            Collections.singletonList(new TestSelector(SelectorType.TEST_ID_PREFIX, baseTestId + "[lv]")));
+            Collections.emptyList()).select(
+                false,
+                Collections.singletonList(new TestSelector(SelectorType.TEST_ID_PREFIX, baseTestId + "[lv]")));
 
         assertTrue(
             selection.selectedTests()
@@ -67,12 +67,12 @@ public class ParameterizedGameTestSelectionTest {
             0,
             "Required mod is not loaded: optionalmod");
 
-        GameTestSelection selection = GameTestSelection.from(
+        GameTestSelection selection = catalog(
             Collections.singletonList(skipped),
             Collections.emptyList(),
-            Collections.emptyList(),
-            false,
-            Collections.singletonList(new TestSelector(SelectorType.TEST_ID_PREFIX, baseTestId + "[lv]")));
+            Collections.emptyList()).select(
+                false,
+                Collections.singletonList(new TestSelector(SelectorType.TEST_ID_PREFIX, baseTestId + "[lv]")));
 
         assertEquals(Collections.singletonList(skipped), selection.selectedTests());
         assertTrue(
@@ -89,12 +89,12 @@ public class ParameterizedGameTestSelectionTest {
             Collections.emptyList(),
             true);
 
-        GameTestSelection selection = GameTestSelection.from(
+        GameTestSelection selection = catalog(
             Collections.emptyList(),
             Collections.emptyList(),
-            Collections.singletonList(duplicate),
-            false,
-            Collections.singletonList(new TestSelector(SelectorType.TEST_ID_PREFIX, baseTestId + "[lv]")));
+            Collections.singletonList(duplicate)).select(
+                false,
+                Collections.singletonList(new TestSelector(SelectorType.TEST_ID_PREFIX, baseTestId + "[lv]")));
 
         assertEquals(
             1,
@@ -105,6 +105,18 @@ public class ParameterizedGameTestSelectionTest {
             selection.infrastructureIssues()
                 .get(0)
                 .kind());
+    }
+
+    private static GameTestCatalog catalog(java.util.List<GameTestDefinition> tests,
+        java.util.List<InvalidTestDefinition> invalidTests, java.util.List<DuplicateTestId> duplicateIds) {
+        return new GameTestCatalog(
+            tests,
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            invalidTests,
+            Collections.emptyList(),
+            duplicateIds,
+            Collections.emptyList());
     }
 
     public static final class TestDefinitions {

@@ -2,8 +2,6 @@ package com.gtnewhorizons.horizonqa.api;
 
 import java.util.Arrays;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
-
 /**
  * One invocation supplied by a parameterized game test's method source.
  *
@@ -25,7 +23,6 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
  * descriptors such as ids, names, and numbers; construct mutable game objects inside the test
  * method so interactive reruns cannot observe mutations from an earlier invocation.
  */
-@Experimental
 public final class GameTestArguments {
 
     private static final int MAX_NAME_LENGTH = 128;

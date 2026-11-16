@@ -14,6 +14,7 @@ public final class HorizonQAProperties {
     public static final String WORLD_PROPERTY = "horizonqa.world";
     public static final String AUTO_RUN_PROPERTY = "horizonqa.autoRun";
     public static final String STOP_SERVER_PROPERTY = "horizonqa.stopServer";
+    public static final String TURBO_PROPERTY = "horizonqa.turbo";
     public static final String GRID_ORIGIN_PROPERTY = "horizonqa.gridOrigin";
     public static final String TESTS_PROPERTY = "horizonqa.tests";
     public static final String ALLOW_NO_TESTS_PROPERTY = "horizonqa.allowNoTests";
@@ -25,6 +26,7 @@ public final class HorizonQAProperties {
 
     private static final String DEFAULT_JUNIT_REPORT = "TEST-horizonqa.xml";
     private static final String DEFAULT_STATUS_REPORT = "horizonqa-result.json";
+    private static final int MAX_TURBO_MULTIPLIER = 100;
     private static final GridOrigin DEFAULT_GRID_ORIGIN = new GridOrigin(0, 64, 0);
 
     private static final ParsedProperties PARSED = parse();
@@ -112,6 +114,14 @@ public final class HorizonQAProperties {
 
     public static String rawStopServer() {
         return PARSED.rawStopServer();
+    }
+
+    public static int turboMultiplier() {
+        return PARSED.turboMultiplier();
+    }
+
+    public static String rawTurbo() {
+        return PARSED.rawTurbo();
     }
 
     public static int gridOriginX() {
@@ -311,6 +321,12 @@ public final class HorizonQAProperties {
             issues.add(stopServer.issue());
         }
 
+        String rawTurbo = properties.getProperty(TURBO_PROPERTY);
+        IntegerParseResult turbo = parseTurboMultiplier(rawTurbo);
+        if (turbo.issue() != null) {
+            issues.add(turbo.issue());
+        }
+
         String rawGridOrigin = properties.getProperty(GRID_ORIGIN_PROPERTY);
         GridOriginParseResult gridOrigin = parseGridOrigin(rawGridOrigin);
         if (gridOrigin.issue() != null) {
@@ -362,6 +378,8 @@ public final class HorizonQAProperties {
             autoRun.value(),
             rawStopServer,
             stopServer.value(),
+            rawTurbo,
+            turbo.value(),
             rawGridOrigin,
             gridOrigin.origin(),
             rawTests,
@@ -414,6 +432,28 @@ public final class HorizonQAProperties {
 
     private static boolean defaultStopServer(Mode mode, boolean autoRunTests) {
         return mode == Mode.CI && autoRunTests;
+    }
+
+    private static IntegerParseResult parseTurboMultiplier(String raw) {
+        if (raw == null) {
+            return new IntegerParseResult(1, null);
+        }
+        Integer value = parseInteger(raw);
+        if (value != null && value >= 1 && value <= MAX_TURBO_MULTIPLIER) {
+            return new IntegerParseResult(value, null);
+        }
+        return new IntegerParseResult(
+            1,
+            configIssue(
+                "config:" + TURBO_PROPERTY,
+                TURBO_PROPERTY,
+                "Invalid -D" + TURBO_PROPERTY
+                    + "="
+                    + renderRawValue(raw)
+                    + " (expected an integer from 1 to "
+                    + MAX_TURBO_MULTIPLIER
+                    + ")",
+                true));
     }
 
     private static WorldPolicyParseResult parseWorldPolicy(String raw, WorldPolicy defaultPolicy) {
@@ -668,10 +708,10 @@ public final class HorizonQAProperties {
     @Desugar
     record ParsedProperties(String rawMode, Mode mode, PropertyIssue modeIssue, String rawWorld,
         WorldPolicy worldPolicy, String rawAutoRun, boolean autoRunTests, String rawStopServer,
-        boolean stopServerAfterRun, String rawGridOrigin, GridOrigin gridOrigin, String rawTests,
-        boolean selectsAllTests, List<TestSelector> testSelectors, String rawAllowNoTests, boolean allowNoTests,
-        String rawAllowLegacyNumericItemIds, boolean allowLegacyNumericItemIds, String reportFile, String reportDir,
-        String statusFile, String rawEvents, boolean eventsEnabled, List<PropertyIssue> issues) {
+        boolean stopServerAfterRun, String rawTurbo, int turboMultiplier, String rawGridOrigin, GridOrigin gridOrigin,
+        String rawTests, boolean selectsAllTests, List<TestSelector> testSelectors, String rawAllowNoTests,
+        boolean allowNoTests, String rawAllowLegacyNumericItemIds, boolean allowLegacyNumericItemIds, String reportFile,
+        String reportDir, String statusFile, String rawEvents, boolean eventsEnabled, List<PropertyIssue> issues) {
 
     }
 
@@ -702,6 +742,11 @@ public final class HorizonQAProperties {
 
     @Desugar
     private record BooleanParseResult(boolean value, PropertyIssue issue) {
+
+    }
+
+    @Desugar
+    private record IntegerParseResult(int value, PropertyIssue issue) {
 
     }
 

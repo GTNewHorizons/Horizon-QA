@@ -5,7 +5,6 @@ import net.minecraft.world.WorldServer;
 
 import com.gtnewhorizons.horizonqa.api.GameTestAssertException;
 import com.gtnewhorizons.horizonqa.api.TestPos;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 import com.gtnewhorizons.horizonqa.api.event.MachineFormed;
 import com.gtnewhorizons.horizonqa.api.event.MaintenanceFixed;
 import com.gtnewhorizons.horizonqa.api.event.StructureCheckRan;
@@ -32,7 +31,6 @@ import gregtech.common.tileentities.machines.MTEHatchInputME;
  * standard
  * {@link MTEMultiBlockBase} lists are not covered.
  */
-@Experimental
 public final class Multiblock {
 
     private static final int DEFAULT_RUN_TICKS = 1500;
@@ -149,7 +147,7 @@ public final class Multiblock {
     public void assertNeverForms(String message) {
         assertNotFormed(message);
         helper.base()
-            .onEachTick(() -> {
+            .onEachTick("multiblock never forms", () -> {
                 if (isFormed()) {
                     throw error(message);
                 }

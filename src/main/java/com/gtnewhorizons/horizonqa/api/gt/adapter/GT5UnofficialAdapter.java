@@ -10,7 +10,6 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 import com.gtnewhorizons.horizonqa.api.event.state.HatchTopology;
 import com.gtnewhorizons.horizonqa.api.event.state.MaintenanceSnapshot;
 import com.gtnewhorizons.horizonqa.api.event.state.RecipeStateSnapshot;
@@ -22,7 +21,6 @@ import gregtech.api.metatileentity.implementations.MTEHatchOutput;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 
 /** {@link GTAdapter} targeting GTNH GT5-Unofficial; resolves all reflective lookups at construction time. */
-@Experimental
 public final class GT5UnofficialAdapter implements GTAdapter {
 
     private static final String POLLUTION_CLASS = "gregtech.common.pollution.Pollution";

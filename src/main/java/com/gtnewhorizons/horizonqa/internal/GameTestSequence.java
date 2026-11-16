@@ -6,6 +6,9 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 
+import com.gtnewhorizons.horizonqa.api.event.SequenceStepFinished;
+import com.gtnewhorizons.horizonqa.api.event.SequenceStepStarted;
+
 public class GameTestSequence {
 
     private final GameTestInstance instance;
@@ -121,11 +124,11 @@ public class GameTestSequence {
     }
 
     public void thenSucceed() {
-        addStep(TestPhase.END, StepKind.EXECUTE, "succeed test", instance::succeed, -1);
+        addStep(TestPhase.END, StepKind.EXECUTE, "succeed test", instance::succeed, -1, true);
     }
 
     public void thenFail(String message) {
-        addStep(TestPhase.END, StepKind.EXECUTE, "fail test", () -> instance.fail(message), -1);
+        addStep(TestPhase.END, StepKind.EXECUTE, "fail test", () -> instance.fail(message), -1, true);
     }
 
     /** Immutable snapshots of all sequence steps in declaration order. */
@@ -165,6 +168,11 @@ public class GameTestSequence {
     }
 
     private GameTestSequence addStep(TestPhase phase, StepKind kind, String label, Runnable action, int maxTicks) {
+        return addStep(phase, kind, label, action, maxTicks, false);
+    }
+
+    private GameTestSequence addStep(TestPhase phase, StepKind kind, String label, Runnable action, int maxTicks,
+        boolean endsTest) {
         if (action == null) throw new IllegalArgumentException("sequence action must not be null");
         long tick = resolveEventTick(phase);
         if (lastPhase == TestPhase.END && phase == TestPhase.START && tick == lastScheduledTick) {
@@ -180,7 +188,8 @@ public class GameTestSequence {
             kind,
             normalizeLabel(label),
             captureSource(),
-            action);
+            action,
+            endsTest);
         pendingSteps.add(step);
         steps.add(step);
         currentScheduledTick = tick;
@@ -209,37 +218,108 @@ public class GameTestSequence {
             if (currentTick < head.scheduledTick) break;
             if (head.phase != phase) break;
 
-            head.start(currentTick);
+            if (head.start(currentTick)) recordStarted(head);
             if (head.kind == StepKind.WAIT_UNTIL) {
                 head.attempts++;
                 try {
                     head.action.run();
                     long schedulingDelay = currentTick - head.scheduledTick;
                     head.complete(currentTick);
+                    recordFinished(head);
                     pendingSteps.poll();
                     shiftPendingSteps(schedulingDelay);
                 } catch (AssertionError e) {
                     head.lastAssertion = e;
                     if (head.deadlineTick >= 0 && currentTick >= head.deadlineTick) {
                         head.fail(currentTick);
+                        recordFinished(head);
                         throw new SequenceStepTimeoutException(head.snapshot(steps.size()), e);
                     }
                     break;
                 } catch (RuntimeException | Error e) {
                     head.fail(currentTick);
+                    recordFinished(head);
+                    setFailureContext(head);
                     throw e;
                 }
             } else {
+                head.attempts++;
+                if (head.endsTest) {
+                    head.complete(currentTick);
+                    recordFinished(head);
+                    pendingSteps.poll();
+                    head.action.run();
+                    continue;
+                }
                 try {
                     head.action.run();
                     head.complete(currentTick);
+                    recordFinished(head);
                     pendingSteps.poll();
                 } catch (RuntimeException | Error e) {
                     head.fail(currentTick);
+                    recordFinished(head);
+                    setFailureContext(head);
                     throw e;
                 }
             }
         }
+    }
+
+    void failActiveStep(long currentTick) {
+        SequenceStep step = pendingSteps.peek();
+        if (step == null || step.state == StepState.COMPLETED || step.state == StepState.FAILED) return;
+        step.fail(currentTick);
+        recordFinished(step);
+    }
+
+    private void recordStarted(SequenceStep step) {
+        String displayLabel = displayLabel(step);
+        instance.getRecorder()
+            .record(
+                () -> new SequenceStepStarted(
+                    instance.getRecorder()
+                        .clock()
+                        .tick(),
+                    step.index,
+                    steps.size(),
+                    displayLabel,
+                    step.kind.name(),
+                    step.phase.name(),
+                    step.scheduledTick,
+                    step.source.toString()));
+    }
+
+    private void recordFinished(SequenceStep step) {
+        String displayLabel = displayLabel(step);
+        long elapsedTicks = step.startedTick < 0 ? 0 : step.completedTick - step.startedTick + 1;
+        String outcome = switch (step.state) {
+            case COMPLETED -> "completed";
+            case FAILED -> "failed";
+            default -> throw new IllegalStateException("Cannot record unfinished sequence step");
+        };
+        instance.getRecorder()
+            .record(
+                () -> new SequenceStepFinished(
+                    instance.getRecorder()
+                        .clock()
+                        .tick(),
+                    step.index,
+                    steps.size(),
+                    displayLabel,
+                    outcome,
+                    step.attempts,
+                    elapsedTicks));
+    }
+
+    private void setFailureContext(SequenceStep step) {
+        instance.setFailureContext(
+            "Sequence " + step.snapshot(steps.size())
+                .describe() + " failed");
+    }
+
+    private static String displayLabel(SequenceStep step) {
+        return step.label.isEmpty() ? step.source.toString() : step.label;
     }
 
     private void shiftPendingSteps(long ticks) {
@@ -442,6 +522,7 @@ public class GameTestSequence {
         final String label;
         final SourceLocation source;
         final Runnable action;
+        final boolean endsTest;
         StepState state = StepState.PENDING;
         long deadlineTick = -1;
         long startedTick = -1;
@@ -450,7 +531,7 @@ public class GameTestSequence {
         AssertionError lastAssertion;
 
         SequenceStep(int index, long scheduledTick, int maxTicks, TestPhase phase, StepKind kind, String label,
-            SourceLocation source, Runnable action) {
+            SourceLocation source, Runnable action, boolean endsTest) {
             this.index = index;
             this.scheduledTick = scheduledTick;
             this.maxTicks = maxTicks;
@@ -459,13 +540,15 @@ public class GameTestSequence {
             this.label = label;
             this.source = source;
             this.action = action;
+            this.endsTest = endsTest;
         }
 
-        void start(long currentTick) {
-            if (state != StepState.PENDING) return;
+        boolean start(long currentTick) {
+            if (state != StepState.PENDING) return false;
             state = StepState.RUNNING;
             startedTick = currentTick;
             if (maxTicks > 0) deadlineTick = currentTick + maxTicks - 1L;
+            return true;
         }
 
         void complete(long currentTick) {

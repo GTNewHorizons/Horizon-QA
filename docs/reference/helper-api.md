@@ -30,7 +30,8 @@ Use `pos("label")` when a position must be stored or passed to another API. Use 
 | `succeedAtTimeout()` | Pass only after the full timeout window, usually for negative invariants |
 | `assumeTrue(boolean, String)` | Skip immediately when a runtime precondition is false |
 | `assumeFalse(boolean, String)` | Skip immediately when a runtime precondition is true |
-| `TickCallbackHandle onEachTick(Runnable)` | Run an invariant or observer on every test tick, with a controllable registration |
+| `TickCallbackHandle onEachTick(String, Runnable)` | Register a named, initially enabled invariant or observer |
+| `TickCallbackHandle onEachTickDisabled(String, Runnable)` | Register a named callback for a later sequence window |
 | `startSequence()` | Build one ordered sequence of START/END actions and waits |
 | `afterTest(Runnable)` | Register cleanup that runs on pass, skip, failure, timeout, or error |
 
@@ -38,10 +39,11 @@ See [Sequences and timing](../guide/sequences.md) for phase ordering and bounded
 
 A failed assumption aborts the current method or callback and records its message as the skip reason. Cleanup registered with `afterTest` still runs. Use holder-level `requiredMods` for optional class dependencies that must be checked before class loading; use assumptions for runtime state such as configuration, registrations, or capabilities that discovery cannot know.
 
-`onEachTick` returns an initially enabled `TickCallbackHandle`. Call `disable()` to pause the callback,
-`enable()` to resume it, or `remove()` to unregister it permanently. These operations are idempotent;
-enabling or disabling a removed handle has no effect. This supports negative assertions that apply only
-to one window of a longer sequence. See [Scoped sequence windows](../guide/negative-tests.md#scoped-sequence-windows).
+Both methods require a non-blank diagnostic name. Callback failures retain their original throwable and
+position while reports identify the named callback. Call `disable()` to pause the callback, `enable()` to
+resume it, or `remove()` to unregister it permanently. These operations are idempotent; enabling or
+disabling a removed handle has no effect. Actual registration and state changes appear in the test event
+log. See [Scoped sequence windows](../guide/negative-tests.md#scoped-sequence-windows).
 
 ## General assertions
 

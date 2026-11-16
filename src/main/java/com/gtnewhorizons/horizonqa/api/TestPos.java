@@ -2,9 +2,6 @@ package com.gtnewhorizons.horizonqa.api;
 
 import java.util.Objects;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
-
-@Experimental
 public final class TestPos {
 
     private final int x;

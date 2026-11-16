@@ -1,8 +1,5 @@
 package com.gtnewhorizons.horizonqa.api;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
-
-@Experimental
 public class GameTestAssertException extends AssertionError {
 
     private final int x;

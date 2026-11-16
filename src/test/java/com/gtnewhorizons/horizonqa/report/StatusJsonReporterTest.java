@@ -25,7 +25,7 @@ public class StatusJsonReporterTest {
                     "bad \"json\"\nline",
                     "java.lang.AssertionError",
                     "trace\nline",
-                    Collections.emptyList())),
+                    Collections.singletonList("[t=    1] [sequence   ] Started sequence step 1/2"))),
             Collections.emptyList(),
             "reports/TEST.xml");
 
@@ -37,7 +37,7 @@ public class StatusJsonReporterTest {
         assertContainsInOrder(
             json,
             "{\n",
-            "  \"schemaVersion\": 2",
+            "  \"schemaVersion\": 3",
             "  \"status\": \"failed\"",
             "  \"exitCode\": 1",
             "  \"configuration\": {",
@@ -52,6 +52,8 @@ public class StatusJsonReporterTest {
             "  \"tests\": [",
             "      \"id\": \"mod:Suite.fails\"",
             "      \"required\": true",
+            "      \"output\": [",
+            "        \"[t=    1] [sequence   ] Started sequence step 1/2\"",
             "      \"failure\": {",
             "        \"message\": \"bad \\\"json\\\"\\nline\"",
             "        \"type\": \"java.lang.AssertionError\"",

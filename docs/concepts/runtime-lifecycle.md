@@ -69,6 +69,10 @@ Framework features use the same mechanism for owned resources such as temporary 
 
 A cleanup failure changes the final test status to an infrastructure error. The built-in isolation scan also runs as cleanup. Its exact spatial checks and its limits are covered in [Fixtures, coordinates, and isolation](fixtures-and-isolation.md#the-built-in-isolation-scan).
 
+If a reported run is interrupted, active cases run their instance cleanup and become `error` with failure type
+`EXECUTION_ABORTED`. Selected cases that never started become `notStarted` and reference the run-level abort issue through
+`blockedByIssueId`. Any batch whose setup began also runs its matching `@AfterBatch` hooks once, best effort.
+
 ## 6. Classify the result
 
 Horizon-QA separates test behavior from infrastructure:

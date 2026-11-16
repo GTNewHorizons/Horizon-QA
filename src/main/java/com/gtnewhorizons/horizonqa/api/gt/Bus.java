@@ -6,7 +6,6 @@ import net.minecraft.item.ItemStack;
 import com.gtnewhorizons.horizonqa.api.GameTestAssertException;
 import com.gtnewhorizons.horizonqa.api.InventoryHelper;
 import com.gtnewhorizons.horizonqa.api.TestPos;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 import com.gtnewhorizons.horizonqa.api.event.BusInserted;
 import com.gtnewhorizons.horizonqa.api.event.ProgrammedCircuitSet;
 import com.gtnewhorizons.horizonqa.internal.TestEventRecorder;
@@ -19,7 +18,6 @@ import gregtech.api.util.GTUtility;
 /**
  * View of a single input or output bus tile. Obtained from {@link Multiblock}.
  */
-@Experimental
 public final class Bus {
 
     private final IGregTechTileEntity te;

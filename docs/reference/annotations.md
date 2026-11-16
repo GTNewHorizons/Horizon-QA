@@ -1,6 +1,6 @@
 ---
 title: Annotations
-description: Reference for @GameTest, @GameTestHolder, batch hooks, and stability markers.
+description: Reference for @GameTest, @GameTestHolder, parameter sources, and batch hooks.
 ---
 
 # Annotations
@@ -27,8 +27,6 @@ Validation rules:
 - `batch` must be empty or match `[A-Za-z0-9_.-]+`.
 - The literal batch name `default` is reserved. Use `""` for the default batch.
 
-Stability: `@Experimental` (entire public API is experimental in 0.x.x).
-
 ## `@MethodSource`
 
 Expands one `@GameTest` method into independently selectable and reported cases. `value` names a public static
@@ -41,8 +39,6 @@ with `GameTestArguments.named(name, firstValue, remainingValues...)` or assigned
 later argument is `null` or an array. A source may contain at most 256 rows. Case names must be at most 128 characters,
 match `[A-Za-z0-9_.-]+`, and be unique within the source.
 
-Stability: `@Experimental`.
-
 ## `@GameTestHolder`
 
 Marks a class containing one or more `@GameTest` methods.
@@ -52,8 +48,6 @@ Marks a class containing one or more `@GameTest` methods.
 | `value`           | `String`   | *(required)* | Namespace for test ids and template lookups (typically the mod id) |
 | `templatePrefix`  | `String`   | `""`         | Prepended to relative template paths declared on `@GameTest`       |
 | `requiredMods`    | `String[]` | `{}`         | Mod ids that must be loaded before this holder is inspected        |
-
-Stability: `@Experimental`.
 
 Holder `value` must match `[a-z0-9_.-]+`. `templatePrefix` cannot begin or end with `/`, contain `//`, or contain the substring `..`.
 
@@ -76,25 +70,15 @@ Public static void no-arg methods bound to one global batch name.
 |-----------|----------|--------------------------------------------------------|
 | `value`   | `String` | Batch name; must match `GameTest.batch()` to bind      |
 
-During automatic or manually reported execution, every matching `@BeforeBatch` hook runs once before tests in the batch start. Every matching `@AfterBatch` hook runs once after all of those tests finish. A failed before-hook blocks the batch; a failed after-hook is reported as an infrastructure error.
+During automatic or manually reported execution, every matching `@BeforeBatch` hook runs once before tests in the batch
+start. Once batch setup begins, every matching `@AfterBatch` hook is owed exactly once. After-hooks run after normal test
+completion and are still attempted after a before-hook failure, setup failure, infrastructure failure, or reported-run
+shutdown. A failed before-hook blocks the batch; a failed after-hook is reported as an infrastructure error without
+preventing later after-hooks from running.
 
 Normal interactive commands do not group by `batch` and do not invoke batch hooks.
 
 Use `@BeforeBatch("")` and `@AfterBatch("")` for the default batch. Named batches use the same validation rules as `GameTest.batch()`. Because names are not holder-namespaced, prefer a mod-prefixed value when collisions are possible.
-
-Stability: `@Experimental`.
-
-## `@Stable` and `@Experimental`
-
-API stability markers on public framework types. See [Versioning](versioning.md) for what each annotation commits to across releases.
-
-`@Experimental`
-:   May change without a major version bump. **All mod-facing API is `@Experimental` in 0.x.x**, including `GameTestHelper`, `TestPos`, and the test annotations, even where signatures still expose internal types or other experimental helpers.
-
-`@Stable`
-:   Reserved for 1.0.0 onward: types whose public signatures no longer leak internal or experimental types, and whose contracts are committed across minor versions.
-
-Expect breaking API refinements in 0.x.x; pin versions and budget for updates until the first `@Stable` graduation in 1.0.0. The deprecation cycle that applies from 1.0.0 onward is described in [Versioning, deprecation policy](versioning.md#deprecation-policy).
 
 ## Test ID format
 

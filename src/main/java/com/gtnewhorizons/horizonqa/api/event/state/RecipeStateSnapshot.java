@@ -1,7 +1,6 @@
 package com.gtnewhorizons.horizonqa.api.event.state;
 
 import com.github.bsideup.jabel.Desugar;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
 /**
  * Immutable snapshot of a multiblock controller's recipe state at a single tick. Produced by
@@ -9,7 +8,6 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
  * that the warp differ in {@link com.gtnewhorizons.horizonqa.api.gt.TimeWarpHandler TimeWarpHandler} can compare across
  * ticks without referencing GT types.
  */
-@Experimental
 @Desugar
 public record RecipeStateSnapshot(boolean formed, int progressTime, int maxProgressTime, long eut, int efficiency,
     String checkRecipeResultId, int parallels) {
