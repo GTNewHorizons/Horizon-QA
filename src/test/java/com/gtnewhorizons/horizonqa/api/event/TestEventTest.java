@@ -2,6 +2,8 @@ package com.gtnewhorizons.horizonqa.api.event;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.Locale;
+
 import org.junit.Test;
 
 import com.gtnewhorizons.horizonqa.api.TestPos;
@@ -15,6 +17,20 @@ public class TestEventTest {
     private static final TestPos POS = new TestPos(1, 2, 3);
     private static final String POS_TEXT = POS.toString();
     public static final int TICK = 7;
+
+    @Test
+    public void cleanroomSummaryUsesDecimalPointWithPolishFormatting() {
+        Locale original = Locale.getDefault(Locale.Category.FORMAT);
+        try {
+            Locale.setDefault(Locale.Category.FORMAT, Locale.forLanguageTag("pl-PL"));
+            assertEvent(
+                new CleanroomEfficiencyChanged(TICK, POS, 9876),
+                TestEvent.Category.DIAGNOSTIC,
+                "Cleanroom efficiency at " + POS_TEXT + ": 98.76 %");
+        } finally {
+            Locale.setDefault(Locale.Category.FORMAT, original);
+        }
+    }
 
     @Test
     public void summariesAreStableReporterOutput() {
