@@ -1,16 +1,15 @@
 package com.gtnewhorizons.horizonqa.block;
 
+import java.util.ArrayList;
+import java.util.UUID;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagInt;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
-
-import java.util.ArrayList;
-import java.util.UUID;
 
 public class TileDebugIInventory extends TileEntity implements ISidedInventory {
 
@@ -54,8 +53,8 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
 
     // public TileDebugIInventory.Error lastError = null;
 
-    //DO NOT SAVE THESE TO NBT! These are sanity checks on a per-object basis!
-    //Public for ease of access
+    // DO NOT SAVE THESE TO NBT! These are sanity checks on a per-object basis!
+    // Public for ease of access
     public UUID tileUUID = new UUID(worldObj.rand.nextLong(), worldObj.rand.nextLong());
     public boolean canInsertItemCalledOnce[] = new boolean[3];
     public boolean canExtractItemCalledOnce[] = new boolean[3];
@@ -63,40 +62,82 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
 
     @Override
     public int[] getAccessibleSlotsFromSide(int p_94128_1_) {
-        return new int[]{0, 1, 2};
+        return new int[] { 0, 1, 2 };
     }
 
     @Override
     public boolean canInsertItem(int slot, ItemStack item, int side) {
-        Object argObj[] = doLog ? new Object[]{slot, item, side} : null;
+        Object argObj[] = doLog ? new Object[] { slot, item, side } : null;
         boolean slotOOB = false;
         boolean sideOOB = false;
-        if ( slot > 2 || slot < 0 ) slotOOB = true;
-        if ( side < 0 || side >= 6 ) sideOOB = true;
+        if (slot > 2 || slot < 0) slotOOB = true;
+        if (side < 0 || side >= 6) sideOOB = true;
         if (slotOOB || sideOOB) {
-            if ( doLog)log.add(logEvent(Funcs.canInsertItem, argObj, ErrorWarn.ERR | (slotOOB ? ErrorWarn.SLOT | ErrorWarn.OOB : ErrorWarn.NONE) | (sideOOB ? ErrorWarn.SIDE | ErrorWarn.OOB : ErrorWarn.NONE) | ErrorWarn.CHECKING | ErrorWarn.INSERTION));
+            if (doLog) log.add(
+                logEvent(
+                    Funcs.canInsertItem,
+                    argObj,
+                    ErrorWarn.ERR | (slotOOB ? ErrorWarn.SLOT | ErrorWarn.OOB : ErrorWarn.NONE)
+                        | (sideOOB ? ErrorWarn.SIDE | ErrorWarn.OOB : ErrorWarn.NONE)
+                        | ErrorWarn.CHECKING
+                        | ErrorWarn.INSERTION));
             return false;
-        } canInsertItemCalledOnce[slot] = true;
-        if ( doLog)log.add(logEvent(Funcs.canInsertItem, argObj, ErrorWarn.INSERTION | ErrorWarn.CHECKING | (item == null ? ErrorWarn.NULL_ITEMSTACK | ErrorWarn.WRN : item.stackSize == 0 ? ErrorWarn.ZERO_ITEMSTACK | ErrorWarn.WRN : item.stackSize < 0 ? ErrorWarn.NEGT_ITEMSTACK | ErrorWarn.WRN : item.stackSize > 127 ? ErrorWarn.O127_ITEMSTACK | ErrorWarn.WRN : item.stackSize > 64 ? ErrorWarn.OV64_ITEMSTACK | ErrorWarn.WRN : ErrorWarn.NONE)));
-        if ( item == null ) return slot != 2 && allowedSidesExt[side] && !failCheckIfNull;
-        return slot < 2 && allowedSidesIns[side] && Boolean.logicalXor(item.getItem() != null && allowedItemsIns[slot].contains(item.getItem().delegate.name()), disallowItemsInToggle);
+        }
+        canInsertItemCalledOnce[slot] = true;
+        if (doLog) log.add(
+            logEvent(
+                Funcs.canInsertItem,
+                argObj,
+                ErrorWarn.INSERTION | ErrorWarn.CHECKING
+                    | (item == null ? ErrorWarn.NULL_ITEMSTACK | ErrorWarn.WRN
+                        : item.stackSize == 0 ? ErrorWarn.ZERO_ITEMSTACK | ErrorWarn.WRN
+                            : item.stackSize < 0 ? ErrorWarn.NEGT_ITEMSTACK | ErrorWarn.WRN
+                                : item.stackSize > 127 ? ErrorWarn.O127_ITEMSTACK | ErrorWarn.WRN
+                                    : item.stackSize > 64 ? ErrorWarn.OV64_ITEMSTACK | ErrorWarn.WRN
+                                        : ErrorWarn.NONE)));
+        if (item == null) return slot != 2 && allowedSidesExt[side] && !failCheckIfNull;
+        return slot < 2 && allowedSidesIns[side]
+            && Boolean.logicalXor(
+                item.getItem() != null && allowedItemsIns[slot].contains(item.getItem().delegate.name()),
+                disallowItemsInToggle);
     }
 
     @Override
     public boolean canExtractItem(int slot, ItemStack item, int side) {
-        Object argObj[] = doLog ? new Object[]{slot, item, side} : null;
+        Object argObj[] = doLog ? new Object[] { slot, item, side } : null;
         boolean slotOOB = false;
         boolean sideOOB = false;
-        if ( slot > 2 || slot < 0 ) slotOOB = true;
-        if ( side < 0 || side >= 6 ) sideOOB = true;
+        if (slot > 2 || slot < 0) slotOOB = true;
+        if (side < 0 || side >= 6) sideOOB = true;
         if (slotOOB || sideOOB) {
-            if ( doLog)log.add(logEvent(Funcs.canExtractItem, argObj, ErrorWarn.ERR | (slotOOB ? ErrorWarn.SLOT | ErrorWarn.OOB : ErrorWarn.NONE) | (sideOOB ? ErrorWarn.SIDE | ErrorWarn.OOB : ErrorWarn.NONE) | ErrorWarn.CHECKING | ErrorWarn.EXTRACTION));
+            if (doLog) log.add(
+                logEvent(
+                    Funcs.canExtractItem,
+                    argObj,
+                    ErrorWarn.ERR | (slotOOB ? ErrorWarn.SLOT | ErrorWarn.OOB : ErrorWarn.NONE)
+                        | (sideOOB ? ErrorWarn.SIDE | ErrorWarn.OOB : ErrorWarn.NONE)
+                        | ErrorWarn.CHECKING
+                        | ErrorWarn.EXTRACTION));
             return false;
-        } canExtractItemCalledOnce[slot] = true;
-        if ( doLog)log.add(logEvent(Funcs.canInsertItem, argObj, ErrorWarn.EXTRACTION | ErrorWarn.CHECKING | (item == null ? ErrorWarn.NULL_ITEMSTACK | ErrorWarn.WRN : item.stackSize == 0 ? ErrorWarn.ZERO_ITEMSTACK | ErrorWarn.WRN : item.stackSize < 0 ? ErrorWarn.NEGT_ITEMSTACK | ErrorWarn.WRN : item.stackSize > 127 ? ErrorWarn.O127_ITEMSTACK | ErrorWarn.WRN : item.stackSize > 64 ? ErrorWarn.OV64_ITEMSTACK | ErrorWarn.WRN : ErrorWarn.NONE)));
-        if ( slot == 2 && machineMode && (inv[0] == null || inv[1] == null)) return false;
-        if ( item == null ) return allowedSidesExt[side] && !failCheckIfNull;
-        return slot == 2 || slot < 2 && allowedSidesExt[side] && Boolean.logicalXor(item.getItem() != null && allowedItemsExt[slot].contains(item.getItem().delegate.name()), disallowItemsExToggle);
+        }
+        canExtractItemCalledOnce[slot] = true;
+        if (doLog) log.add(
+            logEvent(
+                Funcs.canInsertItem,
+                argObj,
+                ErrorWarn.EXTRACTION | ErrorWarn.CHECKING
+                    | (item == null ? ErrorWarn.NULL_ITEMSTACK | ErrorWarn.WRN
+                        : item.stackSize == 0 ? ErrorWarn.ZERO_ITEMSTACK | ErrorWarn.WRN
+                            : item.stackSize < 0 ? ErrorWarn.NEGT_ITEMSTACK | ErrorWarn.WRN
+                                : item.stackSize > 127 ? ErrorWarn.O127_ITEMSTACK | ErrorWarn.WRN
+                                    : item.stackSize > 64 ? ErrorWarn.OV64_ITEMSTACK | ErrorWarn.WRN
+                                        : ErrorWarn.NONE)));
+        if (slot == 2 && machineMode && (inv[0] == null || inv[1] == null)) return false;
+        if (item == null) return allowedSidesExt[side] && !failCheckIfNull;
+        return slot == 2 || slot < 2 && allowedSidesExt[side]
+            && Boolean.logicalXor(
+                item.getItem() != null && allowedItemsExt[slot].contains(item.getItem().delegate.name()),
+                disallowItemsExToggle);
     }
 
     @Override
@@ -106,15 +147,30 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
 
     @Override
     public ItemStack getStackInSlot(int slotIn) {
-        if ( slotIn < 0 || slotIn > 2 )return null; //todo: log
-        if ( slotIn == 2 ) {
+        if (slotIn < 0 || slotIn > 2) return null; // todo: log
+        if (slotIn == 2) {
             ItemStack stack = getOutputItem();
-            stack.setStackDisplayName("getStackInSlot: " + (inv[0] == null ? null : ((inv[0].getItem() == null ? null : inv[0].getItem().delegate.name())+" (" + inv[0].stackSize + ")")) + " | " + (inv[1] == null ? null : ((inv[1].getItem() == null ? null : inv[1].getItem().delegate.name())+" (" + inv[1].stackSize + ")")));
+            stack.setStackDisplayName(
+                "getStackInSlot: "
+                    + (inv[0] == null ? null
+                        : ((inv[0].getItem() == null ? null : inv[0].getItem().delegate.name()) + " ("
+                            + inv[0].stackSize
+                            + ")"))
+                    + " | "
+                    + (inv[1] == null ? null
+                        : ((inv[1].getItem() == null ? null : inv[1].getItem().delegate.name()) + " ("
+                            + inv[1].stackSize
+                            + ")")));
             return stack;
         }
         ItemStack stack = inv[slotIn];
-        if ( stack == null ) return returnNullForNoItem ? null : getOutputItem().setStackDisplayName("getStackInSlot: null");
-        stack.setStackDisplayName("getStackInSlot: " + (inv[slotIn] == null ? null : ((inv[slotIn].getItem() == null ? null : inv[slotIn].getItem().delegate.name())+" (" + inv[slotIn].stackSize + ")")));
+        if (stack == null)
+            return returnNullForNoItem ? null : getOutputItem().setStackDisplayName("getStackInSlot: null");
+        stack.setStackDisplayName(
+            "getStackInSlot: " + (inv[slotIn] == null ? null
+                : ((inv[slotIn].getItem() == null ? null : inv[slotIn].getItem().delegate.name()) + " ("
+                    + inv[slotIn].stackSize
+                    + ")")));
         return stack;
     }
 
@@ -125,7 +181,7 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
 
     @Override
     public ItemStack getStackInSlotOnClosing(int index) {
-        return null; //todo
+        return null; // todo
     }
 
     @Override
@@ -165,9 +221,11 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
 
     @Override
     public boolean isItemValidForSlot(int slot, ItemStack stack) {
-        if ( slot < 0 || slot > 2 ) return false; //todo: log
+        if (slot < 0 || slot > 2) return false; // todo: log
         isItemValidForSlotCalledOnce[slot] = true;
-        return slot < 2 && Boolean.logicalXor(stack.getItem() != null && allowedItems[slot].contains(stack.getItem().delegate.name()), disallowItemsToggle);
+        return slot < 2 && Boolean.logicalXor(
+            stack.getItem() != null && allowedItems[slot].contains(stack.getItem().delegate.name()),
+            disallowItemsToggle);
     }
 
     // gets a blank output item, not necessarily the item in slot 2
@@ -183,13 +241,16 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
         getStackInSlotOnClosing,
         getInventoryStackLimit,
         getSizeInventory,
-        getAccessibleSlotsFromSide, canInsertItem, canExtractItem,
+        getAccessibleSlotsFromSide,
+        canInsertItem,
+        canExtractItem,
     }
 
-    //bitwise OR these for a status code
-    //first two bits = type, next few digits = more abt type
-    //last four digits = specific thing
+    // bitwise OR these for a status code
+    // first two bits = type, next few digits = more abt type
+    // last four digits = specific thing
     public static class ErrorWarn {
+
         public static int NONE = 0;
         public static int ERR = 0xC0000000;
         public static int WRN = 0x80000000;
@@ -207,18 +268,19 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
         public static int OOB = 0x80;
     }
 
-    NBTTagCompound logEvent(Funcs event, Object[] args, int status ) {
+    NBTTagCompound logEvent(Funcs event, Object[] args, int status) {
         NBTTagCompound ret = new NBTTagCompound();
         ret.setString("inst_uuid", this.tileUUID.toString());
         ret.setInteger("func", event.ordinal());
         NBTTagList arglist = new NBTTagList();
-        for ( Object a : args ) {
-            if ( a instanceof Integer aint ) arglist.appendTag(new NBTTagInt(aint));
-            else if ( a instanceof ItemStack astack) {
+        for (Object a : args) {
+            if (a instanceof Integer aint) arglist.appendTag(new NBTTagInt(aint));
+            else if (a instanceof ItemStack astack) {
                 NBTTagCompound stacktag = new NBTTagCompound();
                 arglist.appendTag(astack.writeToNBT(stacktag));
-            }
-            else throw new IllegalArgumentException("Invalid arg type given to logEvent!\tClass: " + a.getClass().getName());
+            } else throw new IllegalArgumentException(
+                "Invalid arg type given to logEvent!\tClass: " + a.getClass()
+                    .getName());
         }
         ret.setTag("args", arglist);
         ret.setInteger("status", status);
