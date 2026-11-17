@@ -7,6 +7,10 @@ import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.MinecraftForge;
 
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
+import com.gtnewhorizons.horizonqa.block.BlockDebugIInventory;
+import com.gtnewhorizons.horizonqa.block.BlockDebugInvInterface;
+import com.gtnewhorizons.horizonqa.block.TileDebugIInventory;
+import com.gtnewhorizons.horizonqa.block.TileDebugInvInterface;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommand;
 import com.gtnewhorizons.horizonqa.internal.GameTestCatalog;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
@@ -15,6 +19,7 @@ import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.ReportedRun;
+import com.gtnewhorizons.horizonqa.item.ItemDebugItem;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.network.HorizonQANetwork;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
@@ -77,6 +82,16 @@ public class CommonProxy {
 
         ItemHorizonWand.INSTANCE = new ItemHorizonWand();
         GameRegistry.registerItem(ItemHorizonWand.INSTANCE, "wand");
+        ItemDebugItem.INSTANCE = new ItemDebugItem();
+        GameRegistry.registerItem(ItemDebugItem.INSTANCE, "debuggey");
+
+        BlockDebugIInventory.INSTANCE = new BlockDebugIInventory();
+        GameRegistry.registerBlock(BlockDebugIInventory.INSTANCE, "iinv_debug");
+        BlockDebugInvInterface.INSTANCE = new BlockDebugInvInterface();
+        GameRegistry.registerBlock(BlockDebugInvInterface.INSTANCE, "debug_inv_interface");
+
+        GameRegistry.registerTileEntity(TileDebugIInventory.class, "iinv_debug");
+        GameRegistry.registerTileEntity(TileDebugInvInterface.class, "debug_inv_interface");
 
         if (HorizonQAProperties.isActive()) {
             MinecraftForge.EVENT_BUS.register(new SelectionBoxRenderer());
