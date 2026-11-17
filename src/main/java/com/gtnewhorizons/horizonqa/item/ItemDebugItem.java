@@ -17,8 +17,14 @@ public class ItemDebugItem extends Item {
 
     @Override
     public boolean onItemUse(ItemStack stack, EntityPlayer player, World world, int x, int y, int z, int side,
-                             float hitX, float hitY, float hitZ) {
-        if (!world.isRemote) world.playSoundEffect(player.posX, player.posY + 1.5, player.posZ, "mob.chicken.say2", 1.0f, stack.stackSize != 64 ? 3.0f + stack.stackSize / 64f : .35f);
+        float hitX, float hitY, float hitZ) {
+        if (!world.isRemote) world.playSoundEffect(
+            player.posX,
+            player.posY + 1.5,
+            player.posZ,
+            "mob.chicken.say2",
+            1.0f,
+            stack.stackSize != 64 ? 3.0f + stack.stackSize / 64f : .35f);
         return true;
     }
 

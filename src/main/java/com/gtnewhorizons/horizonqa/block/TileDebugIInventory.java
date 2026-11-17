@@ -3,9 +3,6 @@ package com.gtnewhorizons.horizonqa.block;
 import java.util.ArrayList;
 import java.util.UUID;
 
-import com.gtnewhorizons.horizonqa.item.ItemDebugItem;
-import ic2.core.item.tool.ItemDebug;
-import it.unimi.dsi.fastutil.objects.Object2CharAVLTreeMap;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
@@ -13,6 +10,8 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagInt;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
+
+import com.gtnewhorizons.horizonqa.item.ItemDebugItem;
 
 public class TileDebugIInventory extends TileEntity implements ISidedInventory {
 
@@ -61,15 +60,18 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
     @Override
     public int[] getAccessibleSlotsFromSide(int side) {
         if (side < 0 || side >= 6) {
-            if (doLog) logEvent(Funcs.getAccessibleSlotsFromSide, new Object[]{side}, ErrorWarn.ERR | ErrorWarn.OpType.CHECKING | (side < 0 ? ErrorWarn.Side.NEGT : ErrorWarn.Side.HIGH));
+            if (doLog) logEvent(
+                Funcs.getAccessibleSlotsFromSide,
+                new Object[] { side },
+                ErrorWarn.ERR | ErrorWarn.OpType.CHECKING | (side < 0 ? ErrorWarn.Side.NEGT : ErrorWarn.Side.HIGH));
         }
         getAccessibleSlotsFromSideCalledOnce[side] = true;
-        if (doLog) logEvent(Funcs.getAccessibleSlotsFromSide, new Object[]{side}, ErrorWarn.NONE);
+        if (doLog) logEvent(Funcs.getAccessibleSlotsFromSide, new Object[] { side }, ErrorWarn.NONE);
         if (allowedSidesIns[side]) {
-            if (allowedSidesExt[side]) return new int[] {0,1,2};
-            return new int[] {0,1};
+            if (allowedSidesExt[side]) return new int[] { 0, 1, 2 };
+            return new int[] { 0, 1 };
         }
-        if (allowedSidesExt[side]) return new int[]{2};
+        if (allowedSidesExt[side]) return new int[] { 2 };
         return new int[0];
     }
 
@@ -154,12 +156,21 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
     @Override
     public ItemStack getStackInSlot(int slotIn) {
         if (slotIn < 0 || slotIn > 2) {
-            if (doLog) log.add(logEvent(Funcs.getStackInSlot, new Object[] { slotIn }, ErrorWarn.ERR | ErrorWarn.OpType.EXTRACTION | (slotIn < 0 ? ErrorWarn.Slot.NEGT : ErrorWarn.Slot.HIGH)));
+            if (doLog) log.add(
+                logEvent(
+                    Funcs.getStackInSlot,
+                    new Object[] { slotIn },
+                    ErrorWarn.ERR | ErrorWarn.OpType.EXTRACTION
+                        | (slotIn < 0 ? ErrorWarn.Slot.NEGT : ErrorWarn.Slot.HIGH)));
             return null;
         }
         if (slotIn == 2) {
-            if (machineMode && (inv[0]==null||inv[1]==null||inv[0].stackSize<1||inv[1].stackSize<1)) {
-                if (doLog) log.add(logEvent(Funcs.getStackInSlot, new Object[]{slotIn}, ErrorWarn.WRN | ErrorWarn.OpType.EXTRACTION | ErrorWarn.ItemStack.INSUF));
+            if (machineMode && (inv[0] == null || inv[1] == null || inv[0].stackSize < 1 || inv[1].stackSize < 1)) {
+                if (doLog) log.add(
+                    logEvent(
+                        Funcs.getStackInSlot,
+                        new Object[] { slotIn },
+                        ErrorWarn.WRN | ErrorWarn.OpType.EXTRACTION | ErrorWarn.ItemStack.INSUF));
                 return returnNullForNoItem ? null : getOutputItem().setStackDisplayName("getStackInSlot: null");
             }
             ItemStack stack = getOutputItem();
@@ -175,12 +186,16 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
                             + inv[1].stackSize
                             + ")")));
             stack.stackSize = machineMode ? Math.min(inv[0].stackSize, inv[1].stackSize) : 64;
-            if (doLog) log.add(logEvent(Funcs.getStackInSlot, new Object[] {slotIn}, ErrorWarn.OpType.EXTRACTION));
+            if (doLog) log.add(logEvent(Funcs.getStackInSlot, new Object[] { slotIn }, ErrorWarn.OpType.EXTRACTION));
             return stack;
         }
         ItemStack stack = inv[slotIn];
         if (stack == null) {
-            if (doLog) log.add(logEvent(Funcs.getStackInSlot, new Object[]{slotIn}, ErrorWarn.WRN | ErrorWarn.OpType.EXTRACTION | ErrorWarn.ItemStack.NULL));
+            if (doLog) log.add(
+                logEvent(
+                    Funcs.getStackInSlot,
+                    new Object[] { slotIn },
+                    ErrorWarn.WRN | ErrorWarn.OpType.EXTRACTION | ErrorWarn.ItemStack.NULL));
             return returnNullForNoItem ? null : getOutputItem().setStackDisplayName("getStackInSlot: null");
         }
         stack.setStackDisplayName(
@@ -188,48 +203,71 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
                 : ((inv[slotIn].getItem() == null ? null : inv[slotIn].getItem().delegate.name()) + " ("
                     + inv[slotIn].stackSize
                     + ")")));
-        if (doLog) log.add(logEvent(Funcs.getStackInSlot, new Object[] {slotIn}, ErrorWarn.OpType.EXTRACTION));
+        if (doLog) log.add(logEvent(Funcs.getStackInSlot, new Object[] { slotIn }, ErrorWarn.OpType.EXTRACTION));
         return stack;
     }
 
     @Override
     public ItemStack decrStackSize(int index, int count) {
-        Object argObjs[] = doLog ? new Object[] {index, count} : null;
-        boolean indexOOB = index <0 || index > 2;
+        Object argObjs[] = doLog ? new Object[] { index, count } : null;
+        boolean indexOOB = index < 0 || index > 2;
         boolean countOOB = count < 0 || count > 64;
         if (indexOOB || count < 0) {
-            if (doLog) log.add(logEvent(Funcs.decrStackSize, argObjs, ErrorWarn.ERR | ErrorWarn.OpType.EXTRACTION | (indexOOB ? index < 0 ? ErrorWarn.Slot.NEGT : ErrorWarn.Slot.HIGH : ErrorWarn.NONE) | (countOOB ? index < 0 ? ErrorWarn.Count.NEGT : ErrorWarn.Count.HIGH : ErrorWarn.NONE)));
+            if (doLog) log.add(
+                logEvent(
+                    Funcs.decrStackSize,
+                    argObjs,
+                    ErrorWarn.ERR | ErrorWarn.OpType.EXTRACTION
+                        | (indexOOB ? index < 0 ? ErrorWarn.Slot.NEGT : ErrorWarn.Slot.HIGH : ErrorWarn.NONE)
+                        | (countOOB ? index < 0 ? ErrorWarn.Count.NEGT : ErrorWarn.Count.HIGH : ErrorWarn.NONE)));
             return null;
         }
         if (index == 2) {
-            if (machineMode && (inv[0]==null||inv[1]==null||inv[0].stackSize<1||inv[1].stackSize<1)) {
-                if (doLog) log.add(logEvent(Funcs.decrStackSize, argObjs, ErrorWarn.ERR | ErrorWarn.OpType.EXTRACTION | ErrorWarn.ItemStack.INSUF | (countOOB ? ErrorWarn.Count.HIGH : ErrorWarn.NONE)));
+            if (machineMode && (inv[0] == null || inv[1] == null || inv[0].stackSize < 1 || inv[1].stackSize < 1)) {
+                if (doLog) log.add(
+                    logEvent(
+                        Funcs.decrStackSize,
+                        argObjs,
+                        ErrorWarn.ERR | ErrorWarn.OpType.EXTRACTION
+                            | ErrorWarn.ItemStack.INSUF
+                            | (countOOB ? ErrorWarn.Count.HIGH : ErrorWarn.NONE)));
                 return returnNullForNoItem ? null : getOutputItem().setStackDisplayName("decrStackSize: null");
             }
             int insuf = 0;
-            if (machineMode && (inv[0].stackSize<count||inv[1].stackSize<count)) {
+            if (machineMode && (inv[0].stackSize < count || inv[1].stackSize < count)) {
                 insuf = ErrorWarn.WRN | ErrorWarn.ItemStack.INSUF;
-                count = Math.min(inv[0].stackSize,inv[1].stackSize);
+                count = Math.min(inv[0].stackSize, inv[1].stackSize);
             }
             ItemStack stack = getOutputItem();
             stack.setStackDisplayName(
                 "decrStackSize: "
                     + (inv[0] == null ? null
-                    : ((inv[0].getItem() == null ? null : inv[0].getItem().delegate.name()) + " ("
-                    + inv[0].stackSize
-                    + ")"))
+                        : ((inv[0].getItem() == null ? null : inv[0].getItem().delegate.name()) + " ("
+                            + inv[0].stackSize
+                            + ")"))
                     + " | "
                     + (inv[1] == null ? null
-                    : ((inv[1].getItem() == null ? null : inv[1].getItem().delegate.name()) + " ("
-                    + inv[1].stackSize
-                    + ")")));
+                        : ((inv[1].getItem() == null ? null : inv[1].getItem().delegate.name()) + " ("
+                            + inv[1].stackSize
+                            + ")")));
             stack.stackSize = count;
-            if (doLog) log.add(logEvent(Funcs.decrStackSize, argObjs, ErrorWarn.OpType.EXTRACTION | insuf | (countOOB ? ErrorWarn.WRN | ErrorWarn.Count.HIGH : ErrorWarn.NONE)));
+            if (doLog) log.add(
+                logEvent(
+                    Funcs.decrStackSize,
+                    argObjs,
+                    ErrorWarn.OpType.EXTRACTION | insuf
+                        | (countOOB ? ErrorWarn.WRN | ErrorWarn.Count.HIGH : ErrorWarn.NONE)));
             return stack;
         }
         ItemStack stack = inv[index];
-        if (stack == null || stack.stackSize<1) {
-            if (doLog) log.add(logEvent(Funcs.decrStackSize, argObjs, ErrorWarn.ERR | ErrorWarn.OpType.EXTRACTION | ErrorWarn.ItemStack.NULL | (countOOB ? ErrorWarn.Count.HIGH : ErrorWarn.NONE)));
+        if (stack == null || stack.stackSize < 1) {
+            if (doLog) log.add(
+                logEvent(
+                    Funcs.decrStackSize,
+                    argObjs,
+                    ErrorWarn.ERR | ErrorWarn.OpType.EXTRACTION
+                        | ErrorWarn.ItemStack.NULL
+                        | (countOOB ? ErrorWarn.Count.HIGH : ErrorWarn.NONE)));
             return returnNullForNoItem ? null : getOutputItem().setStackDisplayName("decrStackSize: null");
         }
         int insuf = 0;
@@ -244,28 +282,37 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
             out.stackSize = count;
             stack.stackSize -= count;
         }
-        if (doLog) log.add(logEvent(Funcs.decrStackSize, argObjs, ErrorWarn.OpType.EXTRACTION | insuf | (countOOB ? ErrorWarn.WRN | ErrorWarn.Count.HIGH : ErrorWarn.NONE)));
+        if (doLog) log.add(
+            logEvent(
+                Funcs.decrStackSize,
+                argObjs,
+                ErrorWarn.OpType.EXTRACTION | insuf
+                    | (countOOB ? ErrorWarn.WRN | ErrorWarn.Count.HIGH : ErrorWarn.NONE)));
         return out;
     }
 
     @Override
     public ItemStack getStackInSlotOnClosing(int index) {
-        return null; // todo : not a huge priority    (GUI)
+        return null; // todo : not a huge priority (GUI)
     }
 
     @Override
     public void setInventorySlotContents(int index, ItemStack stack) {
-        Object argObjs[] = doLog ? new Object[] {index, stack} : null;
+        Object argObjs[] = doLog ? new Object[] { index, stack } : null;
         boolean indexOOB = index < 0 || index > 2;
         boolean stackBad = stack != null && stack.stackSize < 0;
         int warnNums = stack == null ? ErrorWarn.NONE
             : stack.stackSize == 0 ? ErrorWarn.ItemStack.ZERO | ErrorWarn.WRN
-            : stack.stackSize < 0 ? ErrorWarn.ItemStack.NEGT | ErrorWarn.WRN
-            : stack.stackSize > 127 ? ErrorWarn.ItemStack.O127 | ErrorWarn.WRN
-            : stack.stackSize > 64 ? ErrorWarn.ItemStack.OV64 | ErrorWarn.WRN
-            : ErrorWarn.NONE;
+                : stack.stackSize < 0 ? ErrorWarn.ItemStack.NEGT | ErrorWarn.WRN
+                    : stack.stackSize > 127 ? ErrorWarn.ItemStack.O127 | ErrorWarn.WRN
+                        : stack.stackSize > 64 ? ErrorWarn.ItemStack.OV64 | ErrorWarn.WRN : ErrorWarn.NONE;
         if (indexOOB || stackBad) {
-            if (doLog) log.add(logEvent(Funcs.setInventorySlotContents, argObjs, ErrorWarn.ERR | (indexOOB ? index < 0 ? ErrorWarn.Slot.NEGT : ErrorWarn.Slot.HIGH : ErrorWarn.NONE) | warnNums));
+            if (doLog) log.add(
+                logEvent(
+                    Funcs.setInventorySlotContents,
+                    argObjs,
+                    ErrorWarn.ERR | (indexOOB ? index < 0 ? ErrorWarn.Slot.NEGT : ErrorWarn.Slot.HIGH : ErrorWarn.NONE)
+                        | warnNums));
             return;
         }
         if (index == 2) {
@@ -273,21 +320,38 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
                 stack = getOutputItem();
                 stack.stackSize = 0;
             }
-            if (stack.getItem().delegate.name() != getOutputItem().getItem().delegate.name() || machineMode && (inv[0] == null || inv[1] == null)) {
-                if (doLog) log.add(logEvent(Funcs.setInventorySlotContents, argObjs, ErrorWarn.ERR | warnNums | ErrorWarn.ItemStack.BAD));
+            if (stack.getItem().delegate.name() != getOutputItem().getItem().delegate.name()
+                || machineMode && (inv[0] == null || inv[1] == null)) {
+                if (doLog) log.add(
+                    logEvent(
+                        Funcs.setInventorySlotContents,
+                        argObjs,
+                        ErrorWarn.ERR | warnNums | ErrorWarn.ItemStack.BAD));
                 return;
             }
             int maxCnt = Math.min(inv[0].stackSize, inv[1].stackSize);
             int delta = stack.stackSize - maxCnt;
             if (machineMode) {
-                inv[0].stackSize = Math.min(0,Math.max(inv[0].getItem().getItemStackLimit(),inv[0].stackSize + delta));
-                inv[1].stackSize = Math.min(0,Math.max(inv[1].getItem().getItemStackLimit(),inv[1].stackSize + delta));
+                inv[0].stackSize = Math.min(
+                    0,
+                    Math.max(
+                        inv[0].getItem()
+                            .getItemStackLimit(),
+                        inv[0].stackSize + delta));
+                inv[1].stackSize = Math.min(
+                    0,
+                    Math.max(
+                        inv[1].getItem()
+                            .getItemStackLimit(),
+                        inv[1].stackSize + delta));
             } // this is to be *very* robust with weird setInventorySlotContents behaviors
             if (doLog) log.add(logEvent(Funcs.setInventorySlotContents, argObjs, warnNums));
             return;
         }
-        if (stack != null &&!Boolean.logicalXor(allowedItems[index].contains(stack.getItem().delegate.name()),disallowItemsToggle)){
-            if (doLog) log.add(logEvent(Funcs.setInventorySlotContents, argObjs, ErrorWarn.ERR| ErrorWarn.ItemStack.BAD));
+        if (stack != null && !Boolean
+            .logicalXor(allowedItems[index].contains(stack.getItem().delegate.name()), disallowItemsToggle)) {
+            if (doLog)
+                log.add(logEvent(Funcs.setInventorySlotContents, argObjs, ErrorWarn.ERR | ErrorWarn.ItemStack.BAD));
             return;
         }
         inv[index] = stack;
@@ -327,18 +391,24 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
 
     @Override
     public boolean isItemValidForSlot(int slot, ItemStack stack) {
-        boolean badSlot = (slot < 0 || slot > 2) ;
+        boolean badSlot = (slot < 0 || slot > 2);
         int warnNums = stack == null ? ErrorWarn.NONE
             : stack.stackSize == 0 ? ErrorWarn.ItemStack.ZERO | ErrorWarn.WRN
-            : stack.stackSize < 0 ? ErrorWarn.ItemStack.NEGT | ErrorWarn.WRN
-            : stack.stackSize > 127 ? ErrorWarn.ItemStack.O127 | ErrorWarn.WRN
-            : stack.stackSize > 64 ? ErrorWarn.ItemStack.OV64 | ErrorWarn.WRN
-            : ErrorWarn.NONE;
+                : stack.stackSize < 0 ? ErrorWarn.ItemStack.NEGT | ErrorWarn.WRN
+                    : stack.stackSize > 127 ? ErrorWarn.ItemStack.O127 | ErrorWarn.WRN
+                        : stack.stackSize > 64 ? ErrorWarn.ItemStack.OV64 | ErrorWarn.WRN : ErrorWarn.NONE;
         if (badSlot) {
-            if (doLog) log.add(logEvent(Funcs.isItemValidForSlot, new Object[] {slot, stack}, ErrorWarn.ERR| ErrorWarn.OpType.CHECKING | warnNums | (slot < 0 ? ErrorWarn.Slot.NEGT : ErrorWarn.Slot.HIGH)));
+            if (doLog) log.add(
+                logEvent(
+                    Funcs.isItemValidForSlot,
+                    new Object[] { slot, stack },
+                    ErrorWarn.ERR | ErrorWarn.OpType.CHECKING
+                        | warnNums
+                        | (slot < 0 ? ErrorWarn.Slot.NEGT : ErrorWarn.Slot.HIGH)));
             return false;
         }
-        if (doLog) log.add(logEvent(Funcs.isItemValidForSlot, new Object[]{slot, stack}, ErrorWarn.OpType.CHECKING | warnNums));
+        if (doLog) log.add(
+            logEvent(Funcs.isItemValidForSlot, new Object[] { slot, stack }, ErrorWarn.OpType.CHECKING | warnNums));
         isItemValidForSlotCalledOnce[slot] = true;
         return slot < 2 && Boolean.logicalXor(
             stack.getItem() != null && allowedItems[slot].contains(stack.getItem().delegate.name()),
@@ -372,13 +442,18 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
         public final static int ERR = 0xC0000000;
         public final static int WRN = 0x80000000;
         public final static int OPTYPE = 0x30000000;
+
         public final static class OpType {
+
             public final static int INSERTION = 0x00000000;
             public final static int EXTRACTION = 0x10000000;
             public final static int CHECKING = 0x20000000;
         } // these can be OR'ed together
+
         public final static int ITEMSTACK = 0xF;
+
         public final static class ItemStack {
+
             public final static int NULL = 0x1;
             public final static int ZERO = 0x2;
             public final static int NEGT = 0x3;
@@ -387,18 +462,27 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
             public final static int INSUF = 0x6;
             public final static int BAD = 0x7;
         }
+
         public final static int SLOT = 0x30;
+
         public final static class Slot {
+
             public final static int NEGT = 0x10;
             public final static int HIGH = 0x20;
         }
+
         public final static int SIDE = 0xC0;
+
         public final static class Side {
+
             public final static int NEGT = 0x40;
             public final static int HIGH = 0x80;
         }
+
         public final static int COUNT = 0x300;
+
         public final static class Count {
+
             public final static int NEGT = 0x100;
             public final static int HIGH = 0x200;
         }
@@ -421,7 +505,26 @@ public class TileDebugIInventory extends TileEntity implements ISidedInventory {
         }
         ret.setTag("args", arglist);
         ret.setInteger("status", status);
-        ret.setInteger("prev", (canInsertItemCalledOnce[0]?0x1:0x0)|(canInsertItemCalledOnce[1]?0x2:0x0)|(canInsertItemCalledOnce[2]?0x4:0x0)|(canExtractItemCalledOnce[0]?0x8:0x0)|(canExtractItemCalledOnce[1]?0x10:0x0)|(canExtractItemCalledOnce[2]?0x20:0x0)|(isItemValidForSlotCalledOnce[0]?0x40:0x0)|(isItemValidForSlotCalledOnce[1]?0x80:0x0)|(isItemValidForSlotCalledOnce[2]?0x100:0x0)|(getStackInSlotCalledOnce[0]?0x200:0x0)|(getStackInSlotCalledOnce[1]?0x400:0x0)|(getStackInSlotCalledOnce[2]?0x800:0x0)|(getAccessibleSlotsFromSideCalledOnce[0]?0x1000:0x0)|(getAccessibleSlotsFromSideCalledOnce[1]?0x2000:0x0)|(getAccessibleSlotsFromSideCalledOnce[2]?0x4000:0x0)|(getAccessibleSlotsFromSideCalledOnce[3]?0x8000:0x0)|(getAccessibleSlotsFromSideCalledOnce[4]?0x10000:0x0)|(getAccessibleSlotsFromSideCalledOnce[5]?0x20000:0x0)|(getSizeInventoryCalledOnce?0x40000:0x0));
+        ret.setInteger(
+            "prev",
+            (canInsertItemCalledOnce[0] ? 0x1 : 0x0) | (canInsertItemCalledOnce[1] ? 0x2 : 0x0)
+                | (canInsertItemCalledOnce[2] ? 0x4 : 0x0)
+                | (canExtractItemCalledOnce[0] ? 0x8 : 0x0)
+                | (canExtractItemCalledOnce[1] ? 0x10 : 0x0)
+                | (canExtractItemCalledOnce[2] ? 0x20 : 0x0)
+                | (isItemValidForSlotCalledOnce[0] ? 0x40 : 0x0)
+                | (isItemValidForSlotCalledOnce[1] ? 0x80 : 0x0)
+                | (isItemValidForSlotCalledOnce[2] ? 0x100 : 0x0)
+                | (getStackInSlotCalledOnce[0] ? 0x200 : 0x0)
+                | (getStackInSlotCalledOnce[1] ? 0x400 : 0x0)
+                | (getStackInSlotCalledOnce[2] ? 0x800 : 0x0)
+                | (getAccessibleSlotsFromSideCalledOnce[0] ? 0x1000 : 0x0)
+                | (getAccessibleSlotsFromSideCalledOnce[1] ? 0x2000 : 0x0)
+                | (getAccessibleSlotsFromSideCalledOnce[2] ? 0x4000 : 0x0)
+                | (getAccessibleSlotsFromSideCalledOnce[3] ? 0x8000 : 0x0)
+                | (getAccessibleSlotsFromSideCalledOnce[4] ? 0x10000 : 0x0)
+                | (getAccessibleSlotsFromSideCalledOnce[5] ? 0x20000 : 0x0)
+                | (getSizeInventoryCalledOnce ? 0x40000 : 0x0));
         return ret;
     }
 
