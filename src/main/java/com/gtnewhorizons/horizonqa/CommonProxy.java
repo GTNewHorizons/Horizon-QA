@@ -3,7 +3,6 @@ package com.gtnewhorizons.horizonqa;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.gtnewhorizons.horizonqa.item.ItemDebugItem;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.MinecraftForge;
 
@@ -20,6 +19,7 @@ import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.ReportedRun;
+import com.gtnewhorizons.horizonqa.item.ItemDebugItem;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.network.HorizonQANetwork;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
