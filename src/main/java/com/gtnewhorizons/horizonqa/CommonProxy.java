@@ -3,6 +3,7 @@ package com.gtnewhorizons.horizonqa;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.gtnewhorizons.horizonqa.item.ItemDebugItem;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.MinecraftForge;
 
@@ -81,6 +82,8 @@ public class CommonProxy {
 
         ItemHorizonWand.INSTANCE = new ItemHorizonWand();
         GameRegistry.registerItem(ItemHorizonWand.INSTANCE, "wand");
+        ItemDebugItem.INSTANCE = new ItemDebugItem();
+        GameRegistry.registerItem(ItemDebugItem.INSTANCE, "debuggey");
 
         BlockDebugIInventory.INSTANCE = new BlockDebugIInventory();
         GameRegistry.registerBlock(BlockDebugIInventory.INSTANCE, "iinv_debug");
