@@ -369,7 +369,7 @@ An integrated-server tick crash aborts the reported run with exit code `2`, reta
 
 After the reported run ends, final client teardown has a separate five-second wall-clock budget. Expiry records `CLIENT_SHUTDOWN`, performs available client restoration and ends the pending teardown without awaiting more frames or screenshot encoding. The result remains an infrastructure error. Tick budgets cannot detect a frozen game loop. Use the bounded launcher for unattended runs and retain `launch-result.json`, `launch.log`, and any thread dump alongside the normal reports.
 
-Client startup failures include the current screen, world/player/server availability and JVM thread stacks in the status JSON and JUnit XML. The parallel CI scenario prepares the client runtime with `:examples:prepareClientTests` before starting its overlap deadline, so cold dependency preparation does not consume the time reserved for booting and exercising two clients.
+Client startup failures include the current screen, world/player/server availability and JVM thread stacks in the status JSON and JUnit XML.
 
 ## Manual laboratories
 

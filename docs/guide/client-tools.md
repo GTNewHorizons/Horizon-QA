@@ -72,12 +72,7 @@ Use repeatable `--gradle-argument=-PusesMixinDebug=false` options for additional
 
 The same inputs are available as Gradle properties: `horizonQaTests`, `horizonQaProjectRoot`, `horizonQaClientTask`, `horizonQaClientReportDir`, `horizonQaTimeoutSeconds`, `horizonQaShutdownSeconds`, `horizonQaJar` and `horizonQaPython`. The supervisor and the isolation init script support configuration cache. `scripts/tests/portable-client-launcher/verify.py` exercises real owned processes without Minecraft, including startup hangs and an unrelated process that must remain alive.
 
-The `Client tests` CI workflow boots real clients under Xvfb. It checks a passing GUI scenario, a late render failure, fatal cleanup propagation, cancellation of an active run and two overlapping clients. It also rejects managed-argument overrides before target startup. It validates both report files, expected exit semantics and orderly process termination, and retains reports, logs, crash reports and screenshots on failure.
-
-Before starting tests, CI prepares the pinned Gradle distribution with `./gradlew --version`. Transient HTTP server errors and connection timeouts allow up to three attempts with 5- and 10-second waits. Other errors stop immediately. The bootstrap log is retained, and this step never repeats a client scenario.
-
-
-The pinned Gradle runtime retries transient dependency repository failures up to five attempts, waiting 5, 10, 20 and 40 seconds between attempts. The repository's `gradle.properties` configures this for local builds and CI. Missing artifacts and authentication failures are not retried. Client scenarios are never rerun by this policy, and existing launcher and CI deadlines still apply.
+The pinned Gradle runtime retries transient dependency repository failures up to five attempts, waiting 5, 10, 20 and 40 seconds between attempts. The repository's `gradle.properties` configures this for local builds and CI. Missing artifacts and authentication failures are not retried. This policy does not retry game scenarios or extend launcher deadlines.
 
 ## Isolated dedicated-server runs
 
