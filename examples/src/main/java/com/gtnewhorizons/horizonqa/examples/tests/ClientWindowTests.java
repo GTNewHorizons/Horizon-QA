@@ -292,9 +292,9 @@ public final class ClientWindowTests {
                 SdlInput.mouse(id, 30, 30, 0, true);
                 SdlInput.mouse(id, 30, 30, 0, false);
             })
-            .awaitClient("unbound mouse handler ran", c -> {
-                if (!screen.get().changed) throw new AssertionError("Offscreen did not dispatch the click");
-            })
+            .awaitClient(
+                "unbound mouse handler ran",
+                c -> { if (!screen.get().changed) throw new AssertionError("Offscreen did not dispatch the click"); })
             .succeed();
     }
 
