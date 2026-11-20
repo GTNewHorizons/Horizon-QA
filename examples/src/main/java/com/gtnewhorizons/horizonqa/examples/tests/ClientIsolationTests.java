@@ -24,6 +24,7 @@ public final class ClientIsolationTests {
 
     @GameTest(template = "client_smoke", timeoutTicks = 300)
     public static void nativeMouseCannotReplaceSyntheticInput(GameTestHelper helper) {
+        helper.assumeTrue(!LwjglInput.usesSdl(), "LWJGL2 supply fixture. Use ClientSdlIsolationTests for SDL input");
         ClientTest.scenario(helper)
             .client("physical mouse input is isolated", client -> {
                 try {
@@ -108,6 +109,7 @@ public final class ClientIsolationTests {
 
     @GameTest(template = "client_smoke", timeoutTicks = 300)
     public static void nativeKeyboardCannotReplaceSyntheticInput(GameTestHelper helper) {
+        helper.assumeTrue(!LwjglInput.usesSdl(), "LWJGL2 supply fixture. Use ClientSdlIsolationTests for SDL input");
         ClientTest.scenario(helper)
             .client("physical keyboard input is isolated", client -> {
                 try {

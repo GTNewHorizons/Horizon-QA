@@ -16,10 +16,11 @@ Client types live in `com.gtnewhorizons.horizonqa.api.client`. Use the [client t
 | `ClientTarget.of(description, resolver)` | Store a stable description and lazy `Function<ClientWindow, ClickTarget>` observation |
 | `ClickTarget(identity, visibleBounds, ready)` | Describe a live widget/domain identity, its clipped GUI rectangle and actual hit-test readiness |
 | `ClientTest.mainWindow()` | Access the session's main window |
+| `ClientTest.offscreenWindow(windowId)` | Bind an existing optional Offscreen window by SDL ID on the client thread |
 
 Attach at most one session per test. A scenario already attaches it and creates the sequence. The session owns the single asynchronous teardown slot. Register client restoration through the scenario or inside a client setup callback. Ordinary `helper.afterTest` callbacks run on the server thread after client teardown.
 
-A `ClientTarget` resolver receives the window currently being observed and runs on the client thread. Return `null` while unavailable and throw for ambiguous or invalid lookup. Resolvers and readiness predicates only observe state. Targets can be reused across steps as the main GUI changes. See [live-target rules](../guide/client-tests.md#targets-that-follow-the-live-gui).
+A `ClientTarget` resolver receives the window currently being observed and runs on the client thread. Return `null` while unavailable and throw for ambiguous or invalid lookup. Resolvers and readiness predicates only observe state. The same target works across main and additional windows. See [live-target rules](../guide/client-tests.md#targets-that-follow-the-live-gui).
 
 ## Scenario methods
 
@@ -27,6 +28,7 @@ A `ClientTarget` resolver receives the window currently being observed and runs 
 |---|---|
 | `useHeldItem()` | Use the equipped item through its configured world-input binding |
 | `awaitScreen(type)` | Wait until the active screen has the requested type |
+| `hover(target)` | Position the main window's virtual pointer and await a rendered frame and target readiness without clicking or scrolling |
 | `click(target)`, `rightClick(target)`, `shiftClick(target)` | Resolve a live target and dispatch a left, right or Shift-left click |
 | `scroll(target, delta)` | Dispatch one signed native wheel event at a live target |
 | `drag(target).to(endpoint).overFrames(n)` | Hold the mouse through rendered movement frames and release at the endpoint |
@@ -58,13 +60,15 @@ Scenario target gestures operate on the session's main window. `client` actions 
 | `screen()` / `screen(ScreenType.class)` | Read or assert the bound window's screen inside a client operation |
 | `click`, `shiftClick`, `scroll`, `drag`, `key` | Target this window through its input backend, using its GUI coordinate system |
 | `click(button, target)`, `shiftClick(button, target)` | Resolve a named `ClientTarget` against this window before the click |
+| `hover(target)` | Position the virtual pointer in this window and await its own rendered frame and target readiness |
 | `scroll(delta, target)` | Send one signed wheel event at a named target in this window |
 | `drag(button, target, endpoint, frames)` | Resolve a named start target and a `Function<ClientWindow, Point>` endpoint in this window |
 | `resize(width, height)` | Request native resize and await the bound window's own completed frame |
 | `capture(checkpoint)` | Save a completed frame of this window and await the PNG write |
+| `close()` | Close a test-owned additional window. Closing the main game window is rejected |
 | `isOpen()` | Observe whether the original bound window still exists |
 
-Named-target click, Shift-click, scroll and drag conveniences accept a `ClientTarget` and resolve it against the bound `ClientWindow`. Queue an assertion with that window after input to verify its effect. The [input and rendering guide](../guide/client-tests.md#input-and-rendering) defines native resize and capture behavior.
+Named-target click, Shift-click, scroll and drag conveniences accept a `ClientTarget` and resolve it against the bound `ClientWindow`. Queue an assertion with that window after input to verify its effect. The [multiple-window guide](../guide/client-tests.md#multiple-windows-and-optional-offscreen-support) defines ownership, prerequisites, pixel units and host limitations.
 
 ## Low-level main-window operations
 

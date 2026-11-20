@@ -39,6 +39,10 @@ public interface WindowDriver {
 
     void release();
 
+    default void detach() {
+        release();
+    }
+
     CompletableFuture<Void> inputConsumed();
 
     CompletableFuture<Void> resize(ClientTest owner, int width, int height);

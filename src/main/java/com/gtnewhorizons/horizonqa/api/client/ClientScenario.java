@@ -69,6 +69,14 @@ public final class ClientScenario {
             .describe("SCREEN_WAIT", "CLIENT");
     }
 
+    /** Moves the main window's virtual pointer to the live target without clicking */
+    public ClientScenario hover(ClientTarget target) {
+        return async(
+            "hover " + target.description,
+            c -> c.mainWindow()
+                .hover(target)).describe("HOVER", "CLIENT");
+    }
+
     /** Left-clicks the live target after a rendered frame and its actual hit-test readiness */
     public ClientScenario click(ClientTarget target) {
         return async(

@@ -6,7 +6,7 @@ import java.lang.reflect.Method;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.lwjgl.opengl.Display;
 
-/** Native resizing of the existing LWJGL 2 window. The normal event loop observes the resulting OS event */
+/** Native resizing of the main window. The normal event loop observes the resulting OS event */
 public final class LwjglWindow {
 
     private LwjglWindow() {}
@@ -15,8 +15,28 @@ public final class LwjglWindow {
         if (width <= 0 || height <= 0) throw new IllegalArgumentException("Window dimensions must be positive");
     }
 
+    static int logicalSizeForPixels(int requested, int logical, int pixels) {
+        if (requested <= 0 || logical <= 0 || pixels <= 0) {
+            throw new IllegalArgumentException("Window dimensions must be positive");
+        }
+        long scaled = (long) requested * logical;
+        if (scaled % pixels != 0 || scaled / pixels > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                "Requested framebuffer dimension " + requested
+                    + " cannot be represented exactly at pixel scale "
+                    + pixels
+                    + "/"
+                    + logical);
+        }
+        return (int) (scaled / pixels);
+    }
+
     public static void resize(int width, int height) {
         validateSize(width, height);
+        if (LwjglInput.usesSdl()) {
+            SdlInput.resizeMainFramebuffer(width, height);
+            return;
+        }
         try {
             Class<?> lockClass = Class.forName("org.lwjgl.opengl.GlobalLock");
             synchronized (FieldUtils.readDeclaredStaticField(lockClass, "lock", true)) {

@@ -25,7 +25,7 @@ Use these guides when you are building, running, or investigating Horizon-QA tes
 : Coordinate ordered steps, delays, tick phases, polling, and bounded waits with `GameTestSequence`.
 
 [Client tests](client-tests.md)
-: Build real-client scenarios with live GUI targets, input gestures and cleanup.
+: Build real-client scenarios with live GUI targets, input gestures, multiple windows and cleanup.
 
 ## Run and diagnose
 
