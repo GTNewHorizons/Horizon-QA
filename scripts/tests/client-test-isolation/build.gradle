@@ -48,11 +48,15 @@ def prepareOutputs = tasks.register('prepareOutputs') {
                 spec.into(new File(reportDirectory, 'game/mods'))
             }
             new File(reportDirectory, 'game/server.properties').text = 'view-distance=4\nonline-mode=true\n'
+            if (!server) {
+                new File(reportDirectory, 'game/options.txt').setText(VerifyRuntimeIsolation.PACK_OPTIONS, 'UTF-8')
+            }
         }
     }
 }
 
 abstract class VerifyRuntimeIsolation extends JavaExec {
+    static final String PACK_OPTIONS = 'guiScale:2\nfov:1.0\nsoundCategory_master:0.8\n'
     @Input
     boolean server
     @Input
@@ -87,7 +91,12 @@ abstract class VerifyRuntimeIsolation extends JavaExec {
             assert new File(workingDir, 'server.properties').text.contains('online-mode=false')
             assert !new File(workingDir, 'options.txt').exists()
         } else {
-            assert new File(workingDir, 'options.txt').text.contains('soundCategory_master:0.5')
+            def options = new File(workingDir, 'options.txt').getText('UTF-8')
+            if (production) {
+                assert options == PACK_OPTIONS
+            } else {
+                assert options == 'soundCategory_master:0.5\nsoundCategory_music:0.0\nsoundCategory_weather:0.0\n'
+            }
         }
         [1, 2, 3, 4, 5].each { index ->
             assert actual[index] != inputsInOrder[index]

@@ -26,6 +26,7 @@ import com.gtnewhorizons.horizonqa.api.client.ClickTarget;
 import com.gtnewhorizons.horizonqa.api.client.ClientTarget;
 import com.gtnewhorizons.horizonqa.api.client.ClientTest;
 import com.gtnewhorizons.horizonqa.api.client.ClientWindow;
+import com.gtnewhorizons.horizonqa.client.SdlInput;
 
 import cpw.mods.fml.common.Loader;
 
@@ -276,6 +277,42 @@ public final class ClientWindowTests {
         public boolean doesGuiPauseGame() {
             return false;
         }
+    }
+
+    @GameTest(template = "client_smoke", timeoutTicks = 600)
+    public static void unboundOffscreenInputFailureDoesNotFailTest(GameTestHelper helper) {
+        requireOffscreen(helper);
+        AtomicReference<FailingScreen> screen = new AtomicReference<>();
+        ClientTest.scenario(helper)
+            .client("open an unbound Offscreen window", c -> {
+                screen.set(new FailingScreen());
+                Object opened = open(screen::get);
+                c.afterTest(() -> closeIfOpen(opened));
+                int id = (Integer) invoke(opened, "getId");
+                SdlInput.mouse(id, 30, 30, 0, true);
+                SdlInput.mouse(id, 30, 30, 0, false);
+            })
+            .awaitClient("unbound mouse handler ran", c -> {
+                if (!screen.get().changed) throw new AssertionError("Offscreen did not dispatch the click");
+            })
+            .succeed();
+    }
+
+    @GameTest(template = "client_smoke", timeoutTicks = 600)
+    public static void offscreenBindingLeavesWindowForOwnerCleanup(GameTestHelper helper) {
+        requireOffscreen(helper);
+        ClientTest.scenario(helper)
+            .client("bind a window owned by the fixture", c -> {
+                Object opened = open(() -> new CounterScreen("Borrowed window"));
+                c.afterTest(() -> {
+                    if (!(Boolean) invoke(opened, "isOpen")) {
+                        throw new AssertionError("Horizon-QA closed the window before its owner cleanup");
+                    }
+                    closeIfOpen(opened);
+                });
+                c.offscreenWindow((Integer) invoke(opened, "getId"));
+            })
+            .succeed();
     }
 
     @GameTest(template = "client_smoke", timeoutTicks = 600)

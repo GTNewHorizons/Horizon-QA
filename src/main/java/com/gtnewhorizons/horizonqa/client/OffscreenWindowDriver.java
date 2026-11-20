@@ -18,7 +18,6 @@ import org.lwjgl.opengl.GL30;
 import org.lwjgl.sdl.SDLVideo;
 
 import com.gtnewhorizons.horizonqa.api.client.ClientTest;
-import com.gtnewhorizons.horizonqa.internal.FatalErrors;
 
 import me.eigenraven.lwjgl3ify.api.Lwjgl3Aware;
 
@@ -27,6 +26,7 @@ import me.eigenraven.lwjgl3ify.api.Lwjgl3Aware;
 public final class OffscreenWindowDriver implements WindowDriver {
 
     private static final Map<Object, OffscreenWindowDriver> WINDOWS = new IdentityHashMap<>();
+    private static final ThreadLocal<OffscreenWindowDriver> CURRENT_WINDOW = new ThreadLocal<>();
     private final Object window;
     private final int id;
     private final FrameCapture capture;
@@ -179,17 +179,38 @@ public final class OffscreenWindowDriver implements WindowDriver {
     public void close() {
         release();
         if (isOpen()) invoke(window, "destroy");
-        closed();
+        detach();
+    }
+
+    @Override
+    public void detach() {
+        if (!WINDOWS.remove(window, this)) return;
+        try {
+            release();
+        } finally {
+            failPending(new IllegalStateException(description() + " no longer belongs to the test"));
+        }
     }
 
     /** Scopes polling to a bound test window during the host's real update and render lifecycle */
     public static void withInput(Object window, Runnable action) {
         OffscreenWindowDriver driver = WINDOWS.get(window);
-        if (driver == null) action.run();
-        else SdlInput.withInputState(driver.id, () -> {
+        OffscreenWindowDriver previous = CURRENT_WINDOW.get();
+        if (driver == null && previous == null) {
             action.run();
-            return null;
-        });
+            return;
+        }
+        CURRENT_WINDOW.set(driver);
+        try {
+            if (driver == null) action.run();
+            else SdlInput.withInputState(driver.id, () -> {
+                action.run();
+                return null;
+            });
+        } finally {
+            if (previous == null) CURRENT_WINDOW.remove();
+            else CURRENT_WINDOW.set(previous);
+        }
     }
 
     /** Matches the active presentation context to its bound test window */
@@ -250,52 +271,28 @@ public final class OffscreenWindowDriver implements WindowDriver {
 
     /** Offscreen logs scoped failures instead of rethrowing them. Preserve them as test failures */
     public static void renderingFailed(Throwable error) {
-        if (!ClientTest.failActive(error)) return;
-        for (OffscreenWindowDriver driver : new ArrayList<>(WINDOWS.values())) {
-            driver.failure = error;
-            List<CompletableFuture<Void>> pending = new ArrayList<>(driver.inputWaiters);
-            driver.inputWaiters.clear();
-            pending.forEach(waiter -> waiter.completeExceptionally(error));
-            if (driver.captureRequest != null) driver.captureRequest.completeExceptionally(error);
-            if (driver.resizeRequest != null) driver.resizeRequest.completeExceptionally(error);
-        }
+        OffscreenWindowDriver driver = CURRENT_WINDOW.get();
+        if (driver == null || WINDOWS.get(driver.window) != driver || !ClientTest.failActive(error)) return;
+        driver.failure = error;
+        driver.failPending(error);
     }
 
     /** Rejects pending work when the exact hosted window is destroyed */
     public static void windowClosed(Object window) {
         OffscreenWindowDriver driver = WINDOWS.get(window);
-        if (driver != null) driver.closed();
+        if (driver != null) driver.detach();
     }
 
-    public static void releaseAll() {
-        List<OffscreenWindowDriver> windows = new ArrayList<>(WINDOWS.values());
-        Throwable failure = null;
-        for (OffscreenWindowDriver driver : windows) {
-            try {
-                driver.close();
-            } catch (RuntimeException | Error e) {
-                if (failure == null) failure = e;
-                else if (failure != e) {
-                    if (FatalErrors.isFatal(e) && !FatalErrors.isFatal(failure)) {
-                        e.addSuppressed(failure);
-                        failure = e;
-                    } else failure.addSuppressed(e);
-                }
-            }
-        }
-        WINDOWS.clear();
-        if (failure instanceof RuntimeException) throw (RuntimeException) failure;
-        if (failure instanceof Error) throw (Error) failure;
-    }
-
-    private void closed() {
-        IllegalStateException error = new IllegalStateException(description() + " closed");
-        if (resizeRequest != null) resizeRequest.completeExceptionally(error);
-        if (captureRequest != null) captureRequest.completeExceptionally(error);
-        inputWaiters.forEach(waiter -> waiter.completeExceptionally(error));
+    private void failPending(Throwable error) {
+        CompletableFuture<Void> resize = resizeRequest;
+        CompletableFuture<File> capture = captureRequest;
+        resizeRequest = null;
+        captureRequest = null;
+        List<CompletableFuture<Void>> pending = new ArrayList<>(inputWaiters);
         inputWaiters.clear();
-        WINDOWS.remove(window);
-        SdlInput.frameConsumed(id);
+        if (resize != null) resize.completeExceptionally(error);
+        if (capture != null) capture.completeExceptionally(error);
+        pending.forEach(waiter -> waiter.completeExceptionally(error));
     }
 
     private void requireOpen() {
