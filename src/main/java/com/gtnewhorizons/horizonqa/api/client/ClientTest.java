@@ -233,7 +233,7 @@ public final class ClientTest {
         return mainWindow;
     }
 
-    /** Binds an existing Offscreen window by SDL ID. Call on the client thread after opening it */
+    /** Binds an existing Offscreen window by SDL ID without taking ownership of it. Call on the client thread */
     public ClientWindow offscreenWindow(int windowId) {
         requireClientThread();
         return additionalWindows.computeIfAbsent(
@@ -376,10 +376,7 @@ public final class ClientTest {
         List<Runnable> teardownActions = new ArrayList<>();
         teardownActions.add(LwjglInput::end);
         for (ClientWindow window : additionalWindows.values()) {
-            teardownActions.add(window::release);
-        }
-        if (!additionalWindows.isEmpty()) {
-            teardownActions.add(com.gtnewhorizons.horizonqa.client.OffscreenWindowDriver::releaseAll);
+            teardownActions.add(window::detach);
         }
         teardownActions.addAll(cleanup);
         teardownActions.add(() -> ClientTestRuntime.setSoundEnabled(HorizonQAProperties.clientSoundEnabled()));
