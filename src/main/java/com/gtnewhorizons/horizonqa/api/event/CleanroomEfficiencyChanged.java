@@ -1,5 +1,7 @@
 package com.gtnewhorizons.horizonqa.api.event;
 
+import java.util.Locale;
+
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.api.TestPos;
 
@@ -14,6 +16,7 @@ public record CleanroomEfficiencyChanged(int tick, TestPos controller, int effic
 
     @Override
     public String summary() {
-        return String.format("Cleanroom efficiency at %s: %.2f %%", controller, efficiencyTenThousandths / 100.0);
+        return String
+            .format(Locale.ROOT, "Cleanroom efficiency at %s: %.2f %%", controller, efficiencyTenThousandths / 100.0);
     }
 }

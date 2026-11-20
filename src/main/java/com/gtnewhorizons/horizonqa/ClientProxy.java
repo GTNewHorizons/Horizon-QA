@@ -26,6 +26,7 @@ public class ClientProxy extends CommonProxy {
             FMLCommonHandler.instance()
                 .bus()
                 .register(clientTests);
+            MinecraftForge.EVENT_BUS.register(clientTests);
         }
         if (!HorizonQAProperties.interactiveFeaturesEnabled()) return;
         WandLabelInput.registerKeyBinding();
