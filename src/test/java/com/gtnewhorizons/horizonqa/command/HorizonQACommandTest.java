@@ -21,6 +21,7 @@ import net.minecraft.world.World;
 import org.junit.After;
 import org.junit.Test;
 
+import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.GameTestArguments;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
@@ -44,6 +45,37 @@ public class HorizonQACommandTest {
         GameTestRunner.shutdown();
         InteractiveTestSession.reset();
         ReportedRun.clearLastResult();
+    }
+
+    @Test
+    public void manualLaunchKeepsTestAndLabelEditingCommandsUnavailableAfterClose() {
+        String property = HorizonQAProperties.MANUAL_SESSION_PROPERTY;
+        String previous = System.getProperty(property);
+        HorizonQACommand command = new HorizonQACommand(catalog(RunnableTests.class));
+        System.setProperty(property, "good:Workshop.prepare");
+        try {
+            RecordingSender sender = new RecordingSender();
+            GameTestRunner lab = new GameTestRunner();
+            assertTrue(lab.tryStartManual(() -> {}, () -> {}));
+            command.processCommand(sender, new String[] { "close" });
+
+            assertEquals(
+                Arrays.asList("close", "pos", "tp", "labels"),
+                command.addTabCompletionOptions(sender, new String[] { "" }));
+            assertEquals(
+                Collections.singletonList("list"),
+                command.addTabCompletionOptions(sender, new String[] { "labels", "" }));
+            for (String[] args : new String[][] { { "runall" }, { "labels", "clear" } }) {
+                RecordingSender blocked = new RecordingSender();
+                command.processCommand(blocked, args);
+                assertTrue(
+                    blocked.messages()
+                        .contains("horizonqa.manual.command_unavailable"));
+            }
+        } finally {
+            if (previous == null) System.clearProperty(property);
+            else System.setProperty(property, previous);
+        }
     }
 
     @Test
