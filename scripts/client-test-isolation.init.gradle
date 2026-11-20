@@ -90,8 +90,10 @@ gradle.projectsEvaluated {
         task.workingDir = gameDirectory
         java.nio.file.Files.createDirectories(task.workingDir.toPath())
         if (client) {
-            new File(task.workingDir, 'options.txt').setText(
-                'soundCategory_master:0.5\nsoundCategory_music:0.0\nsoundCategory_weather:0.0\n', 'UTF-8')
+            File options = new File(task.workingDir, 'options.txt')
+            if (!options.exists()) {
+                options.setText('soundCategory_master:0.5\nsoundCategory_music:0.0\nsoundCategory_weather:0.0\n', 'UTF-8')
+            }
         } else {
             if (properties['horizonQaAcceptEula'] != 'true')
                 throw new GradleException('Server isolation requires explicit EULA acceptance')
