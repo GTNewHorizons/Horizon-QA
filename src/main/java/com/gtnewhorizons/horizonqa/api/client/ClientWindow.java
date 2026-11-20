@@ -82,8 +82,8 @@ public final class ClientWindow {
         return driver.description() + ": " + waitingForInput;
     }
 
-    void release() {
-        driver.release();
+    void detach() {
+        driver.detach();
     }
 
     private GuiScreen requireScreen() {
