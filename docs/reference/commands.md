@@ -12,6 +12,7 @@ Primary command: **`/horizonqa`** (alias **`/qa`**). Requires permission level *
 | Subcommand  | Usage                           | Description                                                               |
 |-------------|---------------------------------|---------------------------------------------------------------------------|
 | `run`       | `/horizonqa run <testId>`       | Run a single test by full id                                              |
+| `close`     | `/horizonqa close`             | Close the active manual laboratory and run its cleanup |
 | `runall`    | `/horizonqa runall [selector]`  | Run all tests, or filter by namespace, holder class, or test-ID prefix    |
 | `runfailed` | `/horizonqa runfailed`          | Re-run failures remembered by the current mode                            |
 | `tp`        | `/horizonqa tp <testId>`        | Teleport to the placed cell for a test ID                                 |
@@ -26,6 +27,8 @@ Primary command: **`/horizonqa`** (alias **`/qa`**). Requires permission level *
 | `labels`    | `/horizonqa labels <subcommand>` | List, remove, or clear labels on the current Horizon Wand                 |
 
 Tab-completion is wired for subcommands, full test ids on `run`, placed test ids on `tp`, namespaces, holder classes, holder ID prefixes, and full test IDs on `runall`, discovered template names on `load`, and label names on `labels remove`.
+
+A [manual laboratory client](../guide/client-tests.md#manual-laboratories) allows only `close`, `pos`, `tp` and `labels list`, including after the lab is closed.
 
 `runall` selectors use the same matching rules as `horizonqa.tests`:
 

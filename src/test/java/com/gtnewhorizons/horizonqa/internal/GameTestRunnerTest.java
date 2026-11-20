@@ -3,6 +3,7 @@ package com.gtnewhorizons.horizonqa.internal;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -85,6 +86,71 @@ public class GameTestRunnerTest {
     public void ticksAreNoOpsWithoutAnOwner() {
         GameTestRunner.handleTickStart();
         GameTestRunner.handleTickEnd();
+    }
+
+    /** Product contract: manual execution stays exclusive until explicit close. */
+    @Test
+    public void manualSessionRetainsOwnershipUntilExplicitClose() {
+        List<String> events = new ArrayList<>();
+        GameTestRunner manual = new GameTestRunner();
+        GameTestRunner competing = new GameTestRunner();
+
+        assertTrue(manual.tryStartManual(() -> events.add("setup"), () -> events.add("cleanup")));
+        tick();
+        assertEquals(1, GameTestRunner.tickMultiplier());
+        assertFalse(competing.tryStart(GameTestRunner.Kind.BATCH, () -> events.add("competing")));
+        assertEquals(Collections.singletonList("setup"), events);
+
+        manual.closeManual();
+        manual.closeManual();
+        assertEquals(Arrays.asList("setup", "cleanup"), events);
+        assertTrue(competing.tryStart(GameTestRunner.Kind.BATCH, () -> {}));
+    }
+
+    /** Bug regression: failed setup and failed cleanup preserve the original exception. */
+    @Test
+    public void failedManualSetupPreservesCauseAndReleasesExecution() {
+        GameTestRunner manual = new GameTestRunner();
+        IllegalStateException setupFailure = new IllegalStateException("setup failed");
+        IllegalArgumentException cleanupFailure = new IllegalArgumentException("cleanup failed");
+
+        IllegalStateException actual = assertThrows(
+            IllegalStateException.class,
+            () -> manual.tryStartManual(() -> { throw setupFailure; }, () -> { throw cleanupFailure; }));
+
+        assertSame(setupFailure, actual);
+        assertArrayEquals(new Throwable[] { cleanupFailure }, actual.getSuppressed());
+        assertTrue(new GameTestRunner().tryStart(GameTestRunner.Kind.BATCH, () -> {}));
+    }
+
+    /** Product contract: laboratory supplies advance on world ticks and stop when the session closes. */
+    @Test
+    public void manualTickSuppliesStopOnClose() {
+        List<String> events = new ArrayList<>();
+        GameTestRunner manual = new GameTestRunner();
+        assertTrue(manual.tryStartManual(() -> manual.onManualTick(() -> events.add("supply")), () -> {}));
+
+        tick();
+        assertEquals(Collections.singletonList("supply"), events);
+        manual.closeManual();
+        tick();
+        assertEquals(Collections.singletonList("supply"), events);
+    }
+
+    @Test
+    public void failedManualTickPreservesCauseAndReleasesExecution() {
+        GameTestRunner manual = new GameTestRunner();
+        IllegalStateException tickFailure = new IllegalStateException("supply failed");
+        IllegalArgumentException cleanupFailure = new IllegalArgumentException("cleanup failed");
+        assertTrue(
+            manual.tryStartManual(
+                () -> manual.onManualTick(() -> { throw tickFailure; }),
+                () -> { throw cleanupFailure; }));
+
+        IllegalStateException actual = assertThrows(IllegalStateException.class, GameTestRunner::handleTickEnd);
+        assertSame(tickFailure, actual);
+        assertArrayEquals(new Throwable[] { cleanupFailure }, actual.getSuppressed());
+        assertTrue(new GameTestRunner().tryStart(GameTestRunner.Kind.BATCH, () -> {}));
     }
 
     @Test

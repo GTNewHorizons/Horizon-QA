@@ -6,8 +6,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a class that holds static {@link GameTest} methods. {@link #value()} is the template namespace
- * (e.g. mod id) used when resolving structure paths.
+ * Groups static {@link GameTest} methods and manual laboratory setups under one namespace. {@link #value()} is the
+ * template namespace, usually the mod id, used when resolving structure paths.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
@@ -26,8 +26,8 @@ public @interface GameTestHolder {
     String[] requiredMods() default {};
 
     /**
-     * Requires an explicitly enabled integrated-client test run. Dedicated servers exclude these holders before class
-     * loading. Common holders with the default value are available on both runtimes
+     * Requires an explicitly enabled integrated-client test run or manual laboratory. Dedicated servers exclude these
+     * holders before class loading. Common holders with the default value are available on both runtimes.
      */
     boolean clientOnly() default false;
 }

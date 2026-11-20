@@ -17,6 +17,7 @@ import net.minecraft.world.WorldServer;
 import net.minecraft.world.WorldSettings;
 import net.minecraft.world.WorldType;
 import net.minecraftforge.common.DimensionManager;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.world.WorldEvent;
 
@@ -68,9 +69,18 @@ public final class ClientTestRuntime {
         running = true;
     }
 
-    /** Effective client audio level. The configured value remains available to options persistence */
+    /** Effective automated-test or manual-lab audio level. Saving options retains the configured value. */
     public static float soundLevel(SoundCategory category, float configuredLevel) {
-        return running && !soundEnabled ? 0.0F : configuredLevel;
+        if (!running) return configuredLevel;
+        if (!HorizonQAProperties.manualSessionId()
+            .isEmpty()) {
+            return switch (category) {
+                case MUSIC, WEATHER, MOBS, ANIMALS -> 0.0F;
+                case MASTER, BLOCKS -> 0.5F;
+                default -> configuredLevel;
+            };
+        }
+        return soundEnabled ? configuredLevel : 0.0F;
     }
 
     /** Internal client-thread override. Saved volume settings remain unchanged */
@@ -99,7 +109,7 @@ public final class ClientTestRuntime {
 
     @SubscribeEvent
     public void worldLoad(WorldEvent.Load event) {
-        if (!event.world.isRemote) {
+        if (HorizonQAProperties.clientAutomationEnabled() && !event.world.isRemote) {
             event.world.getGameRules()
                 .setOrCreateGameRule("doMobSpawning", Boolean.toString(mobsEnabled));
         }
@@ -107,7 +117,9 @@ public final class ClientTestRuntime {
 
     @SubscribeEvent
     public void entityJoin(EntityJoinWorldEvent event) {
-        if (!event.world.isRemote && !mobsEnabled && event.entity instanceof EntityLiving) event.setCanceled(true);
+        if (HorizonQAProperties.clientAutomationEnabled() && !event.world.isRemote
+            && !mobsEnabled
+            && event.entity instanceof EntityLiving) event.setCanceled(true);
     }
 
     /** Records the actual local connection returned by Minecraft's integrated-server bootstrap */
@@ -164,7 +176,7 @@ public final class ClientTestRuntime {
     @SubscribeEvent
     public void clientTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.START) {
-            LwjglInput.isolateInput();
+            if (HorizonQAProperties.clientAutomationEnabled()) LwjglInput.isolateInput();
             ClientTest.tick(ClientTaskQueue.Phase.START);
             return;
         }
@@ -176,10 +188,19 @@ public final class ClientTestRuntime {
                 .getAbsoluteFile()
                 .getParentFile(),
             "stop-client");
-        if (finished == null && stop.isFile()) {
+        if (HorizonQAProperties.clientAutomationEnabled() && finished == null && stop.isFile()) {
             failClient("CLIENT_DEADLINE", "External wall-clock deadline exceeded");
         }
         if (finished == null && ready && mc.theWorld == null) {
+            if (!HorizonQAProperties.manualSessionId()
+                .isEmpty()) {
+                running = false;
+                FMLCommonHandler.instance()
+                    .bus()
+                    .unregister(this);
+                MinecraftForge.EVENT_BUS.unregister(this);
+                return;
+            }
             failClient("CLIENT_WORLD_LOST", "Client world was unloaded before the test run completed");
         }
         if (finished != null) {
@@ -216,10 +237,12 @@ public final class ClientTestRuntime {
     }
 
     private void launchScratchWorld(Minecraft mc) {
-        if (!HorizonQAProperties.isCi() || !HorizonQAProperties.autoRunTests()
+        boolean manual = !HorizonQAProperties.manualSessionId()
+            .isEmpty();
+        if (!manual && (!HorizonQAProperties.isCi() || !HorizonQAProperties.autoRunTests()
             || !HorizonQAProperties.stopServerAfterRun()
             || HorizonQAProperties.usesVoidWorld()
-            || HorizonQAProperties.turboMultiplier() != 1) {
+            || HorizonQAProperties.turboMultiplier() != 1)) {
             failStartup("Client tests require CI mode, world=normal, autoRun=true, stopServer=true and turbo=1");
             return;
         }
@@ -229,9 +252,11 @@ public final class ClientTestRuntime {
             failStartup("Scratch save unexpectedly exists: " + directory);
             return;
         }
-        originalGuiScale = mc.gameSettings.guiScale;
-        settingsChanged = true;
-        mc.gameSettings.guiScale = 1;
+        if (!manual) {
+            originalGuiScale = mc.gameSettings.guiScale;
+            settingsChanged = true;
+            mc.gameSettings.guiScale = 1;
+        }
         HorizonQAMod.LOG.info("CLIENT_TEST scratchWorld={}", directory.getAbsolutePath());
         WorldSettings settings = new WorldSettings(0L, WorldSettings.GameType.CREATIVE, false, false, WorldType.FLAT);
         settings.enableCommands();
@@ -298,7 +323,13 @@ public final class ClientTestRuntime {
     public synchronized void serverTick(TickEvent.ServerTickEvent event) {
         if (event.phase == TickEvent.Phase.END && ready && !startedTests && finished == null) {
             startedTests = true;
-            startTests.run();
+            try {
+                startTests.run();
+            } catch (RuntimeException | Error failure) {
+                if (HorizonQAProperties.manualSessionId()
+                    .isEmpty()) throw failure;
+                failClient("MANUAL_SETUP", ExceptionUtils.getStackTrace(failure));
+            }
         }
     }
 

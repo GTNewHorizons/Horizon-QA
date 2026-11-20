@@ -24,7 +24,13 @@ See [Client tests](../guide/client-tests.md) for bootstrap, isolation and runtim
 
 ## `horizonqa.client.sound`
 
+For manual laboratories, see the separate [lab audio profile](../guide/client-tests.md#audio-and-gameplay-settings).
+
 Automatic client sessions enabled by `-Dhorizonqa.client=true` silence all sound categories by default. Set `-Dhorizonqa.client.sound=true` to use the configured sound levels as the run default. A scenario can override this with `sound(true)` or `sound(false)`, and teardown restores the run default. The override applies to effective playback levels, including startup, and does not change saved user options or normal interactive gameplay. Pass each property through a separate `--mcJvmArgs` when invoking `runClient`. See [automatic session behavior](../guide/client-tests.md#automated-session-behavior) for isolated options and physical input handling.
+
+## `horizonqa.manualSession`
+
+Select a public static `@ManualSession.Setup` method by `namespace:Holder.method` in an integrated client. For example, pass `--mcJvmArgs=-Dhorizonqa.manualSession=horizonqaexamples:ManualLaboratoryExample.prepare` to `:examples:runClient`. The selector starts a manually controlled laboratory without an automated verdict or execution timeout. It takes precedence over automatic client execution. A dedicated server rejects this client-only mode. See [manual laboratories](../guide/client-tests.md#manual-laboratories) for setup, ownership and cleanup.
 
 ## `horizonqa.mode`
 

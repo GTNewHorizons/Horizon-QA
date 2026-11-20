@@ -5,6 +5,10 @@ description: Reference for @GameTest, @GameTestHolder, parameter sources, and ba
 
 # Annotations
 
+## `@ManualSession.Setup`
+
+Marks a public static `void name(ManualSession session)` method inside a `@GameTestHolder`. Select it with `horizonqa.manualSession=namespace:Holder.name`. It prepares a manual laboratory and has no automatic test verdict or execution timeout. The method runs on the server thread after the integrated client is ready. See [manual laboratories](../guide/client-tests.md#manual-laboratories) for lifecycle and cleanup.
+
 ## `@GameTest`
 
 Marks a public static test method with signature `void name(GameTestHelper helper)`. With `@MethodSource`, supplied

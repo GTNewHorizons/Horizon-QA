@@ -21,6 +21,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.ChatStyle;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
@@ -52,7 +53,8 @@ import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
 public class HorizonQACommand extends CommandBase {
 
     private static final String[] SUBCOMMANDS = { "run", "runall", "runfailed", "tp", "runthis", "runthat", "pos",
-        "clearall", "load", "export", "clear", "label", "labels" };
+        "clearall", "load", "export", "clear", "label", "labels", "close" };
+    private static final String[] LAB_SUBCOMMANDS = { "close", "pos", "tp", "labels" };
     private static final String[] LABEL_SUBCOMMANDS = { "list", "remove", "clear" };
 
     private final GameTestCatalog catalog;
@@ -68,7 +70,22 @@ public class HorizonQACommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/horizonqa <run|runall|runfailed|tp|runthis|runthat|pos|clearall|load|export|clear|label|labels>";
+        return "/horizonqa <" + String.join("|", subcommands()) + ">";
+    }
+
+    private static boolean manualLaboratory() {
+        return !HorizonQAProperties.manualSessionId()
+            .isEmpty();
+    }
+
+    private static String[] subcommands() {
+        return manualLaboratory() ? LAB_SUBCOMMANDS : SUBCOMMANDS;
+    }
+
+    private static boolean allowedInLaboratory(String[] args) {
+        if ("labels".equals(args[0])) return args.length == 2 && "list".equals(args[1]);
+        return Arrays.asList(LAB_SUBCOMMANDS)
+            .contains(args[0]);
     }
 
     @Override
@@ -89,7 +106,14 @@ public class HorizonQACommand extends CommandBase {
                 .addChatMessage(new ChatComponentText(EnumChatFormatting.YELLOW + "Usage: " + getCommandUsage(sender)));
             return;
         }
+        if (manualLaboratory() && !allowedInLaboratory(args)) {
+            sender.addChatMessage(new ChatComponentTranslation("horizonqa.manual.command_unavailable"));
+            return;
+        }
         switch (args[0]) {
+            case "close":
+                GameTestRunner.closeActiveManual();
+                break;
             case "run":
                 handleRun(sender, args);
                 break;
@@ -140,7 +164,13 @@ public class HorizonQACommand extends CommandBase {
     @SuppressWarnings("rawtypes")
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, SUBCOMMANDS);
+            return getListOfStringsMatchingLastWord(args, subcommands());
+        }
+        if (manualLaboratory()) {
+            if (args.length == 2 && "labels".equals(args[0])) {
+                return getListOfStringsMatchingLastWord(args, "list");
+            }
+            if (!"tp".equals(args[0])) return null;
         }
         if (args.length == 2) {
             if ("run".equals(args[0])) {

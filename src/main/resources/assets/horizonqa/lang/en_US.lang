@@ -75,3 +75,5 @@ horizonqa.wand.freecam.disabled=Editor closed.
 key.categories.horizonqa=Horizon QA
 key.horizonqa.label=Label Horizon Wand target
 key.horizonqa.freecam=Toggle Horizon Editor
+
+horizonqa.manual.command_unavailable=Only /qa close, /qa pos, /qa tp and /qa labels list are available in a manual laboratory client

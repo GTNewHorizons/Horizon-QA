@@ -12,6 +12,7 @@ public final class HorizonQAProperties {
 
     public static final String MODE_PROPERTY = "horizonqa.mode";
     public static final String CLIENT_PROPERTY = "horizonqa.client";
+    public static final String MANUAL_SESSION_PROPERTY = "horizonqa.manualSession";
     public static final String CLIENT_SOUND_PROPERTY = "horizonqa.client.sound";
     public static final String WORLD_PROPERTY = "horizonqa.world";
     public static final String AUTO_RUN_PROPERTY = "horizonqa.autoRun";
@@ -37,9 +38,20 @@ public final class HorizonQAProperties {
 
     private HorizonQAProperties() {}
 
-    /** Explicit opt-in for automated tests in an isolated integrated client */
+    /** Enables an isolated integrated client for automated tests or a selected manual laboratory. */
     public static boolean clientTestsEnabled() {
-        return CLIENT_TESTS;
+        return CLIENT_TESTS || !manualSessionId().isEmpty();
+    }
+
+    /** Enables automated input isolation and cursor control in the integrated client. */
+    public static boolean clientAutomationEnabled() {
+        return clientTestsEnabled() && manualSessionId().isEmpty();
+    }
+
+    /** Explicit laboratory selector, using the same namespace:Holder.method identity as test discovery. */
+    public static String manualSessionId() {
+        return System.getProperty(MANUAL_SESSION_PROPERTY, "")
+            .trim();
     }
 
     /** Enables configured sound levels in otherwise silent automated client sessions without changing saved options */
