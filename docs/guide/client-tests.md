@@ -411,7 +411,7 @@ Register `onClose` before changing a fixture or global state. A lab does not aut
 
 Use `onTick` for continuing supply after each real world tick, such as replenishing energy. Production machines retain their processing and validation. Supply callbacks stop when the session closes.
 
-`/qa close`, leaving the world and server shutdown release the session and run cleanup. `/qa close` leaves the world open. While a lab owns execution, another test or lab cannot acquire it. HQA commands that mutate fixtures are blocked until closure. Position and teleport queries remain available. Closing twice has no additional effect.
+`/qa close`, leaving the world and server shutdown release the session and run cleanup. `/qa close` leaves the world open, and closing twice has no additional effect. A client launched as a manual lab offers only `/qa close`, `/qa pos`, `/qa tp` and `/qa labels list`, even after closure. Launch a separate test client to run automated tests.
 
 ### Audio and gameplay settings
 

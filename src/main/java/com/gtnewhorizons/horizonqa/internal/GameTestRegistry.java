@@ -101,7 +101,7 @@ public final class GameTestRegistry {
         return discoverTests(
             asmData,
             modLoaded,
-            HorizonQAProperties.clientTestsEnabled() && FMLCommonHandler.instance()
+            HorizonQAProperties.clientAutomationEnabled() && FMLCommonHandler.instance()
                 .getSide()
                 .isClient());
     }

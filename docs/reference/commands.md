@@ -28,6 +28,8 @@ Primary command: **`/horizonqa`** (alias **`/qa`**). Requires permission level *
 
 Tab-completion is wired for subcommands, full test ids on `run`, placed test ids on `tp`, namespaces, holder classes, holder ID prefixes, and full test IDs on `runall`, discovered template names on `load`, and label names on `labels remove`.
 
+A [manual laboratory client](../guide/client-tests.md#manual-laboratories) allows only `close`, `pos`, `tp` and `labels list`, including after the lab is closed.
+
 `runall` selectors use the same matching rules as `horizonqa.tests`:
 
 - an unqualified token matches either a namespace or a holder's simple or fully qualified class name,
